@@ -1,3 +1,5 @@
+## UX Improvements Branch
+Work in progress: improving user flow and app experience.
 # clipCart 🛒
 
 A modern, feature-rich e-commerce mobile application built with React Native and Expo. clipCart combines shopping, live streaming, and social features to create an engaging shopping experience.
