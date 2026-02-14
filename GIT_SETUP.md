@@ -64,6 +64,48 @@ git log
 git remote -v
 ```
 
+## Pushing to Another Branch
+
+### Option 1: Create a New Branch and Push
+```bash
+# Create and switch to a new branch
+git checkout -b new-branch-name
+
+# Or using newer syntax
+git switch -c new-branch-name
+
+# Stage and commit your changes (if not already committed)
+git add .
+git commit -m "Your commit message"
+
+# Push the new branch to remote
+git push -u origin new-branch-name
+```
+
+### Option 2: Push Current Branch to a Different Remote Branch
+```bash
+# Push your current branch to a different branch name on remote
+git push -u origin current-branch-name:remote-branch-name
+```
+
+### Option 3: Switch to Existing Branch and Push
+```bash
+# Switch to an existing branch
+git checkout branch-name
+
+# Or using newer syntax
+git switch branch-name
+
+# Make sure your changes are committed, then push
+git push -u origin branch-name
+```
+
+### Option 4: Push All Branches
+```bash
+# Push all local branches to remote
+git push --all origin
+```
+
 ## Common Issues
 
 ### If you get "remote origin already exists"

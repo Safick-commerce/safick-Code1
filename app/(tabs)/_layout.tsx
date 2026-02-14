@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 
 export default function TabsLayout() {
@@ -28,7 +28,7 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={30} color={color} />
+            <MaterialCommunityIcons name={focused ? "home" : "home-variant-outline"} size={30} color={color} />
           ),
         }}
       />
@@ -37,7 +37,7 @@ export default function TabsLayout() {
         options={{
           title: "Categories",
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "grid" : "grid-outline"} size={30} color={color} />
+            <MaterialCommunityIcons name="text-search" size={30} color={color} />
           ),
         }}
       />
@@ -48,6 +48,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={30} color={color} />
           ),
+          tabBarStyle: { display: 'none' }, // Hide tab bar when sell screen is active
         }}
       />
       <Tabs.Screen
@@ -66,6 +67,24 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? "person" : "person-outline"} size={30} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="userTab"
+        options={{
+          href: null, // Hide from tab bar but keep accessible via navigation
+        }}
+      />
+      <Tabs.Screen
+        name="productDetails"
+        options={{
+          href: null, // Hide from tab bar but keep accessible via navigation
+        }}
+      />
+      <Tabs.Screen
+        name="userprofile"
+        options={{
+          href: null, // Hide from tab bar but keep accessible via navigation
         }}
       />
     </Tabs>

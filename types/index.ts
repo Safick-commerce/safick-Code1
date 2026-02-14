@@ -64,3 +64,16 @@ export interface Category {
   imageUrl?: string;
 }
 
+// Live/Seller types
+export interface LivePost {
+  id: string;
+  sellerName: string;
+  imageUrl: string | number; // Supports both URI strings and local require() numbers
+  description: string;
+  isLive?: boolean;
+  viewerCount?: number;
+  category?: string;
+}
+
+export type CategoryFilter = "All" | "Shoes" | "Women" | "Men" | "Kids" | "Accessories" | "Beauty" | "Home";
+

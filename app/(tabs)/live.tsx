@@ -1,33 +1,81 @@
-import { Text, View, StyleSheet, TouchableOpacity, TextInput, ScrollView } from "react-native";
+import { View, StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import CategoryFilters from "../../components/live/CategoryFilters";
+import LivePostsGrid from "../../components/live/LivePostsGrid";
+import { CategoryFilter, LivePost } from "../../types";
 
 // Route constants for security
 const ROUTES = {
-  CAMERA: "/camera",
   NOTIFICATIONS: "/notifications",
 } as const;
 
-export default function CategoriesScreen() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState("All");
+// Category constants - matches type definition
+const CATEGORIES = ["All", "Shoes", "Women", "Men", "Kids", "Accessories", "Beauty", "Home"] as const satisfies readonly CategoryFilter[];
 
+// Mock data - in production, this would come from an API or state management
+const MOCK_LIVE_POSTS: LivePost[] = [
+  {
+    id: "1",
+    sellerName: "Tracy",
+    imageUrl: require("../../assets/images/seller3.jpeg"),
+    description: "Affordable Mufflers for ladys and 100k givaway to the first 100 customers",
+  },
+  {
+    id: "2",
+    sellerName: "Emily shop",
+    imageUrl: require("../../assets/images/seller4.jpeg"),
+    description: "Affordable Mufflers and Gears for men and 100k givaway to the first 100 customers",
+  },
+  {
+    id: "3",
+    sellerName: "Tracy",
+    imageUrl: require("../../assets/images/seller3.jpeg"),
+    description: "Affordable Mufflers for ladys and 100k givaway to the first 100 customers",
+  },
+  {
+    id: "4",
+    sellerName: "Emily shop",
+    imageUrl: require("../../assets/images/seller4.jpeg"),
+    description: "Affordable Mufflers and Gears for men and 100k givaway to the first 100 customers",
+  },
+];
+
+export default function LiveScreen() {
+  const router = useRouter();
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced search handler
   const handleSearchChange = useCallback((text: string) => {
     const sanitized = text.replace(/[<>\"']/g, '');
     setSearchQuery(sanitized);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer for debouncing (300ms delay)
+    debounceTimerRef.current = setTimeout(() => {
+      // TODO: Implement actual search logic here
+      console.log("Searching for:", sanitized);
+    }, 300);
   }, []);
 
-  const handleCameraPress = useCallback(() => {
-    try {
-      router.push(ROUTES.CAMERA as any);
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  }, [router]);
-  const handleHeartPress = useCallback(() => {
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleNotificationPress = useCallback(() => {
     try {
       router.push(ROUTES.NOTIFICATIONS);
     } catch (error) {
@@ -35,13 +83,25 @@ export default function CategoriesScreen() {
     }
   }, [router]);
 
+  const handleCategoryChange = useCallback((category: CategoryFilter) => {
+    setActiveCategory(category);
+    // TODO: Filter posts based on category
+  }, []);
 
+  // Filter posts based on active category (when category filtering is implemented)
+  const filteredPosts = useMemo(() => {
+    // For now, return all posts. In production, filter based on category
+    if (activeCategory === "All") {
+      return MOCK_LIVE_POSTS;
+    }
+    // TODO: Implement category-based filtering when post categories are added
+    return MOCK_LIVE_POSTS;
+  }, [activeCategory]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header Section */}
       <View style={[styles.headerOverlay, styles.headerSection]}>
-        {/* Search Bar with Action Icons */}
         <View style={styles.headerRow}>
           {/* Search Bar */}
           <View style={styles.searchBarContainer}>
@@ -60,10 +120,10 @@ export default function CategoriesScreen() {
           </View>
 
           {/* Action Icon */}
-          <View style={styles.iconcontainer}>
+          <View style={styles.iconContainer}>
             <TouchableOpacity
-              onPress={handleHeartPress}
-              accessibilityLabel="Heart"
+              onPress={handleNotificationPress}
+              accessibilityLabel="Notifications"
               accessibilityRole="button"
             >
               <Ionicons name="notifications-outline" size={30} color="#000000" />
@@ -72,112 +132,15 @@ export default function CategoriesScreen() {
         </View>
       </View>
 
-      {/* Filter Containers */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersContainer}
-        style={styles.filtersScrollView}
-      >
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "All" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("All")}
-        >
-          <Text
-            style={[
-              styles.filterText,
-              activeTab === "All" && styles.filterTextActive,
-            ]}
-          >
-            All
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "Shoes" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("Shoes")}
-        >
-          <Text 
-          style={[
-            styles.filterText,
-            activeTab === "Shoes" && styles.filterTextActive,
-          ]}> 
-            Shoes
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "Women" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("Women")}
-        >
-          <Text 
-          style={[
-            styles.filterText,
-            activeTab === "Women" && styles.filterTextActive,
-          ]}>
-            Women
+      {/* Category Filters */}
+      <CategoryFilters
+        categories={CATEGORIES}
+        activeCategory={activeCategory}
+        onCategoryChange={handleCategoryChange}
+      />
 
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "Men" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("Men")}
-        >
-          <Text 
-          style={[
-            styles.filterText,
-            activeTab === "Men" && styles.filterTextActive,
-          ]}>
-            Men
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "Kids" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("Kids")}
-        >
-          <Text style={[styles.filterText, activeTab === "Kids" && styles.filterTextActive]}>Kids</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "Accessories" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("Accessories")}
-        >
-          <Text style={[styles.filterText, activeTab === "Accessories" && styles.filterTextActive]}>Accessories</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "Beauty" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("Beauty")}
-        >
-          <Text style={[styles.filterText, activeTab === "Beauty" && styles.filterTextActive]}>Beauty</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            activeTab === "Home" && styles.filterButtonActive,
-          ]}
-          onPress={() => setActiveTab("Home")}
-        >
-          <Text style={[styles.filterText, activeTab === "Home" && styles.filterTextActive]}>Home</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      {/* Live Posts Grid */}
+      <LivePostsGrid posts={filteredPosts} postsPerRow={2} />
     </SafeAreaView>
   );
 }
@@ -187,18 +150,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  iconcontainer: {
+  iconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginLeft: 'auto',
-    
   },
   headerSection: {
     paddingHorizontal: 6,
-    paddingTop: 55,
-    paddingBottom: 0,
-    backgroundColor: '#ffffff', // Semi-transparent white
+    paddingTop: 5,
+    paddingBottom: 10,
+    backgroundColor: '#ffffff',
   },
   headerOverlay: {
     position: 'relative',
@@ -218,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#FF2800', // primary-600
+    borderColor: '#000000',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -229,45 +191,8 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
-    padding: 6, // Remove default padding
-    includeFontPadding: false, // Better text alignment on Android
+    padding: 6,
+    includeFontPadding: false,
     textAlignVertical: 'center',
-  },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    backgroundColor: '#ffffff',
-  },
-  filtersScrollView: {
-    maxHeight: 60,
-  },
-  filtersContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 15,
-    alignItems: 'center',
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-  },
-  filterButtonActive: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  filterTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
 });

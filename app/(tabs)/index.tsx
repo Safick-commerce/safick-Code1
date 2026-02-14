@@ -12,7 +12,7 @@ const TABS = ["Discover", "For you", "Following"] as const;
 
 // Route constants for security
 const ROUTES = {
-  CART: "/cart",
+  SAVED: "/wishlist",
   MESSAGES: "/messages",
   NOTIFICATIONS: "/notifications",
 } as const;
@@ -24,9 +24,9 @@ export default function Index() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Navigation handlers with error handling
-  const handleCartPress = useCallback(() => {
+  const handleSavedPress = useCallback(() => {
     try {
-      router.push(ROUTES.CART);
+      router.push(ROUTES.SAVED);
     } catch (error) {
       console.error("Navigation error:", error);
       // Could show user-friendly error message
@@ -112,7 +112,7 @@ export default function Index() {
   }, []); // Only run once on mount
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header Section */}
       <View style={[styles.headerOverlay, styles.headerSection]}>
         {/* Search Bar with Action Icons */}
@@ -135,13 +135,13 @@ export default function Index() {
 
           {/* Action Icons */}
           <View style={styles.iconsContainer}>
-            {/* Cart Icon */}
+            {/* Saved / Wishlist Icon */}
             <TouchableOpacity 
-              onPress={handleCartPress}
-              accessibilityLabel="Shopping cart"
+              onPress={handleSavedPress}
+              accessibilityLabel="Saved items"
               accessibilityRole="button"
             >
-              <Ionicons name="cart-outline" size={30} color="#000000" />
+              <Ionicons name="heart-outline" size={30} color="#000000" />
             </TouchableOpacity>
 
             {/* Message Icon */}
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     paddingHorizontal: 6,
-    paddingTop: 55,
+    paddingTop: 2,
     paddingBottom: 0,
     backgroundColor: '#ffffff', // Semi-transparent white
   },
@@ -239,6 +239,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexDirection: 'row',
+    paddingBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#FF2800', // primary-600
+    borderColor: '#000000', // primary-600
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
