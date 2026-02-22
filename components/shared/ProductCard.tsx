@@ -51,6 +51,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 4,
     minHeight: 70,
+    minWidth: 280,
   },
   productInfoRow: {
     flexDirection: 'row',

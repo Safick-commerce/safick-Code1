@@ -1,6 +1,6 @@
 import { Text, View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, AntDesign } from "@expo/vector-icons";
+import { Ionicons, AntDesign, FontAwesome5 } from "@expo/vector-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import DiscoverTab from "../../components/tabs/DiscoverTab";
@@ -141,7 +141,7 @@ export default function Index() {
               accessibilityLabel="Saved items"
               accessibilityRole="button"
             >
-              <Ionicons name="heart-outline" size={30} color="#000000" />
+              <FontAwesome5 name="heart" size={30} color="#000000" />
             </TouchableOpacity>
 
             {/* Message Icon */}

@@ -97,7 +97,7 @@ git checkout branch-name
 git switch branch-name
 
 # Make sure your changes are committed, then push
-git push -u origin branch-name
+git push -u origin branch-name # push to branch 
 ```
 
 ### Option 4: Push All Branches

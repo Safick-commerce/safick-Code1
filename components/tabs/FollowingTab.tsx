@@ -1,84 +1,49 @@
 import { View, Text, StyleSheet, Dimensions, Image, ImageBackground, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
-import ProductCard from "../shared/ProductCard";
-import VideoSideIcons from "../shared/VideoSideIcons";
+import { useCallback } from "react";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DiscoverTab from "./DiscoverTab";
 import { FEED_PRODUCTS } from "../../data/feedProducts";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Route constants for security
 const ROUTES = {
-  PRODUCT_DETAILS: "/productDetails",
-  USER_PROFILE: "/userprofile",
+  DISCOVER_SELLERS: "/components/tabs/DiscoverTab",
 } as const;
 
 export default function ForYouTab() {
   const router = useRouter();
-  const [isFollowing, setIsFollowing] = useState(false);
 
-  const handleProductDetailsPress = useCallback(() => {
+  const handleDiscoverSellersPress = useCallback(() => {
     try {
-      router.push(ROUTES.PRODUCT_DETAILS);
+      // Use the DiscoverTab as a component or the correct registered route
+      router.push(ROUTES.DISCOVER_SELLERS as any);
     } catch (error) {
       console.error("Navigation error:", error);
     }
   }, [router]);
 
-  const handleUserProfilePress = useCallback(() => {
-    try {
-      router.push(ROUTES.USER_PROFILE);
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  }, [router]);
-
-  return (
-    <ImageBackground 
-      source={require('../../assets/images/Seller 10.jpeg')}
-      style={styles.container}
-      resizeMode="cover"
-    >
-      {/* Profile header: avatar + username in one container */}
-      <View style={styles.profileHeaderContainer}>
-        <TouchableOpacity style={styles.profileCircleContainer} onPress={handleUserProfilePress}>
-          <View style={styles.profileCircle}>
-            <Image
-              source={require('../../assets/images/Seller 10.jpeg')}
-              style={styles.profileCircleImage}
-              resizeMode="cover"
-            />
-          </View>
-        </TouchableOpacity>
-        <View style={styles.usernameContainer}>
-          <Text style={styles.username}>Helena Hills</Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.followButton} 
-          onPress={() => setIsFollowing(!isFollowing)}
-        >
-          <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-            {isFollowing ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ProductCard
-        product={FEED_PRODUCTS.workoutSet}
-        onPress={handleProductDetailsPress}
-        containerStyle={styles.productCardPosition}
-      />
-
-      {/* User Info and Product Description */}
-      <View style={styles.userInfoContainer}>
-        <Text style={styles.productDescription}>
-          This is a pink up and down everything perfect for summer vibe. 
-          #fashion #ootd
-        </Text>
-      </View>
-
-      <VideoSideIcons />
-    </ImageBackground>
+  return ( 
+    <View style={styles.container}>
+       {/* Profile Section */}
+       <View style={styles.profileSection}>
+                <View style={styles.avatarContainer}>
+                    <Image
+                        style={styles.avatar}
+                        resizeMode="cover"
+                    />
+                </View>
+                <Text style={styles.noPostsYetText}>No posts yet</Text>
+                <Text style={styles.noPostsYetSubtext}>Follow sellers in Cameroon to see{'\n'}their atest products and deals{'\n'}here</Text>
+                <TouchableOpacity 
+                style={styles.discoverSellersButton}
+                onPress={handleDiscoverSellersPress}>
+                  <MaterialCommunityIcons name="apple-safari" size={30} color="#ffffff" />
+                    <Text style={styles.discoverSellersButtonText}>Discover Sellers</Text>
+                </TouchableOpacity>
+            </View>
+    </View>
   );
 }
 
@@ -87,87 +52,49 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     flex: 1,
   },
-  contentContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  profileSection: {
     alignItems: 'center',
+    paddingTop: 30,
+    paddingBottom: 16,
   },
-  productCardPosition: {
-    bottom: 60,
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 40,
+    alignSelf: 'center',
+    backgroundColor: '#E2E8F0',
   },
-  userInfoContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 16,
-    right: 80, // Leave space for right icons
-    paddingRight: 16,
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  profileHeaderContainer: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 100,
+  noPostsYetText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#0F172A',
+    fontFamily: 'Inter',
+    alignSelf: 'center',
+  },
+  noPostsYetSubtext: {
+    fontSize: 16,
+    color: '#64748B',
+    marginBottom: 12,
+    textAlign: 'center',
+    fontFamily: 'Inter',
+  },
+  discoverSellersButton: {
+    backgroundColor: '#FF2800',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  usernameContainer: {
-    flexShrink: 0,
-  },
-  username: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    marginBottom: 4,
-  },
-  followButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
-    paddingHorizontal: 20,
-    paddingVertical: 5,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  followButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  discoverSellersButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
-    fontFamily: 'Inter',
-  },
-  followButtonTextActive: {
-    color: '#000000',
-  },
-  productDescription: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    lineHeight: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  profileCircleContainer: {},
-  profileCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#000000',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  profileCircleImage: {
-    width: '100%',
-    height: '100%',
   },
 });

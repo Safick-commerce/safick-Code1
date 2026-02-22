@@ -45,7 +45,79 @@ clipCart operates as a **social commerce marketplace** — a hybrid of TikTok-st
 - **Primary Payment Methods**: Orange Money, Mobile Money
 - **Languages**: English, French (bilingual support)
 - **Currency**: Central African CFA Franc (XAF)
-- **Launch Target**: 2026
+- **Launch City**: Douala (expanding nationwide after traction)
+- **Launch Target**: Mid 2026
+
+### Target Users
+
+clipCart serves two distinct user types:
+
+**Buyers (Primary User)**
+- Young adults (18-35) in Douala, Cameroon
+- Active smartphone users comfortable with social media (WhatsApp, TikTok, Facebook)
+- Currently discover products through WhatsApp stories and word of mouth
+- Prefer mobile money (Orange Money) or cash on delivery for transactions
+- Value video content -- want to see products in action before purchasing
+- Bilingual (English / French)
+
+**Sellers (Supply Side)**
+- Small to medium business owners and independent vendors in Douala
+- Fashion, beauty, accessories, shoes, and home goods sellers
+- Already create product videos but distribute them manually via WhatsApp
+- Typically manage 10-100 product listings
+- Need a centralized storefront to reach more customers beyond their contact list
+- May have limited technical skills -- the platform must be simple to use
+
+### Goals & Success Criteria
+
+**MVP Launch Goals (Mid 2026 -- Douala)**
+
+| Metric | Target | How We Measure |
+|---|---|---|
+| Active sellers | 50-100 | Sellers with at least 1 product listed |
+| Active buyers | 1,000+ | Users who opened the app in the last 30 days |
+| Product listings | 500+ | Total products with images/video |
+| Conversations started | 100+ per week | Buyer-to-seller chats initiated |
+| Deals completed | 20+ per week | Transactions confirmed by both parties |
+| App rating | 4.0+ stars | Google Play Store rating |
+
+**Definition of "Done" for MVP**
+- A buyer can discover products, message a seller, negotiate, and confirm delivery
+- A seller can create a listing with video, receive inquiries, and negotaite before a complete deal
+- Real-time chat works reliably with the seller.
+- The app runs smoothly on mid-range Android devices common in Cameroon
+- Bilingual support (English / French) is functional
+
+**Long-Term Success Indicators (12 months post-launch)**
+- 500+ active sellers across Cameroon
+- 10,000+ monthly active buyers
+- Sellers report increased sales compared to WhatsApp-only distribution
+- Organic growth through word of mouth and WhatsApp sharing feature
+- Revenue from featured listings and seller subscriptions
+
+### Scope
+
+**In Scope (MVP Launch)**
+- Mobile app (Android + iOS) via React Native / Expo
+- Video and image-based product listings
+- Product-linked buyer-seller chat 
+- Social features: follow sellers, discover feed, personalized feed
+- Seller profiles with completed deals and location.
+- Search and category browsing
+- Wishlist / saved items
+- Push notifications
+- Douala, Cameroon as the initial market
+
+**Out of Scope (NOT included at launch)**
+- No in-app payments -- buyers and sellers arrange payment privately (Orange Money, cash on delivery)
+- No delivery or logistics system -- sellers handle their own delivery
+- No web version -- mobile only at launch (web planned for future based on market demand)
+- No admin dashboard -- moderation handled manually at launch
+- No live streaming -- deferred to Phase 2
+- No seller-buyer chat deal tracking phase 2
+- No AI features -- deferred to Phase 3
+- No multi-country support -- Cameroon only at launch
+- No escrow or dispute resolution system -- trust is built via reviews and verified sellers
 
 ## ✨ Features
 
@@ -68,7 +140,7 @@ clipCart operates as a **social commerce marketplace** — a hybrid of TikTok-st
 ### 💬 Social & Communication
 - **Product-Linked Chats**: Every conversation is tied to a specific product for trackability
 - **Deal Status Tracking**: Lightweight transaction flow (Inquired → Negotiating → Agreed → Delivered → Completed)
-- **Messages**: Chat with sellers and other users
+- **Messages**: Chat with sellers and other users track deal status (future phase)
 - **Notifications**: Stay updated with new products and promotions
 - **User Profiles**: Manage your profile and preferences
 
@@ -83,19 +155,19 @@ clipCart operates as a **social commerce marketplace** — a hybrid of TikTok-st
 
 ### 🤝 Trust & Safety
 - **Seller Ratings & Reviews**: Buyers rate sellers after confirmed delivery
-- **Verified Sellers**: Sellers can verify their identity (phone/ID) for a trust badge
-- **Deal Confirmation Flow**: Both parties confirm when a transaction is completed
+- **Verified Sellers**: Sellers can verify their identity (phone/ID) for a trust badge after a number of sales on the platform 
+- **Deal Confirmation Flow**: Both parties confirm when a transaction is completed*
 - **Report / Block**: Users can flag bad actors for review
-- **Response Time Badges**: "Usually responds within 1 hour" on seller profiles
-- **Seller Activity Indicators**: "Last active 2 hours ago" / "Joined 3 months ago"
+- **Response Time Badges**: "Usually responds within 1 hour" on seller profiles(future phase)
+- **Seller Activity Indicators**: "Last active 2 hours ago" / "Joined 38 months ago"
 
 ### 💰 Transactions (Current Model)
 - **No in-app payments at launch** — buyers and sellers arrange payment directly (mobile money, cash on delivery)
-- **Chat-based transaction tracking** — every inquiry is logged with deal status
-- **Transaction history via chat** — conversations serve as the purchase record
-- **Future**: Optional in-app Orange Money / Mobile Money payments with commission
+- **Chat-based transaction tracking** — every inquiry is logged with deal status (future phase)
+- **Transaction history via chat** — conversations serve as the purchase record (future phase)
+- **Future**: Optional in-app Orange Money / Mobile Money payments with commission (future phase)
 
-### 🤖 AI-Powered Features
+### AI-Powered Features (fuure phase)
 - **Smart Recommendations**: Personalized "For You" feed powered by ML
 - **Semantic Search**: Natural language search with intent understanding
 - **Visual Search**: Find products by uploading images
@@ -106,7 +178,7 @@ clipCart operates as a **social commerce marketplace** — a hybrid of TikTok-st
 - **Smart Pricing**: Price drop alerts and market intelligence
 - **Fraud Detection**: Account health monitoring and security
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Core Technologies
 - **React Native** (0.81.5) - Cross-platform mobile framework
@@ -131,11 +203,80 @@ clipCart operates as a **social commerce marketplace** — a hybrid of TikTok-st
 - **Expo Haptics** - Haptic feedback
 - **Expo Image** - Optimized image component
 
-## 🤖 AI Capabilities & Tech Stack
+## Full System Architecture
+
+clipCart is built as three independent services that communicate over HTTP and WebSocket:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                        CLIPCART SYSTEM                               │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────────────────────────┐                                 │
+│  │      Mobile App (Frontend)      │                                 │
+│  │  React Native / Expo            │                                 │
+│  │  TypeScript                     │                                 │
+│  │  Android + iOS                  │                                 │
+│  └──────────┬──────────────────────┘                                 │
+│             │                                                        │
+│             │  REST API + WebSocket (Socket.IO)                      │
+│             │                                                        │
+│  ┌──────────▼──────────────────────┐                                 │
+│  │      Main Backend               │                                 │
+│  │  TypeScript / Node.js           │                                 │
+│  │  Express.js + Socket.IO         │                                 │
+│  │                                 │                                 │
+│  │  Handles:                       │     ┌─────────────────────────┐ │
+│  │  - Authentication (JWT + OTP)   │     │     AI Backend          │ │
+│  │  - User & seller profiles       │     │  Python / FastAPI       │ │
+│  │  - Product CRUD & search        │     │                         │ │
+│  │                                 |     |  - Handles              | |
+│  │  - Wishlist & notifications     │     │  - Recommendations      │ │
+│  │  - File uploads (images/video)  │     │  - Semantic search      │ │
+│  │  - Live event management        │     │  - Visual search        │ │
+│  │  - Reviews & ratings            │     │  - AI chatbot           │ │
+│  └──────────┬──────────────────────┘     │  - Fraud detection      │ │
+│             │                            │  - Sentiment analysis   │ │
+│             │                            └──────────┬──────────────┘ │
+│             │                                       │                │
+│  ┌──────────▼───────────────────────────────────────▼──────────────┐ │
+│  │                     Data Layer                                  │ │
+│  │                                                                 │ │
+│  │  ┌─────────────┐  ┌──────────┐  ┌─────────────┐  ┌──────────┐ │ │
+│  │  │ PostgreSQL   │  │  Redis   │  │ MinIO / S3  │  │  Qdrant  │ │ │
+│  │  │ (Database)   │  │ (Cache,  │  │ (Images,    │  │ (Vector  │ │ │
+│  │  │              │  │  Socket, │  │  Videos,    │  │  Search, │ │ │
+│  │  │              │  │  Queue)  │  │  Files)     │  │  AI)     │ │ │
+│  │  └─────────────┘  └──────────┘  └─────────────┘  └──────────┘ │ │
+│  └─────────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### How the Services Connect
+
+| Component | Language | Framework | Purpose |
+|---|---|---|---|
+| Mobile App | TypeScript | React Native / Expo | User-facing app (Android + iOS) |
+| Main Backend | TypeScript | Express.js + Socket.IO | Core API: auth, products, chat, uploads |
+| AI Backend | Python | FastAPI | ML services: recommendations, search, vision |
+| PostgreSQL | -- | -- | Primary database for all structured data |
+| Redis | -- | -- | Caching, real-time messaging, rate limiting |
+| MinIO / S3 | -- | -- | Object storage for product images and videos |
+| Qdrant | -- | -- | Vector database for AI embeddings and search |
+
+### Key Design Decisions
+
+- **The Main Backend is the single gateway** -- the mobile app talks only to the Main Backend. AI requests are proxied through it so the frontend never calls the AI Backend directly.
+- **Three independent codebases** -- each service has its own folder, dependencies, and deployment. They can be developed, tested, and scaled independently.
+- **Shared TypeScript types** -- the frontend and Main Backend share type definitions (Product, User, Order, etc.) to prevent mismatches.
+- **Real-time via Socket.IO** -- chat messages, typing indicators, read receipts, online status, and notifications are pushed in real-time over WebSocket, not polling.
+
+## AI Capabilities & Tech Stack
 
 clipCart includes comprehensive AI-powered features built entirely with open-source, self-hosted solutions (no paid API dependencies).
 
-### 🎯 AI Features Overview
+### AI Features Overview
 
 1. **Personalized Product Recommendations** - "For You" tab with intelligent product suggestions
 2. **Semantic Search** - Natural language search with intent understanding
@@ -178,7 +319,7 @@ The AI services run as a separate Python-based microservices backend that commun
 - **PostgreSQL pgvector extension** - Vector similarity search in PostgreSQL
 - **MinIO** or **S3-compatible storage** - Object storage for images/models
 
-### 🧠 Open-Source AI Models by Feature
+### Open-Source AI Models by Feature
 
 #### 1. Product Recommendations
 - **TensorFlow Recommenders** - Collaborative filtering framework
@@ -409,7 +550,7 @@ CORS_ORIGINS=http://localhost:8081,http://localhost:19006
 - **Triton Inference Server** - Multi-framework serving
 - **vLLM** - Fast LLM inference server
 
-### 📊 Performance Considerations
+### Performance Considerations
 
 - **Embedding Generation**: Cache embeddings for products (update on changes)
 - **Model Quantization**: Use INT8/FP16 models for faster inference
@@ -418,7 +559,7 @@ CORS_ORIGINS=http://localhost:8081,http://localhost:19006
 - **Async Processing**: Use Celery for heavy tasks (description generation, etc.)
 - **CDN Caching**: Cache recommendation results for popular queries
 
-### 🔒 Privacy & Security
+### Privacy & Security
 
 - **All data processed locally** - No data sent to external APIs
 - **On-premise deployment** - Full control over data
@@ -426,7 +567,7 @@ CORS_ORIGINS=http://localhost:8081,http://localhost:19006
 - **API authentication** - Secure API endpoints
 - **Rate limiting** - Prevent abuse
 
-### 📚 Key Libraries & Resources
+### Key Libraries & Resources
 
 - **Hugging Face Hub**: https://huggingface.co/models
 - **Ollama**: https://ollama.ai/
@@ -435,7 +576,7 @@ CORS_ORIGINS=http://localhost:8081,http://localhost:19006
 - **LangChain**: https://python.langchain.com/
 - **FastAPI**: https://fastapi.tiangolo.com/
 
-### 🎓 Learning Resources
+### Learning Resources
 
 - Fine-tuning models on your product data
 - Optimizing inference speed
@@ -548,13 +689,26 @@ clipCart/
 - **Tab Bar Icons**: 24px
 - **Back Buttons**: 24px
 
-## 🚀 Launch Roadmap
+## Launch Roadmap
 
-### Phase 1: MVP Core Features (Must-Have for Launch) 🔴
+### Timeline Overview
+
+| Milestone | Target Date | Status |
+|---|---|---|
+| Frontend complete (UI/UX + all screens) | End of march 2026|Progress | 
+| Main Backend development (API, database, chat) | May 2026 | Not Started |
+| AI Backend development (recommendations, search) | May-June 2026 | Not Started |
+| Internal testing & bug fixes | Early June 2026 | Not Started |
+| Beta launch (10-20 testers in Douala) | Mid June 2026 | Not Started |
+| Seller onboarding (recruit 50-100 sellers) | June 2026 | Not Started |
+| **MVP Launch (Douala, Cameroon)** | **July 2026** | Not Started |
+| Phase 2 features (live streaming, seller tools) | Q4 2026 | Planned |
+| Phase 3 features (payments, AI, growth) | Q1-Q2 2027 | Planned |
+
+### Phase 1: MVP Core Features -- Target: July 2026
 
 #### User Authentication & Profiles
-- [ ] Phone number registration (Cameroon format)
-- [ ] OTP verification
+- [ ] google email verification (Cameroon format)
 - [ ] User profiles (buyers)
 - [ ] Seller account creation
 - [ ] Profile picture upload
@@ -594,7 +748,7 @@ clipCart/
 - [ ] Seller profiles with follower count and join date
 - [ ] Response time indicators on seller profiles
 
-### Phase 2: Enhanced Features (Post-Launch) 🟡
+### Phase 2: Enhanced Features (Post-Launch) -- Target: Q4 2026
 
 #### Live Streaming
 - [ ] Live stream hosting
@@ -616,7 +770,7 @@ clipCart/
 - [ ] Earnings tracking (self-reported)
 - [ ] Inventory management
 
-### Phase 3: Growth Features (Scale) 🟢
+### Phase 3: Growth Features (Scale) -- Target: Q1-Q2 2027
 
 #### Monetization
 - [ ] Optional in-app payments (Orange Money / Mobile Money)
@@ -716,7 +870,7 @@ eas build --platform ios
 
 *Note: Requires Expo Application Services (EAS) account setup*
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -724,13 +878,87 @@ eas build --platform ios
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+##  License
 
 This project is private and proprietary.
 
-## 👥 Authors
+## Team & Roles
 
-- Your Name/Team
+clipCart is built by a team of 4, each owning a distinct area of the product.
+
+### Role 1: Technical Lead Developer & UI/UX Designer -- TAMASANG MUNGWE EMMANUEL CALEB
+
+**Responsibilities:**
+- UI/UX design (wireframes, prototyping, design system)
+- Frontend development (React Native / Expo)
+- Backend development (TypeScript / Node.js)
+- Product architecture and technical decisions
+
+**Ownership areas:** Frontend codebase, design system, user experience, backend API
+**Decision authority:** Final say on technical stack, UI/UX decisions, and feature prioritization
+
+---
+
+### Role 2: Marketing Lead -- BARAK NSOH 
+
+**Responsibilities:**
+- Go-to-market strategy for Cameroon launch
+- Seller onboarding and recruitment (initial 20-50 sellers)
+- Social media presence and brand identity
+- User acquisition and growth strategy
+- Community management and user feedback
+- Investor communications and pitch materials
+
+**Ownership areas:** Brand, user growth, seller partnerships, market research
+**Decision authority:** Marketing strategy, branding, partnership deals
+
+---
+
+### Role 3: DevOps Engineer & Backend Developer -- TAMBE JOHNATHAN
+
+**Responsibilities:**
+- Cloud infrastructure setup and management
+- CI/CD pipeline (build, test, deploy)
+- Docker containerization and orchestration
+- Database administration (PostgreSQL, Redis)
+- Backend API development (shared with Lead Developer)
+- Server monitoring, scaling, and security
+- App store deployment (EAS Build, Google Play, App Store)
+
+**Ownership areas:** Infrastructure, deployment pipeline, server uptime, backend services
+**Decision authority:** Infrastructure choices, deployment strategy, security protocols
+
+---
+
+### Role 4: Data Scientist & AI Engineer -- TAMAJONG BLESS 
+
+**Responsibilities:**
+- AI/ML backend development (Python / FastAPI)
+- Recommendation engine (personalized "For You" feed)
+- Search optimization (semantic search, visual search)
+- Fraud detection and anomaly monitoring
+- Data analytics and user behavior insights
+- Model training, evaluation, and deployment
+- KPI dashboards and reporting
+
+**Ownership areas:** AI backend, ML models, data pipeline, analytics
+**Decision authority:** AI model selection, data strategy, analytics tooling
+
+### Collaboration Matrix
+
+| Area | Team Members Involved |
+|---|---|
+| Backend API | Lead Developer + DevOps Engineer |
+| Database Design | Lead Developer + DevOps Engineer + Data Scientist |
+| Product Decisions | Lead Developer + Marketing Lead |
+| Launch Strategy | All four members |
+| AI Integration | Lead Developer (frontend) + Data Scientist (backend) |
+
+### Communication & Workflow
+
+- **Version control**: Git with feature branches
+- **Code review**: Required before merging to main
+- **Documentation**: Maintained in project README and `docs/` folder
 
 ## 🙏 Acknowledgments
 
@@ -738,10 +966,10 @@ This project is private and proprietary.
 - Icons from [Expo Vector Icons](https://docs.expo.dev/guides/icons/)
 - Styling with [NativeWind](https://www.nativewind.dev/)
 
-## 📞 Support
+##  Support
 
 For support, email your-email@example.com or open an issue in the repository.
 
 ---
 
-**Made with ❤️ using React Native and Expo**
+**Made with using React Native and Expo**

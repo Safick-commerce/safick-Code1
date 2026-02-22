@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome6, Fontisto, AntDesign } from "@expo/vector-icons";
 import { useState, useCallback, useRef } from "react";
 import { useWishlist } from "../../context/WishlistContext";
+import { useMessage } from "../../context/MessageContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -12,6 +13,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function ProductDetails() {
   const router = useRouter();
   const { toggleWishlist, isSaved } = useWishlist();
+  const { addToMessage } = useMessage();
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -27,10 +29,17 @@ export default function ProductDetails() {
   }, [router]);
 
   const handleMessageSeller = useCallback(() => {
-    // Navigate to Sellers Message page 
+    addToMessage({
+      id: 'brenda-style-1',
+      seller: {
+        name: product.seller.name,
+        message: 'Tap to start chatting',
+        avatar: product.seller.image,
+        status: 'online',
+      },
+    });
     router.push("/usermessage");
-    console.log("Message Seller pressed");
-  }, []);
+  }, [addToMessage]);
 
   const handleSaveProduct = useCallback(() => {
     toggleWishlist({

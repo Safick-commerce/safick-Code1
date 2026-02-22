@@ -3,92 +3,34 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
+import { useMessage, MessageItemData } from "../context/MessageContext";
 
-// Types
-type DealStatus = 'none' | 'offered' | 'accepted' | 'payment_pending' | 'shipped' | 'delivered';
-type UserStatus = 'online' | 'away' | 'offline';
-
-interface Conversation {
-  id: string;
-  seller: {
-    name: string;
-    subName: string;
-    avatar: any; // require() image
-    status: UserStatus;
-  };
-  product: {
-    name: string;
-    price: number;
-  };
-  lastMessage: {
-    text: string;
-    timestamp: string;
-    isSent: boolean;
-  };
-  unreadCount: number;
-  dealStatus: DealStatus;
-}
-
-// Sample data
-const SAMPLE_CONVERSATIONS: Conversation[] = [
-  {
-    id: '1',
-    seller: {
-      name: 'Helena Beauty',
-      subName: 'Helena Hills',
-      avatar: require('../assets/images/seller4.jpeg'),
-      status: 'online',
-    },
-    product: { name: "Women's workout set", price: 15000 },
-    lastMessage: {
-      text: 'Yes, the dress is still available! Want me to hold it for you?',
-      timestamp: '2m ago',
-      isSent: false,
-    },
-    unreadCount: 2,
-    dealStatus: 'none',
-  },
-];
-
-const STATUS_COLORS: Record<UserStatus, string> = {
+const STATUS_COLORS: Record<string, string> = {
   online: '#22C55E',
   away: '#EAB308',
   offline: '#9CA3AF',
 };
 
-const DEAL_LABELS: Record<DealStatus, { text: string; color: string; bg: string; icon: string } | null> = {
-  none: null,
-  offered: { text: 'Offer Sent', color: '#D97706', bg: '#FEF3C7', icon: 'swap-horiz' },
-  accepted: { text: 'Deal Accepted', color: '#16A34A', bg: '#DCFCE7', icon: 'check-circle' },
-  payment_pending: { text: 'Payment Pending', color: '#D97706', bg: '#FEF3C7', icon: 'payment' },
-  shipped: { text: 'Shipped', color: '#2563EB', bg: '#DBEAFE', icon: 'local-shipping' },
-  delivered: { text: 'Delivered', color: '#16A34A', bg: '#DCFCE7', icon: 'verified' },
-};
-
-export default function MessagesScreen() {
+export default function MessageScreen() {
   const router = useRouter();
+  const { messageItems, addToMessage } = useMessage();
   const [searchQuery, setSearchQuery] = useState('');
-  const [conversations] = useState<Conversation[]>(SAMPLE_CONVERSATIONS);
 
   const filteredConversations = searchQuery.trim()
-    ? conversations.filter(
-        c =>
-          c.seller.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ? messageItems.filter((item) =>
+        item.seller.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : conversations;
+    : messageItems;
 
   const handleConversationPress = useCallback(
-    (conversation: Conversation) => {
-      router.push('/usermessage');
+    (conversation: MessageItemData) => {
+      router.push('/sellermessage');
     },
     [router]
   );
 
   const renderConversation = useCallback(
-    ({ item }: { item: Conversation }) => {
-      const dealInfo = DEAL_LABELS[item.dealStatus];
-
+    ({ item }: { item: MessageItemData }) => {
       return (
         <TouchableOpacity
           style={styles.conversationItem}
@@ -103,47 +45,15 @@ export default function MessagesScreen() {
 
           {/* Conversation details */}
           <View style={styles.conversationDetails}>
-            {/* Name row */}
             <View style={styles.nameRow}>
               <Text style={styles.sellerName} numberOfLines={1}>
                 {item.seller.name}
               </Text>
-              <Text style={styles.timestamp}>{item.lastMessage.timestamp}</Text>
             </View>
-
-            {/* Last message */}
-            <Text
-              style={[styles.lastMessage, item.unreadCount > 0 && styles.lastMessageUnread]}
-              numberOfLines={1}
-            >
-              {item.lastMessage.isSent ? 'You: ' : ''}
-              {item.lastMessage.text}
+            <Text style={styles.lastMessage} numberOfLines={1}>
+              {item.seller.message}
             </Text>
-
-            {/* Product tag and deal status */}
-            <View style={styles.tagsRow}>
-              <View style={styles.productTag}>
-                <Ionicons name="cube-outline" size={12} color="#6B7280" />
-                <Text style={styles.productTagText} numberOfLines={1}>
-                  {item.product.name}
-                </Text>
-              </View>
-
-              {dealInfo && (
-                <View style={[styles.dealBadge, { backgroundColor: dealInfo.bg }]}>
-                  <MaterialIcons name={dealInfo.icon as any} size={12} color={dealInfo.color} />
-                  <Text style={[styles.dealBadgeText, { color: dealInfo.color }]}>{dealInfo.text}</Text>
-                </View>
-              )}
-            </View>
           </View>
-
-          {/* Unread badge */}
-          {item.unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
-            </View>
-          )}
         </TouchableOpacity>
       );
     },
@@ -182,14 +92,18 @@ export default function MessagesScreen() {
         )}
       </View>
 
-      {/* Conversation list */}
-      {filteredConversations.length === 0 ? (
+      {/* Conversation list or empty state */}
+      {messageItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>No conversations yet</Text>
           <Text style={styles.emptySubtitle}>
-            Start chatting with sellers by tapping "Ask" on a product
+            Start chatting with sellers by tapping{'\n'}Message on a product
           </Text>
+          <TouchableOpacity style={styles.findButton}
+           onPress={() => router.push('/(tabs)')}>
+            <Text style={styles.findButtonText}>Find something to buy</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -375,8 +289,23 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
+    fontFamily: 'Inter',
+    marginTop: 8,
+  },
+  findButton: {
+    backgroundColor: '#FF2800',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 28,
+    marginTop: 24,
+  },
+  findButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Inter',
   },
 });

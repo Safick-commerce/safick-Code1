@@ -1,8 +1,11 @@
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, FontAwesome6, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback } from "react";
+
+const AUTH_KEY = "user_logged_in";
 
 // Route constants for security
 const ROUTES = {
@@ -18,6 +21,11 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error("Navigation error:", error);
     }
+  }, [router]);
+
+  const handleSignOut = useCallback(async () => {
+    await AsyncStorage.removeItem(AUTH_KEY);
+    router.replace("/");
   }, [router]);
 
   const actionCards = [
@@ -129,6 +137,7 @@ export default function ProfileScreen() {
           <TouchableOpacity 
             style={styles.signOutContainer}
             activeOpacity={0.7}
+            onPress={handleSignOut}
           >
             <View style={styles.signOutContent}>
               <FontAwesome6 name="arrow-right-from-bracket" size={20} color="#FF2800" />

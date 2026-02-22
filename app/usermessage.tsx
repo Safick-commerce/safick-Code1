@@ -1,14 +1,15 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useCallback } from "react";
+import { useKeyboardHandler } from "react-native-keyboard-controller";
+import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 
-const ROUTES = { USER_PROFILE: "/userprofile" } as const;
+const ROUTES = { USER_PROFILE: "/productDetails" } as const;
 
 // Message types
-type MessageType = 'text' | 'deal_offer' | 'status_update' | 'system';
-type DealOfferStatus = 'pending' | 'accepted' | 'declined' | 'countered';
+type MessageType = 'text' | 'status_update' | 'system';
 type ReadStatus = 'sent' | 'delivered' | 'read';
 
 interface Message {
@@ -19,7 +20,6 @@ interface Message {
   timestamp: string;
   readStatus?: ReadStatus;
   dealAmount?: number;
-  dealStatus?: DealOfferStatus;
   statusIcon?: string;
 }
 
@@ -57,12 +57,10 @@ const INITIAL_MESSAGES: Message[] = [
   },
   {
     id: '4',
-    type: 'deal_offer',
+    type: 'text',
     text: 'Deal offer',
     isSent: false,
     timestamp: '10:06 AM',
-    dealAmount: 14500,
-    dealStatus: 'pending',
   },
   {
     id: '5',
@@ -74,10 +72,23 @@ const INITIAL_MESSAGES: Message[] = [
 ];
 
 export default function UserMessage() {
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  const keyboardHeight = useSharedValue(0);
+  useKeyboardHandler({
+    onMove: (event) => {
+      'worklet';
+      keyboardHeight.value = Math.max(event.height, 0);
+    },
+  }, []);
+
+  const animatedKeyboardStyle = useAnimatedStyle(() => ({
+    height: keyboardHeight.value,
+  }));
 
   const handleBackPress = () => router.back();
   const handleViewProfilePress = () => router.push(ROUTES.USER_PROFILE);
@@ -115,168 +126,68 @@ export default function UserMessage() {
     // TODO: Show offer modal with price input
     const offerMessage: Message = {
       id: Date.now().toString(),
-      type: 'deal_offer',
+      type: 'text',
       text: 'Deal offer',
       isSent: true,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      dealAmount: 14000,
-      dealStatus: 'pending',
       readStatus: 'sent',
     };
     setMessages(prev => [...prev, offerMessage]);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, []);
 
-  const handleDealAction = useCallback((messageId: string, action: 'accept' | 'counter' | 'decline') => {
-    setMessages(prev =>
-      prev.map(msg => {
-        if (msg.id === messageId) {
-          const statusMap: Record<string, DealOfferStatus> = {
-            accept: 'accepted',
-            counter: 'countered',
-            decline: 'declined',
-          };
-          return { ...msg, dealStatus: statusMap[action] };
-        }
-        return msg;
-      })
-    );
-
-    const statusText: Record<string, string> = {
-      accept: 'Deal accepted! Proceed to payment.',
-      counter: 'You countered the offer.',
-      decline: 'Offer declined.',
-    };
-
-    const statusMessage: Message = {
-      id: Date.now().toString(),
-      type: 'status_update',
-      text: statusText[action],
-      isSent: false,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      statusIcon: action === 'accept' ? 'check-circle' : action === 'decline' ? 'cancel' : 'swap-horiz',
-    };
-    setMessages(prev => [...prev, statusMessage]);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-  }, []);
-
-  // Read status icon
-  const renderReadStatus = (status?: ReadStatus) => {
-    if (!status) return null;
+  const getReadStatusIcon = (status?: ReadStatus) => {
     switch (status) {
-      case 'sent':
-        return <Ionicons name="checkmark" size={14} color="#FFFFFF" style={styles.readIcon} />;
-      case 'delivered':
-        return <Ionicons name="checkmark-done" size={14} color="#FFFFFF" style={styles.readIcon} />;
       case 'read':
-        return <Ionicons name="checkmark-done" size={14} color="#90CAF9" style={styles.readIcon} />;
+        return <Ionicons name="checkmark-done" size={14} color="rgba(255,255,255,0.7)" style={styles.readIcon} />;
+      case 'delivered':
+        return <Ionicons name="checkmark-done" size={14} color="rgba(255,255,255,0.5)" style={styles.readIcon} />;
+      case 'sent':
+        return <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.5)" style={styles.readIcon} />;
       default:
         return null;
     }
   };
 
-  // Render different message types
-  const renderMessage = (msg: Message) => {
-    switch (msg.type) {
-      case 'system':
-        return (
-          <View key={msg.id} style={styles.systemMessageContainer}>
-            <Text style={styles.systemMessageText}>{msg.text}</Text>
-          </View>
-        );
-
-      case 'status_update':
-        return (
-          <View key={msg.id} style={styles.statusUpdateContainer}>
-            <MaterialIcons name={msg.statusIcon as any} size={16} color="#16A34A" />
-            <Text style={styles.statusUpdateText}>{msg.text}</Text>
-          </View>
-        );
-
-      case 'deal_offer':
-        return (
-          <View key={msg.id} style={[styles.bubbleWrap, msg.isSent ? styles.bubbleWrapSent : styles.bubbleWrapReceived]}>
-            <View style={styles.dealOfferCard}>
-              <View style={styles.dealOfferHeader}>
-                <MaterialIcons name="handshake" size={20} color="#D97706" />
-                <Text style={styles.dealOfferTitle}>
-                  {msg.isSent ? 'Your Offer' : "Seller's Offer"}
-                </Text>
-              </View>
-              <Text style={styles.dealOfferAmount}>{msg.dealAmount?.toLocaleString()} XAF</Text>
-
-              {msg.dealStatus === 'pending' && !msg.isSent && (
-                <View style={styles.dealActions}>
-                  <TouchableOpacity
-                    style={styles.dealAcceptButton}
-                    onPress={() => handleDealAction(msg.id, 'accept')}
-                  >
-                    <Text style={styles.dealAcceptText}>Accept</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.dealCounterButton}
-                    onPress={() => handleDealAction(msg.id, 'counter')}
-                  >
-                    <Text style={styles.dealCounterText}>Counter</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.dealDeclineButton}
-                    onPress={() => handleDealAction(msg.id, 'decline')}
-                  >
-                    <Text style={styles.dealDeclineText}>Decline</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {msg.dealStatus === 'accepted' && (
-                <View style={styles.dealStatusBadge}>
-                  <MaterialIcons name="check-circle" size={16} color="#16A34A" />
-                  <Text style={[styles.dealStatusText, { color: '#16A34A' }]}>Accepted</Text>
-                </View>
-              )}
-              {msg.dealStatus === 'declined' && (
-                <View style={styles.dealStatusBadge}>
-                  <MaterialIcons name="cancel" size={16} color="#DC2626" />
-                  <Text style={[styles.dealStatusText, { color: '#DC2626' }]}>Declined</Text>
-                </View>
-              )}
-              {msg.dealStatus === 'pending' && msg.isSent && (
-                <View style={styles.dealStatusBadge}>
-                  <MaterialIcons name="schedule" size={16} color="#D97706" />
-                  <Text style={[styles.dealStatusText, { color: '#D97706' }]}>Waiting for response</Text>
-                </View>
-              )}
-
-              <Text style={styles.dealTimestamp}>{msg.timestamp}</Text>
-            </View>
-          </View>
-        );
-
-      default: // text
-        return (
-          <View key={msg.id} style={[styles.bubbleWrap, msg.isSent ? styles.bubbleWrapSent : styles.bubbleWrapReceived]}>
-            <View style={[styles.bubble, msg.isSent ? styles.bubbleSent : styles.bubbleReceived]}>
-              <Text style={[styles.bubbleText, msg.isSent ? styles.bubbleTextSent : styles.bubbleTextReceived]}>
-                {msg.text}
-              </Text>
-              <View style={styles.bubbleFooter}>
-                <Text style={[styles.bubbleTimestamp, msg.isSent ? styles.bubbleTimestampSent : styles.bubbleTimestampReceived]}>
-                  {msg.timestamp}
-                </Text>
-                {msg.isSent && renderReadStatus(msg.readStatus)}
-              </View>
-            </View>
-          </View>
-        );
+  const renderMessage = (message: Message) => {
+    if (message.type === 'system') {
+      return (
+        <View key={message.id} style={{ alignItems: 'center', marginVertical: 8 }}>
+          <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center' }}>{message.text}</Text>
+        </View>
+      );
     }
+
+    return (
+      <View
+        key={message.id}
+        style={[
+          styles.bubbleWrap,
+          message.isSent ? styles.bubbleWrapSent : styles.bubbleWrapReceived,
+        ]}
+      >
+        <View style={[styles.bubble, message.isSent ? styles.bubbleSent : styles.bubbleReceived]}>
+          <Text style={[styles.bubbleText, message.isSent ? styles.bubbleTextSent : styles.bubbleTextReceived]}>
+            {message.text}
+          </Text>
+          <View style={styles.bubbleFooter}>
+            <Text
+              style={[
+                styles.bubbleTimestamp,
+                message.isSent ? styles.bubbleTimestampSent : styles.bubbleTimestampReceived,
+              ]}
+            >
+              {message.timestamp}
+            </Text>
+            {message.isSent && getReadStatusIcon(message.readStatus)}
+          </View>
+        </View>
+      </View>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header with online status */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
@@ -368,8 +279,8 @@ export default function UserMessage() {
             <MaterialIcons name="send" size={22} color={inputText.trim() ? '#FF2800' : '#999999'} />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <Animated.View style={animatedKeyboardStyle} />
+    </View>
   );
 }
 
@@ -547,123 +458,7 @@ const styles = StyleSheet.create({
   readIcon: {
     marginLeft: 2,
   },
-  // System message
-  systemMessageContainer: {
-    alignItems: 'center',
-    marginVertical: 12,
-  },
-  systemMessageText: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 12,
-    overflow: 'hidden',
-    textAlign: 'center',
-  },
-  // Status update
-  statusUpdateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginVertical: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#DCFCE7',
-    borderRadius: 12,
-    alignSelf: 'center',
-  },
-  statusUpdateText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#16A34A',
-  },
-  // Deal offer card
-  dealOfferCard: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: 16,
-    padding: 16,
-    maxWidth: '85%',
-    gap: 10,
-  },
-  dealOfferHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dealOfferTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#D97706',
-  },
-  dealOfferAmount: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  dealActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  dealAcceptButton: {
-    flex: 1,
-    backgroundColor: '#16A34A',
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  dealAcceptText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  dealCounterButton: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#D97706',
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  dealCounterText: {
-    color: '#D97706',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  dealDeclineButton: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#DC2626',
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  dealDeclineText: {
-    color: '#DC2626',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  dealStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dealStatusText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  dealTimestamp: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    textAlign: 'right',
-  },
+
   // Typing indicator
   typingBubble: {
     paddingVertical: 14,
@@ -691,39 +486,43 @@ const styles = StyleSheet.create({
   // Input bar
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 19,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     backgroundColor: '#ffffff',
   },
   offerButton: {
-    padding: 8,
+    padding:8,
     backgroundColor: '#FFF5F5',
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#FFE5E5',
+    marginBottom: 1,
   },
   messageInput: {
     flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
+    minHeight: 30,
+    maxHeight: 90,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    paddingTop: 10,
-    fontSize: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingTop: 4,
+    fontSize: 15,
     backgroundColor: '#f5f5f5',
+    marginBottom: 1,
   },
   inputIconButton: {
     padding: 8,
+    marginBottom: 1,
   },
   sendButton: {
     padding: 8,
+    marginBottom: 1,
   },
   sendButtonActive: {},
 });

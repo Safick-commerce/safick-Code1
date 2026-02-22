@@ -3,19 +3,30 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useWishlist } from "../context/WishlistContext";
+import { useMessage } from "../context/MessageContext";
 import { useCallback } from "react";
 
 export default function WishlistScreen() {
   const router = useRouter();
   const { wishlistItems, removeFromWishlist, clearWishlist, getWishlistCount } = useWishlist();
+  const { addToMessage } = useMessage();
 
-  const handleMessageSeller = useCallback(() => {
+  const handleMessageSeller = useCallback((item: { id: string; sellerName?: string; image: any }) => {
     try {
+      addToMessage({
+        id: `seller-${item.id}`,
+        seller: {
+          name: item.sellerName ?? 'Seller',
+          message: 'Tap to start chatting',
+          avatar: item.image,
+          status: 'online',
+        },
+      });
       router.push("/usermessage");
     } catch (error) {
       console.error("Navigation error:", error);
     }
-  }, [router]);
+  }, [router, addToMessage]);
 
   const handleProductPress = useCallback(() => {
     try {
@@ -86,7 +97,7 @@ export default function WishlistScreen() {
                 {/* Action: Message Seller */}
                 <TouchableOpacity
                   style={styles.messageButton}
-                  onPress={handleMessageSeller}
+                  onPress={() => handleMessageSeller(item)}
                 >
                   <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
                   <Text style={styles.messageButtonText}>Message Seller</Text>

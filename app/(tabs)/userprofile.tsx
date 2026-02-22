@@ -3,10 +3,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons, MaterialIcons, AntDesign, FontAwesome6 } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
+import { useMessage } from "../../context/MessageContext";
 
 // Route constants for security
 const ROUTES = {
-  USER_MESSAGE: "/usermessage",
+  USER_MESSAGE: "/sellermessage",
 } as const;
 
 const BIO_SHORT = "Our brand blends street culture, creativity, and self-expression into every drop.";
@@ -14,6 +15,7 @@ const BIO_FULL = "Our brand blends street culture, creativity, and self-expressi
 
 export default function UserProfile() {
   const router = useRouter();
+  const { addToMessage } = useMessage();
   const [activeTab, setActiveTab] = useState<"Clips" | "Shop" | "Reviews">("Clips");
   const [isFollowing, setIsFollowing] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
@@ -22,11 +24,20 @@ export default function UserProfile() {
 
   const handleUserMessagePress = useCallback(() => {
     try {
+      addToMessage({
+        id: 'brenda-style-1',
+        seller: {
+          name: 'Brenda Style',
+          message: 'Tap to start chatting',
+          avatar: require("../../assets/images/seller4.jpeg"),
+          status: 'online',
+        },
+      });
       router.push(ROUTES.USER_MESSAGE);
     } catch (error) {
       console.error("Navigation error:", error);
     }
-  }, [router]);
+  }, [router, addToMessage]);
 
   const bioText = bioExpanded ? BIO_FULL : BIO_SHORT;
   const showMoreVisible = BIO_FULL.length > BIO_SHORT.length;

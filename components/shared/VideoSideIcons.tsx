@@ -20,9 +20,6 @@ export default function VideoSideIcons({ containerStyle, showProfileIcon = false
         <FontAwesome name="heart" size={28} color="#000000" />
       </TouchableOpacity>
       <TouchableOpacity style={styles.iconButton}>
-        <FontAwesome6 name="signal-messenger" size={28} color="#000000" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.iconButton}>
         <Ionicons name="bookmark" size={28} color="#000000" />
       </TouchableOpacity>
       <TouchableOpacity style={styles.iconButton}>
@@ -39,8 +36,8 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     right: 16,
-    top: '65%',
-    transform: [{ translateY: -150 }],
+    top: '76%',
+    transform: [{ translateY: -145 }],
     alignItems: 'center',
     gap: 55,
   },
