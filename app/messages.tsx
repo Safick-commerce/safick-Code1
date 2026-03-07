@@ -15,12 +15,20 @@ export default function MessageScreen() {
   const router = useRouter();
   const { messageItems, addToMessage } = useMessage();
   const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'reservation'>('all');
 
-  const filteredConversations = searchQuery.trim()
-    ? messageItems.filter((item) =>
+  const filteredConversations = (() => {
+    let list = messageItems;
+    if (filter === 'reservation') {
+      list = list.filter((item) => item.isReservation);
+    }
+    if (searchQuery.trim()) {
+      list = list.filter((item) =>
         item.seller.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : messageItems;
+      );
+    }
+    return list;
+  })();
 
   const handleConversationPress = useCallback(
     (conversation: MessageItemData) => {
@@ -92,10 +100,31 @@ export default function MessageScreen() {
         )}
       </View>
 
+      {/* Filter buttons */}
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
+          onPress={() => setFilter('all')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterButtonText, filter === 'all' && styles.filterButtonTextActive]}>
+            All
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, filter === 'reservation' && styles.filterButtonActive]}
+          onPress={() => setFilter('reservation')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterButtonText, filter === 'reservation' && styles.filterButtonTextActive]}>
+            Reservation
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Conversation list or empty state */}
       {messageItems.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>No conversations yet</Text>
           <Text style={styles.emptySubtitle}>
             Start chatting with sellers by tapping{'\n'}Message on a product
@@ -165,6 +194,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#000000',
     padding: 0,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 15,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterButtonActive: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   listContent: {
     paddingBottom: 20,

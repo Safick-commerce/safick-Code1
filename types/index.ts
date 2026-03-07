@@ -68,12 +68,13 @@ export interface Category {
 export interface LivePost {
   id: string;
   sellerName: string;
-  imageUrl: string | number; // Supports both URI strings and local require() numbers
+  imageUrl: string | number;
+  sellerAvatar?: string | number;
   description: string;
   isLive?: boolean;
   viewerCount?: number;
   category?: string;
 }
 
-export type CategoryFilter = "All" | "Shoes" | "Women" | "Men" | "Kids" | "Accessories" | "Beauty" | "Home";
+export type CategoryFilter = "New" | "Sale" | "Trending" | "Best" | "Limited";
 

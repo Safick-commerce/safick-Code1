@@ -1,4 +1,4 @@
-# Git Setup Guide for clipCart
+# Git Setup Guide for wispaCart
 
 ## Quick Steps to Push Your Code
 
@@ -9,7 +9,7 @@ git add .
 
 ### 2. Commit Changes
 ```bash
-git commit -m "Initial commit: clipCart e-commerce app"
+git commit -m "Initial commit: wispaCart e-commerce app"
 ```
 
 ### 3. Create Repository on GitHub/GitLab/Bitbucket
@@ -23,8 +23,8 @@ git remote add origin <your-repository-url>
 ```
 
 **Examples:**
-- GitHub HTTPS: `git remote add origin https://github.com/yourusername/clipCart.git`
-- GitHub SSH: `git remote add origin git@github.com:yourusername/clipCart.git`
+- GitHub HTTPS: `git remote add origin https://github.com/yourusername/wispaCart.git`
+- GitHub SSH: `git remote add origin git@github.com:yourusername/wispaCart.git`
 
 ### 5. Push to Repository
 ```bash

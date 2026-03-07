@@ -1,17 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRef } from "react";
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Image, Animated } from "react-native";
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Image } from "react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Category circles data - add your images here
 // To add images: 
 // 1. Download images from Unsplash, Pexels, or Pixabay
-// 2. Save them to: clipCart/assets/images/
+// 2. Save them to: wispaCart/assets/images/
 // 3. Update the image path below (e.g., 'fashion.png', 'beauty.png')
 const CATEGORY_CIRCLES = [
-  { id: 1, name: 'Shoes', image: require('../../assets/images/fashion.jpg') }, // ✅ Has image
-  { id: 2, name: 'Fashion', image: require('../../assets/images/shoe2.jpg') }, // ⚠️ Change to: fashion.png
+  { id: 1, name: 'Fashion', image: require('../../assets/images/fashion.jpg') }, // ✅ Has image
+  { id: 2, name: 'Shoes', image: require('../../assets/images/shoe2.jpg') }, // ⚠️ Change to: fashion.png
   { id: 3, name: 'Electronics', image: require('../../assets/images/electronics.jpg') }, // ⚠️ Change to: electronics.png
   { id: 4, name: 'Beauty', image: require('../../assets/images/beauty.jpg') }, // ⚠️ Change to: beauty.png
   { id: 5, name: 'Home', image: require('../../assets/images/home.jpg') }, // ⚠️ Change to: home.png
@@ -31,155 +30,143 @@ const CARD_GAP = 6;
 const CARD_WIDTH = (SCREEN_WIDTH - CONTENT_PADDING * 2 - CARD_GAP) / 2;
 const IMAGE_HEIGHT = Math.round(SCREEN_HEIGHT * 0.36);
 
-const POPULAR_ROW_1 = [
-  { id: 1, seller: 'Tracy', description: 'Summer edit — New arrivals', image: require('../../assets/images/seller3.jpeg') },
-  { id: 2, seller: 'Emily shop', description: 'Minimal style — Best picks', image: require('../../assets/images/seller4.jpeg') },
-];
-const POPULAR_ROW_2 = [
-  { id: 3, seller: 'Seller 3', description: 'Streetwear drop', image: require('../../assets/images/seller.png') },
-  { id: 4, seller: 'Seller 4', description: 'Trending now', image: require('../../assets/images/seller4.jpeg') },
-];
-const POPULAR_ROW_3 = [
-  { id: 5, seller: 'Seller 5', description: 'Fresh collection', image: require('../../assets/images/seller2.png') },
-  { id: 6, seller: 'Seller 6', description: 'Limited pieces', image: require('../../assets/images/seller2.png') },
-];
-const POPULAR_ROW_4 = [
-  { id: 7, seller: 'Seller 7', description: 'Back in stock', image: require('../../assets/images/seller2.png') },
-  { id: 8, seller: 'Seller 8', description: 'Just listed', image: require('../../assets/images/seller2.png') },
+const POPULAR_PRODUCTS = [
+  {
+    id: 1, seller: 'Tracy', name: 'Elite Series Smartwatch - Silver Edition',
+    price: '25,000 XAF', rating: 4.8, location: 'Douala',
+    image: require('../../assets/images/seller3.jpeg'),
+    sellerAvatar: require('../../assets/images/seller.png'),
+  },
+  {
+    id: 2, seller: 'Emily Shop', name: 'SpeedRunner Pro X - Limited Red',
+    price: '42,500 XAF', rating: 5.0, location: 'Douala',
+    image: require('../../assets/images/seller4.jpeg'),
+    sellerAvatar: require('../../assets/images/seller2.png'),
+  },
+  {
+    id: 3, seller: 'Brenda Style', name: 'Acoustic Pro Bass Headphones',
+    price: '18,000 XAF', rating: 4.9, location: 'Yaoundé',
+    image: require('../../assets/images/seller.png'),
+    sellerAvatar: require('../../assets/images/seller3.jpeg'),
+  },
+  {
+    id: 4, seller: 'Luxury Hub', name: 'Glow Essence Skincare Ritual',
+    price: '12,500 XAF', rating: 4.7, location: 'Buea',
+    image: require('../../assets/images/seller4.jpeg'),
+    sellerAvatar: require('../../assets/images/seller04.jpeg'),
+  },
+  {
+    id: 5, seller: 'TechWorld', name: 'Stealth Walkers - All Black Edition',
+    price: '35,000 XAF', rating: 4.8, location: 'Douala',
+    image: require('../../assets/images/seller2.png'),
+    sellerAvatar: require('../../assets/images/seller.png'),
+  },
+  {
+    id: 6, seller: 'NatureCo', name: 'Master Shot Lens 50mm f/1.8',
+    price: '85,000 XAF', rating: 5.0, location: 'Bamenda',
+    image: require('../../assets/images/seller2.png'),
+    sellerAvatar: require('../../assets/images/seller3.jpeg'),
+  },
+  {
+    id: 7, seller: 'FitGear', name: 'Wireless Charging Pad Pro',
+    price: '8,500 XAF', rating: 4.5, location: 'Limbe',
+    image: require('../../assets/images/seller2.png'),
+    sellerAvatar: require('../../assets/images/seller2.png'),
+  },
+  {
+    id: 8, seller: 'StyleVault', name: 'Premium Leather Crossbody Bag',
+    price: '22,000 XAF', rating: 4.6, location: 'Douala',
+    image: require('../../assets/images/seller2.png'),
+    sellerAvatar: require('../../assets/images/seller04.jpeg'),
+  },
 ];
 
-// Top section height (circles + label + margin). Used so scroll-driven animation collapses smoothly.
-const TOP_SECTION_HEIGHT = 120;
-const SCROLL_RANGE = 200; // over this many px of scroll, top section fully hides
+// Split products into rows of 2 for the grid layout
+const POPULAR_ROWS: (typeof POPULAR_PRODUCTS[number])[][] = [];
+for (let i = 0; i < POPULAR_PRODUCTS.length; i += 2) {
+  POPULAR_ROWS.push(POPULAR_PRODUCTS.slice(i, i + 2));
+}
+
 
 export default function DiscoverTab() {
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const topSectionHeight = scrollY.interpolate({
-    inputRange: [0, SCROLL_RANGE],
-    outputRange: [TOP_SECTION_HEIGHT, 0],
-    extrapolate: 'clamp',
-  });
-  const topSectionOpacity = scrollY.interpolate({
-    inputRange: [0, SCROLL_RANGE * 0.9],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
+  
 
   return (
     <View style={styles.container}>
-      <View style={styles.contentContainer}>
-        {/* Top section: smoothly collapses and fades as user scrolls (no threshold, no jump) */}
-        <Animated.View style={[styles.topSectionWrapper, { height: topSectionHeight }]}>
-          <Animated.View style={[styles.topContainer, { opacity: topSectionOpacity }]}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.circleScrollContainer}
-             
-            >
-              {CATEGORY_CIRCLES.map((category) => (
-                <View key={category.id} style={styles.circleContainer}>
-                  <TouchableOpacity style={styles.circle}>
-                    <Image 
-                      source={category.image}
-                      style={styles.circleImage}
-                      resizeMode="cover"
-                    />
-                  </TouchableOpacity>
-                  <Text style={styles.circleText}>{category.name}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </Animated.View>
-        </Animated.View>
-        
-      <Animated.ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
         scrollEventThrottle={16}
       >
-        {/* Popular Now Section */}
+        {/* Category circles — scrolls away naturally like Instagram stories */}
+        <View style={styles.topContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.circleScrollContainer}
+          >
+            {CATEGORY_CIRCLES.map((category) => (
+              <View key={category.id} style={styles.circleContainer}>
+                <TouchableOpacity style={styles.circle}>
+                  <Image
+                    source={category.image}
+                    style={styles.circleImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+                <Text style={styles.circleText}>{category.name}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Popular Now header */}
         <View style={styles.sectionContainer}>
           <View style={styles.titleRow}>
             <View style={styles.titleContainer}>
-              <Text style={styles.popularText}>
-                Popular Now
-              </Text>
-              {/* Recommended For You - Subtext of Popular Now */}
-              <Text style={styles.recommendedSubText}>
-                Recommended For You
-              </Text>
+              <Text style={styles.popularText}>Popular Now</Text>
+              <Text style={styles.recommendedSubText}>Recommended For You</Text>
             </View>
             <TouchableOpacity>
-            <Text style={styles.contentText}>
-              See All
-              <Ionicons name="arrow-forward-outline" size={24} color="black" />
-            </Text>
+              <Text style={styles.contentText}>
+                See All
+                <Ionicons name="arrow-forward-outline" size={24} color="black" />
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-        
-        {/* Popular cards — seller name at head (outside container), then image, then description */}
-        <View style={styles.downContainer}>
-          <View style={styles.triangleScrollContainer}>
-            {POPULAR_ROW_1.map((card, index) => (
-              <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
-                <Text style={styles.sellerName}>{card.seller}</Text>
-                <View style={styles.triangle}>
-                  <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
+
+        {/* Product cards grid — 2 per row */}
+        {POPULAR_ROWS.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.downContainer}>
+            <View style={styles.triangleScrollContainer}>
+              {row.map((card, index) => (
+                <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
+                  <View style={styles.triangle}>
+                    <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
+                    <View style={styles.locationBadge}>
+                      <Ionicons name="location-sharp" size={12} color="#FF2800" />
+                      <Text style={styles.locationBadgeText}>{card.location}</Text>
+                    </View>
+                    <View style={styles.ratingBadge}>
+                      <Ionicons name="star" size={12} color="#FFD700" />
+                      <Text style={styles.ratingText}>{card.rating}</Text>
+                    </View>
+                    <View style={styles.sellerRow}>
+                      <View style={styles.avatarContainer}>
+                        <Image source={card.sellerAvatar} style={styles.avatarImage} resizeMode="cover" />
+                      </View>
+                      <Text style={styles.sellerName} numberOfLines={1}>{card.seller}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.productName} numberOfLines={2}>{card.name}</Text>
+                  <Text style={styles.productPrice}>{card.price}</Text>
                 </View>
-                <Text style={styles.cardDescription} numberOfLines={2}>{card.description}</Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
-        <View style={styles.downContainer}>
-          <View style={styles.triangleScrollContainer}>
-            {POPULAR_ROW_2.map((card, index) => (
-              <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
-                <Text style={styles.sellerName}>{card.seller}</Text>
-                <View style={styles.triangle}>
-                  <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
-                </View>
-                <Text style={styles.cardDescription} numberOfLines={2}>{card.description}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-        <View style={styles.middleContainer}>
-          <View style={styles.triangleScrollContainer}>
-            {POPULAR_ROW_3.map((card, index) => (
-              <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
-                <Text style={styles.sellerName}>{card.seller}</Text>
-                <View style={styles.triangle}>
-                  <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
-                </View>
-                <Text style={styles.cardDescription} numberOfLines={2}>{card.description}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-        <View style={styles.downContainer}>
-          <View style={styles.triangleScrollContainer}>
-            {POPULAR_ROW_4.map((card, index) => (
-              <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
-                <Text style={styles.sellerName}>{card.seller}</Text>
-                <View style={styles.triangle}>
-                  <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
-                </View>
-                <Text style={styles.cardDescription} numberOfLines={2}>{card.description}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </Animated.ScrollView>
-      </View>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -206,34 +193,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingTop: 10,
-    paddingBottom: 32,
-  },
-  contentContainer: {
-    width: '100%',
-    position: 'relative',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
     paddingHorizontal: CONTENT_PADDING,
     paddingTop: 10,
+    paddingBottom: 32,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 190,
-  },
-  topSectionWrapper: {
-    width: '100%',
-    overflow: 'hidden',
   },
   topContainer: {
-    marginBottom: 20,
-    width: '100%',
-    overflow: 'hidden',
+    marginBottom: 16,
   },
   circleScrollContainer: {
     paddingHorizontal: 5,
@@ -262,10 +232,6 @@ const styles = StyleSheet.create({
   sectionContainer: {
     marginBottom: 20,
   },
-  middleContainer: {
-    width: '100%',
-    marginTop: 20,
-  },
   triangleScrollContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -281,12 +247,23 @@ const styles = StyleSheet.create({
   triangleContainerLast: {
     marginRight: 0,
   },
+  sellerRow: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   sellerName: {
-    marginBottom: 8,
-    fontSize: 18,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#000000',
-    textAlign: 'left',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    maxWidth: CARD_WIDTH * 0.45,
   },
   triangle: {
     width: CARD_WIDTH,
@@ -301,13 +278,70 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  cardDescription: {
+  ratingBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    gap: 3,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  avatarContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    overflow: 'hidden',
+    backgroundColor: '#E5E7EB',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  productName: {
     marginTop: 8,
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333333',
+    fontWeight: '600',
+    color: '#000000',
     paddingHorizontal: 2,
     maxWidth: CARD_WIDTH,
+    fontFamily: 'Inter',
+  },
+  productPrice: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF2800',
+    paddingHorizontal: 2,
+    fontFamily: 'Inter',
+  },
+  locationBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  locationBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   titleContainer: {
     flexDirection: 'column',

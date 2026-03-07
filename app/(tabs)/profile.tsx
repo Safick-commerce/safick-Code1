@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, FontAwesome6, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback } from "react";
+import { useUserProfile } from "../../context/UserProfileContext";
 
 const AUTH_KEY = "user_logged_in";
 
@@ -14,6 +15,7 @@ const ROUTES = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { clearProfile } = useUserProfile();
 
   const handleProfilePress = useCallback(() => {
     try {
@@ -24,9 +26,10 @@ export default function ProfileScreen() {
   }, [router]);
 
   const handleSignOut = useCallback(async () => {
+    await clearProfile();
     await AsyncStorage.removeItem(AUTH_KEY);
     router.replace("/");
-  }, [router]);
+  }, [router, clearProfile]);
 
   const actionCards = [
     // Account Section
@@ -37,9 +40,8 @@ export default function ProfileScreen() {
     { id: 5, icon: "check-decagram-outline", label: "Verified Seller", section: "account", badge: null, iconLibrary: "MaterialCommunityIcons" },
     
     // Shopping Section
-    { id: 6, icon: "receipt-outline", label: "Orders", section: "shopping", badge: null },
     { id: 7, icon: "heart-outline", label: "Wishlist", section: "shopping", badge: 5 },
-    { id: 8, icon: "cart-outline", label: "Cart", section: "shopping", badge: 2 },
+    { id: 8, icon: "language-outline", label: "Language", section: "shopping", badge: null },
     { id: 9, icon: "card-outline", label: "Payment", section: "shopping", badge: null },
     { id: 10, icon: "location-outline", label: "Addresses", section: "shopping", badge: null },
     
@@ -236,6 +238,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },

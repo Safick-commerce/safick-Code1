@@ -1,10 +1,10 @@
-# clipCart 🛒
+# wispaCart 🛒
 
-A modern, feature-rich e-commerce mobile application built with React Native and Expo. clipCart combines shopping, live streaming, and social features to create an engaging shopping experience.
+A modern, feature-rich e-commerce mobile application built with React Native and Expo. wispaCart combines shopping, live streaming, and social features to create an engaging shopping experience.
 
 ## 🌍 Market Context
 
-**clipCart** is designed specifically for the African market, starting with **Cameroon**. The platform solves a critical pain point: sellers currently share product videos via WhatsApp to their contact lists, who then share to their stories - a fragmented and inefficient process.
+**wispaCart** is designed specifically for the African market, starting with **Cameroon**. The platform solves a critical pain point: sellers currently share product videos via WhatsApp to their contact lists, who then share to their stories - a fragmented and inefficient process.
 
 ### Problem Statement
 - Sellers create product videos but struggle with distribution
@@ -21,7 +21,7 @@ A modern, feature-rich e-commerce mobile application built with React Native and
 
 ### Business Model: Social Commerce Marketplace
 
-clipCart operates as a **social commerce marketplace** — a hybrid of TikTok-style product discovery and Facebook Marketplace's "message the seller" model.
+wispaCart operates as a **social commerce marketplace** — a hybrid of TikTok-style product discovery and Facebook Marketplace's "message the seller" model.
 
 **How it works:**
 1. Sellers upload product videos/images and create listings
@@ -50,7 +50,7 @@ clipCart operates as a **social commerce marketplace** — a hybrid of TikTok-st
 
 ### Target Users
 
-clipCart serves two distinct user types:
+wispaCart serves two distinct user types:
 
 **Buyers (Primary User)**
 - Young adults (18-35) in Douala, Cameroon
@@ -205,11 +205,11 @@ clipCart serves two distinct user types:
 
 ## Full System Architecture
 
-clipCart is built as three independent services that communicate over HTTP and WebSocket:
+wispaCart is built as three independent services that communicate over HTTP and WebSocket:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        CLIPCART SYSTEM                               │
+│                        WISPACART SYSTEM                               │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  ┌─────────────────────────────────┐                                 │
@@ -274,7 +274,7 @@ clipCart is built as three independent services that communicate over HTTP and W
 
 ## AI Capabilities & Tech Stack
 
-clipCart includes comprehensive AI-powered features built entirely with open-source, self-hosted solutions (no paid API dependencies).
+wispaCart includes comprehensive AI-powered features built entirely with open-source, self-hosted solutions (no paid API dependencies).
 
 ### AI Features Overview
 
@@ -506,7 +506,7 @@ ollama>=0.1.0
 #### Environment Variables (.env)
 ```env
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/clipcart
+DATABASE_URL=postgresql://user:pass@localhost:5432/wispacart
 REDIS_URL=redis://localhost:6379
 
 # Vector Database
@@ -599,7 +599,7 @@ Before you begin, ensure you have the following installed:
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd clipCart
+   cd wispaCart
    ```
 
 2. **Install dependencies**
@@ -624,7 +624,7 @@ Before you begin, ensure you have the following installed:
 ## 📁 Project Structure
 
 ```
-clipCart/
+wispaCart/
 ├── app/                    # Main application directory (file-based routing)
 │   ├── (tabs)/            # Tab navigation screens
 │   │   ├── index.tsx      # Home feed (Discover/For You/Following)
@@ -827,7 +827,7 @@ clipCart/
 
 ### Expo Configuration
 The app is configured in `app.json` with:
-- **Name**: clipCart
+- **Name**: wispaCart
 - **Version**: 1.0.0
 - **Orientation**: Portrait
 - **New Architecture**: Enabled
@@ -884,7 +884,7 @@ This project is private and proprietary.
 
 ## Team & Roles
 
-clipCart is built by a team of 4, each owning a distinct area of the product.
+wispaCart is built by a team of 4, each owning a distinct area of the product.
 
 ### Role 1: Technical Lead Developer & UI/UX Designer -- TAMASANG MUNGWE EMMANUEL CALEB
 

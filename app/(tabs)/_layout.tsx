@@ -1,4 +1,7 @@
 import { Tabs } from "expo-router";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import type { IconProp } from "@fortawesome/fontawesome-svg-core";
+import { faBox, faBoxOpen } from "@fortawesome/free-solid-svg-icons";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 
@@ -42,21 +45,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="sell"
+        name="unbox"
         options={{
-          title: "Sell",
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={30} color={color} />
-          ),
-          tabBarStyle: { display: 'none' }, // Hide tab bar when sell screen is active
-        }}
-      />
-      <Tabs.Screen
-        name="live"
-        options={{
-          title: "Live",
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "videocam" : "videocam-outline"} size={30} color={color} />
+          title: "Unbox",
+          tabBarIcon: ({ color, focused }) => (
+            <FontAwesomeIcon
+              icon={(focused ? faBoxOpen : faBox) as IconProp}
+              size={30}
+              color={color}
+            />
           ),
         }}
       />

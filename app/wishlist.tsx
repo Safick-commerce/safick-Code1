@@ -56,7 +56,6 @@ export default function WishlistScreen() {
       {wishlistItems.length === 0 ? (
         /* Empty State */
         <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={80} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>No saved items yet</Text>
           <Text style={styles.emptySubtitle}>
             Tap the heart icon on products you like to save them here

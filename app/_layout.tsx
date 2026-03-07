@@ -1,14 +1,38 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import {
+  useFonts,
+  PlayfairDisplay_800ExtraBold,
+} from "@expo-google-fonts/playfair-display";
 import "./global.css";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { WishlistProvider } from "../context/WishlistContext";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { MessageProvider } from "../context/MessageContext";
+import { UserProfileProvider } from "../context/UserProfileContext";
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    PlayfairDisplay_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <SafeAreaProvider>
+      <UserProfileProvider>
       <MessageProvider>
       <KeyboardProvider>
         <WishlistProvider>
@@ -24,6 +48,7 @@ export default function RootLayout() {
         </WishlistProvider>
       </KeyboardProvider>
       </MessageProvider>
+      </UserProfileProvider>
     </SafeAreaProvider>
   );
 }

@@ -1,8 +1,8 @@
-# clipCart — Business Strategy & Market Analysis
+# wispaCart — Business Strategy & Market Analysis
 
 ## Business Model: Social Commerce Marketplace
 
-clipCart is a **social commerce marketplace** — a hybrid of TikTok-style product discovery and Facebook Marketplace's "message the seller" model, designed specifically for the African market starting with Cameroon.
+wispaCart is a **social commerce marketplace** — a hybrid of TikTok-style product discovery and Facebook Marketplace's "message the seller" model, designed specifically for the African market starting with Cameroon.
 
 ### How It Works
 
@@ -24,6 +24,7 @@ clipCart is a **social commerce marketplace** — a hybrid of TikTok-style produ
 - Featured / promoted listings
 - Seller subscription tiers
 - Optional in-app payments with commission (Phase 3)
+- Runing adververt for bigger firms 
 
 ---
 
@@ -32,14 +33,14 @@ clipCart is a **social commerce marketplace** — a hybrid of TikTok-style produ
 ### It matches how people already buy and sell
 
 - In Cameroon (and most of West/Central Africa), buying is already conversational. People negotiate, ask questions, build relationships. The chat-based model mirrors this natural behavior.
-- WhatsApp commerce is huge — clipCart is essentially a better version of what millions already do daily.
+- WhatsApp commerce is huge — wispaCart is essentially a better version of what millions already do daily.
 - Cash on delivery and mobile money transfers don't need a middleman app to process. People are comfortable paying directly.
 
 ### Low friction
 
 - Sellers don't need to set up payment accounts or learn complex dashboards
 - Buyers don't need to trust a new payment system — they use what they already know (Orange Money, MTN MoMo)
-- Data-light video discovery beats scrolling through WhatsApp statuses
+- Data-light video discovery beats scrolling through WhatsApp statuses that disspear in 24 hours which makes it so stressfull for a seller to have to put everyday with limited views but with wispacart you can have reach allover the place without having to bother anybody to share your product everyday on his/her whatsapp status.
 
 ---
 
@@ -47,12 +48,12 @@ clipCart is a **social commerce marketplace** — a hybrid of TikTok-style produ
 
 ### 1. The WhatsApp Migration Problem
 
-**Risk:** People discover products on clipCart, then move the conversation to WhatsApp because it's familiar. Once they're on WhatsApp, clipCart loses them.
+**Risk:** People discover products on wispaCart, then move the conversation to WhatsApp because it's familiar. Once they're on WhatsApp, wispaCart loses them.
 
 **Counter with:**
 - Make in-app chat better than WhatsApp for buying (product cards, deal tracking, review prompts)
 - Add features WhatsApp can't offer (seller ratings, verified badges, product history)
-- Don't fight WhatsApp — add a "Share to WhatsApp" button so sellers can drive their WhatsApp audience *into* clipCart
+- Don't fight WhatsApp — add a "Share to WhatsApp" button so sellers can drive their WhatsApp audience *into* wispaCart
 
 ### 2. Data Costs Matter
 
@@ -72,7 +73,7 @@ clipCart is a **social commerce marketplace** — a hybrid of TikTok-style produ
 - Prioritize the verified seller badge (even just phone verification)
 - Make reviews visible and prominent — social proof is the #1 trust driver
 - Fast response to reports/complaints
-- Consider a "clipCart Guaranteed" seller tier eventually
+- Consider a "wispaCart Guaranteed" seller tier eventually
 
 ### 4. The Chicken-and-Egg Problem
 
@@ -81,7 +82,7 @@ clipCart is a **social commerce marketplace** — a hybrid of TikTok-style produ
 **Counter with:**
 - Start with 20–30 active sellers in one city (Douala or Yaounde)
 - Help them upload their first products (hands-on onboarding)
-- Let them share their clipCart profiles on WhatsApp/Instagram to pull in their existing customers
+- Let them share their wispaCart profiles on WhatsApp/Instagram to pull in their existing customers
 - Focus on one niche first (fashion works well) before expanding
 
 ---
@@ -104,8 +105,8 @@ Delivery logistics are seller-managed, so proximity matters. Let buyers filter p
 ### Consider WhatsApp as a Channel, Not Competition
 
 - Let sellers link their WhatsApp number
-- But make clipCart the *better* place to browse and discover
-- Tagline idea: **"Discover on clipCart, buy how you want"**
+- But make wispaCart the *better* place to browse and discover
+- Tagline idea: **"Discover on wispaCart, buy how you want"**
 
 ### Social Proof Is the Growth Engine
 
@@ -119,7 +120,7 @@ In African markets, recommendations from friends/community are the strongest pur
 
 ## Comparable Platforms in Africa
 
-| Platform    | Country      | Model              | What clipCart Can Learn                          |
+| Platform    | Country      | Model              | What wispaCart Can Learn                          |
 |-------------|-------------|--------------------|-------------------------------------------------|
 | **Jiji**    | Nigeria/Ghana | Classifieds + chat | Simple works. Message-to-buy is proven.         |
 | **Tonaton** | Ghana        | Classifieds + chat | Location-based filtering is essential           |
@@ -130,7 +131,7 @@ In African markets, recommendations from friends/community are the strongest pur
 
 ## Key Differentiator
 
-**The TikTok-style discovery feed.** Nobody else is doing video-first product discovery for African markets. That's clipCart's moat. Make the discovery experience addictive, make the chat experience smooth, and the transactions will follow naturally.
+**The TikTok-style discovery feed.** Nobody else is doing video-first product discovery for African markets. That's wispaCart's moat. Make the discovery experience addictive, make the chat experience smooth, and the transactions will follow naturally.
 
 ---
 

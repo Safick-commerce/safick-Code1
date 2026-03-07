@@ -13,7 +13,7 @@ type LoginscreensProps = {
   logoIconSource?: ImageSourcePropType;
 };
 
-// Video at project root: clipCart/assets/images/loginscreen.mp4 (3 levels up from app/screens/loginscreens)
+// Video at project root: wispaCart/assets/images/loginscreen.mp4 (3 levels up from app/screens/loginscreens)
 const VIDEO_SOURCE = require('../../../assets/images/loginscreen.mp4');
 // Brand red used for buttons, active language tab, "CART" text, and "Sign In" link
 const RED = '#FF2800';
@@ -76,7 +76,7 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
         {/* ---------- Logo + tagline (center) ---------- */}
         <View style={styles.hero}>
           <View style={styles.logoRow}>
-            <Text style={styles.logoClip}>CLIP</Text>
+            <Text style={styles.logoClip}>WISPA</Text>
             <View style={styles.logoCartWrap}>
               {/* Custom logo image when provided by parent (e.g. from index.tsx); otherwise nothing (or you could show a fallback cart icon) */}
               {logoIconSource && (
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     color: RED,
     letterSpacing: 1,
   },
-  // Small "clipCart" label under the main logo (currently not rendered in JSX but kept for consistency)
+  // Small "wispaCart" label under the main logo (currently not rendered in JSX but kept for consistency)
   logoSmall: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.7)',

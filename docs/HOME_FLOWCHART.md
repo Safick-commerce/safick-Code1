@@ -1,4 +1,4 @@
-# clipCart Home Screen (index.tsx) — Flowchart & Improvement Ideas
+# wispaCart Home Screen (index.tsx) — Flowchart & Improvement Ideas
 
 ## Structured Flowchart
 

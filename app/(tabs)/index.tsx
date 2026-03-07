@@ -1,6 +1,6 @@
 import { Text, View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, AntDesign, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, AntDesign, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import DiscoverTab from "../../components/tabs/DiscoverTab";
@@ -77,6 +77,10 @@ export default function Index() {
     }
   }, []);
 
+  const handleDiscoverSellersPress = useCallback(() => {
+    handleTabPress("Discover");
+  }, [handleTabPress]);
+
   // Input validation for search
   const [searchQuery, setSearchQuery] = useState("");
   const handleSearchChange = useCallback((text: string) => {
@@ -121,14 +125,14 @@ export default function Index() {
           <View style={styles.searchBarContainer}>
             <Ionicons name="search" size={26} color="#000000" />
             <TextInput
-              placeholder="Search clipCart..."
+              placeholder="Search wispaCart..."
               placeholderTextColor="rgba(0, 0, 0, 0.62)"
               style={styles.searchInput}
               value={searchQuery}
               onChangeText={handleSearchChange}
               autoCapitalize="none"
               autoCorrect={false}
-              accessibilityLabel="Search clipCart"
+              accessibilityLabel="Search wispaCart"
               accessibilityRole="search"
             />
           </View>
@@ -213,7 +217,7 @@ export default function Index() {
         <ForYouTab />
 
         {/* Following Tab */}
-        <FollowingTab />
+        <FollowingTab onDiscoverPress={handleDiscoverSellersPress} />
       </ScrollView>
     </SafeAreaView>
   );

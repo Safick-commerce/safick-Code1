@@ -1,4 +1,4 @@
-# clipCart Cameroon Launch Strategy 🚀
+# wispaCart Cameroon Launch Strategy 🚀
 
 **Target Launch**: May 2025  
 **Market**: Cameroon 🇨🇲  
@@ -9,7 +9,7 @@
 
 ## 🎯 Executive Summary
 
-clipCart solves the WhatsApp video sharing problem for sellers in Cameroon by providing a centralized platform for video commerce. Sellers can upload product videos, host live shows, and connect with buyers - all while maintaining their existing delivery networks.
+wispaCart solves the WhatsApp video sharing problem for sellers in Cameroon by providing a centralized platform for video commerce. Sellers can upload product videos, host live shows, and connect with buyers - all while maintaining their existing delivery networks.
 
 ---
 

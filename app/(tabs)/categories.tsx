@@ -96,14 +96,14 @@ export default function CategoriesScreen() {
           <View style={styles.searchBarContainer}>
             <Ionicons name="search" size={26} color="#000000" />
             <TextInput
-              placeholder="Search clipCart..."
+              placeholder="Search wispaCart..."
               placeholderTextColor="rgba(0, 0, 0, 0.62)"
               style={styles.searchInput}
               value={searchQuery}
               onChangeText={handleSearchChange}
               autoCapitalize="none"
               autoCorrect={false}
-              accessibilityLabel="Search clipCart"
+              accessibilityLabel="Search wispaCart"
               accessibilityRole="search"
             />
             <TouchableOpacity

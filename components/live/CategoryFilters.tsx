@@ -1,4 +1,4 @@
-import { ScrollView, View, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 import FilterButton from "./FilterButton";
 import { CategoryFilter } from "../../types";
 import { memo } from "react";
@@ -11,11 +11,11 @@ interface CategoryFiltersProps {
 
 function CategoryFilters({ categories, activeCategory, onCategoryChange }: CategoryFiltersProps) {
   return (
-    <ScrollView 
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filtersContainer}
-      style={styles.filtersScrollView}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={true}
+      contentContainerStyle={styles.content}
+      style={styles.scroll}
     >
       {categories.map((category) => (
         <FilterButton
@@ -30,16 +30,15 @@ function CategoryFilters({ categories, activeCategory, onCategoryChange }: Categ
 }
 
 const styles = StyleSheet.create({
-  filtersScrollView: {
-    maxHeight: 300,
+  scroll: {
     marginTop: 8,
   },
-  filtersContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    gap: 12,
-    alignItems: 'center',
+  content: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 14,
+    gap: 8,
+    alignItems: "flex-start",
   },
 });
 

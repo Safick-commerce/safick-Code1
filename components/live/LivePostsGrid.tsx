@@ -1,16 +1,17 @@
 import { View, FlatList, StyleSheet, ListRenderItem, Dimensions } from "react-native";
 import LivePostCard from "./LivePostCard";
 import { LivePost } from "../../types";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo, ReactElement } from "react";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface LivePostsGridProps {
   posts: LivePost[];
   postsPerRow?: number;
+  ListHeaderComponent?: ReactElement;
 }
 
-function LivePostsGrid({ posts, postsPerRow = 2 }: LivePostsGridProps) {
+function LivePostsGrid({ posts, postsPerRow = 2, ListHeaderComponent }: LivePostsGridProps) {
   // Calculate card width based on screen size
   // Account for: horizontal padding (10), gaps between cards (12), and margins (6 * 2 per card)
   const cardWidth = useMemo(() => {
@@ -46,6 +47,7 @@ function LivePostsGrid({ posts, postsPerRow = 2 }: LivePostsGridProps) {
       data={groupedPosts}
       renderItem={renderRow}
       keyExtractor={keyExtractor}
+      ListHeaderComponent={ListHeaderComponent}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
       removeClippedSubviews
@@ -62,7 +64,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     paddingHorizontal: 5,
-    marginTop: 20,
+    marginTop: 10,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },

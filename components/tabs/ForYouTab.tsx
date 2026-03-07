@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Dimensions, Image, ImageBackground, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
+import { EvilIcons } from "@expo/vector-icons";
 import ProductCard from "../shared/ProductCard";
 import VideoSideIcons from "../shared/VideoSideIcons";
 import { FEED_PRODUCTS } from "../../data/feedProducts";
@@ -52,6 +53,10 @@ export default function ForYouTab() {
         </TouchableOpacity>
         <View style={styles.usernameContainer}>
           <Text style={styles.username}>Brenda Style</Text>
+          <View style={styles.locationRow}>
+            <EvilIcons name="location" size={16} color="#FFFFFF" />
+            <Text style={styles.locationText}>Douala, Cameroon</Text>
+          </View>
         </View>
         <TouchableOpacity 
           style={styles.followButton} 
@@ -119,7 +124,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     fontFamily: 'Inter',
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginLeft: 2,
   },
   followButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.35)',

@@ -12,6 +12,8 @@ export interface MessageItemData {
     avatar: any; // require() image
     status: UserStatus;
   };
+  /** When true, conversation appears under the Reservation filter */
+  isReservation?: boolean;
 }
 
 interface MessageContextType {

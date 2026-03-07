@@ -3,11 +3,13 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Loginscreens from "./screens/loginscreens/Loginscreens";
+import { useUserProfile } from "../context/UserProfileContext";
 
 const AUTH_KEY = "user_logged_in";
 
 export default function Index() {
   const router = useRouter();
+  const { profile, isLoaded: profileLoaded } = useUserProfile();
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -16,13 +18,10 @@ export default function Index() {
       try {
         const value = await AsyncStorage.getItem(AUTH_KEY);
         // #region agent log
-        fetch('http://127.0.0.1:7795/ingest/37eacd44-5dc4-4313-8413-ac6c68b6e4f6',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a40776'},body:JSON.stringify({sessionId:'a40776',location:'index.tsx:AsyncStorage',message:'Auth check',data:{value,isTrue:value==='true'},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+        ;
         // #endregion
         setIsLoggedIn(value === "true");
-      } catch (e) {
-        // #region agent log
-        fetch('http://127.0.0.1:7795/ingest/37eacd44-5dc4-4313-8413-ac6c68b6e4f6',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a40776'},body:JSON.stringify({sessionId:'a40776',location:'index.tsx:AsyncStorage catch',message:'AsyncStorage error',data:{err:String(e)},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
+      } catch {
         setIsLoggedIn(false);
       } finally {
         setIsLoading(false);
@@ -33,15 +32,14 @@ export default function Index() {
   const handleLoginSuccess = async () => {
     await AsyncStorage.setItem(AUTH_KEY, "true");
     setIsLoggedIn(true);
-    router.replace("/(tabs)");
+    router.replace("/screens/onboarding/OnboardingScreen" as any);
   };
 
-  /** Navigate to the sign-in screen when user taps "I already have an account" */
   const handleSignInPress = () => {
     router.push("/screens/loginscreens/signinscreen");
   };
 
-  if (isLoading) {
+  if (isLoading || !profileLoaded) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#FF2800" />
@@ -50,9 +48,6 @@ export default function Index() {
   }
 
   if (!isLoggedIn) {
-    // #region agent log
-    fetch('http://127.0.0.1:7795/ingest/37eacd44-5dc4-4313-8413-ac6c68b6e4f6',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a40776'},body:JSON.stringify({sessionId:'a40776',location:'index.tsx:branch',message:'Rendering Loginscreens',data:{isLoading,isLoggedIn},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     return (
       <Loginscreens
         onSuccess={handleLoginSuccess}
@@ -62,15 +57,19 @@ export default function Index() {
     );
   }
 
-  // Already logged in: redirect in useEffect to avoid calling router during render
-  return <RedirectToTabs />;
+  return <RedirectAfterAuth onboardingDone={profile.onboardingCompleted} />;
 }
 
-function RedirectToTabs() {
+function RedirectAfterAuth({ onboardingDone }: { onboardingDone: boolean }) {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/(tabs)");
-  }, [router]);
+    if (onboardingDone) {
+      router.replace("/(tabs)");
+    } else {
+      router.replace("/screens/onboarding/OnboardingScreen" as any);
+    }
+  }, [router, onboardingDone]);
+
   return (
     <View style={styles.centered}>
       <ActivityIndicator size="large" color="#FF2800" />

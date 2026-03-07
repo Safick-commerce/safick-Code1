@@ -1,4 +1,4 @@
-import { View, Text, Image, StyleSheet, ImageSourcePropType } from "react-native";
+import { View, Text, Image, StyleSheet, ImageSourcePropType, TouchableOpacity } from "react-native";
 import { LivePost } from "../../types";
 import { memo } from "react";
 
@@ -8,65 +8,146 @@ interface LivePostCardProps {
 }
 
 function LivePostCard({ post, cardWidth }: LivePostCardProps) {
-  // Handle both local requires and URI strings
-  const imageSource: ImageSourcePropType = typeof post.imageUrl === 'string' 
+  const imageSource: ImageSourcePropType = typeof post.imageUrl === 'string'
     ? { uri: post.imageUrl }
     : post.imageUrl;
 
-  // Calculate image height maintaining aspect ratio (approximately 1.66:1)
-  const imageHeight = cardWidth * 1.66;
+  const avatarSource: ImageSourcePropType = post.sellerAvatar
+    ? (typeof post.sellerAvatar === 'string' ? { uri: post.sellerAvatar } : post.sellerAvatar)
+    : imageSource;
+
+  const cardHeight = cardWidth * 1.5;
+  const viewerCount = post.viewerCount ?? 0;
+  const viewerText = viewerCount >= 1000
+    ? `${(viewerCount / 1000).toFixed(1)}k`
+    : `${viewerCount}`;
 
   return (
-    <View style={[styles.container, { width: cardWidth }]}>
-      <Text style={[styles.sellerName, { width: cardWidth }]}>{post.sellerName}</Text>
-      <View style={[styles.imageContainer, { width: cardWidth, height: imageHeight }]}>
-        <Image 
-          source={imageSource}
-          style={styles.image}
-          resizeMode="cover"
-          accessibilityLabel={`${post.sellerName} live post`}
-        />
+  <View style={[styles.wrapper, { width: cardWidth }]}>
+    <View style={[styles.card, { width: cardWidth, height: cardHeight }]}>
+      <Image
+        source={imageSource}
+        style={styles.image}
+        resizeMode="cover"
+        accessibilityLabel={`${post.sellerName} live post`}
+      />
+
+      {/* Seller info overlay */}
+      <View style={styles.sellerOverlay}>
+        <View style={styles.avatarRing}>
+          <Image source={avatarSource} style={styles.avatar} resizeMode="cover" />
+        </View>
+        <View>
+          <Text style={styles.sellerName}>{post.sellerName}</Text>
+          <View style={styles.viewerRow}>
+            <View style={styles.liveDot} />
+            <Text style={styles.viewerText}>{viewerText}</Text>
+          </View>
+        </View>
       </View>
-      <Text style={[styles.postDescription, { width: cardWidth }]} numberOfLines={3}>
-        {post.description}
-      </Text>
+
+      {/* Join button */}
+      <TouchableOpacity style={styles.joinButton} activeOpacity={0.8}>
+        <Text style={styles.joinText}>Join</Text>
+      </TouchableOpacity>
     </View>
+
+    {/* Description below card */}
+    <Text style={[styles.description, { width: cardWidth }]} numberOfLines={2}>
+      {post.description}
+    </Text>
+  </View>
   );
 }
 
+const AVATAR_SIZE = 36;
+
 const styles = StyleSheet.create({
-  container: {
-    marginHorizontal: 6,
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
+  wrapper: {
+    marginHorizontal: 5,
   },
-  imageContainer: {
-    borderRadius: 10,
-    backgroundColor: '#E5E7EB',
-    borderWidth: 0.7,
-    borderColor: '#000000',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+  card: {
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#E5E7EB",
   },
   image: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+  },
+  sellerOverlay: {
+    position: "absolute",
+    top: 12,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  avatarRing: {
+    width: AVATAR_SIZE + 4,
+    height: AVATAR_SIZE + 4,
+    borderRadius: (AVATAR_SIZE + 4) / 2,
+    borderWidth: 2,
+    borderColor: "#FF2800",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E5E7EB",
+  },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
   },
   sellerName: {
-    marginBottom: 8,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
-    textAlign: 'left',
-  },
-  postDescription: {
-    marginTop: 8,
     fontSize: 14,
-    fontWeight: '400',
-    color: '#000000',
-    textAlign: 'left',
-    lineHeight: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  viewerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF2800",
+  },
+  viewerText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  joinButton: {
+    position: "absolute",
+    bottom: 12,
+    right: 10,
+    backgroundColor: "#FF2800",
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  joinText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  description: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: "400",
+    color: "#374151",
+    lineHeight: 18,
+    paddingHorizontal: 2,
   },
 });
 
