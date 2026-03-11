@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    /* Output settings */
+    "target": "ES2022",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+
+    /* Strict type-checking — catches bugs early */
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    /* Path aliases — use @/ instead of relative paths like ../../../ */
+    "baseUrl": "./src",
+    "paths": {
+      "@config/*": ["config/*"],
+      "@middleware/*": ["middleware/*"],
+      "@routes/*": ["routes/*"],
+      "@controllers/*": ["controllers/*"],
+      "@services/*": ["services/*"],
+      "@types/*": ["types/*"]
+    },
+
+    /* Emit declaration files for type sharing */
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

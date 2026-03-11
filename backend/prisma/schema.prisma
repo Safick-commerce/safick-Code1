@@ -1,0 +1,104 @@
+// =============================================================================
+// wispaCart Database Schema
+// =============================================================================
+// This file defines all database tables using Prisma ORM.
+// 
+// Commands:
+//   npm run db:generate   → Generate the Prisma client (run after schema changes)
+//   npm run db:migrate    → Create and apply a new migration
+//   npm run db:studio     → Open Prisma Studio (visual DB browser)
+//
+// Currently includes: User + Session (auth/onboarding)
+// Future additions: Product, Conversation, Message, Deal, Review, etc.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// User — represents both buyers and sellers
+// =============================================================================
+// A user becomes a "seller" when they create their first product listing.
+// No separate seller table — the role field tracks this.
+//
+// Auth strategy:
+//   - Google OAuth users have googleId set, passwordHash is null
+//   - Email/password users have passwordHash set, googleId is null
+//   - A user can link both (sign up with email, later connect Google)
+//
+// Onboarding flow:
+//   1. User signs up (Google or email) → basic record created (email, displayName)
+//   2. User picks username, gender, city, interests → onboardingCompleted = true
+//   3. Avatar can be added later from the profile screen
+// =============================================================================
+model User {
+  id       String @id @default(uuid())
+  email    String @unique
+  username String? @unique
+
+  // Auth fields
+  passwordHash String? // Null for Google-only users (bcrypt hash)
+  googleId     String? @unique // Null for email/password-only users
+
+  // Profile fields (collected during onboarding)
+  displayName String? // Full name — pre-filled from Google or entered manually
+  gender      String? // "male" | "female" | "other" | "prefer_not_to_say"
+  city        String? // Cameroonian city (Douala, Yaoundé, etc.)
+  interests   String[] // Product categories the user is interested in (e.g. ["Shoes", "Beauty"])
+  avatarUrl   String? // Profile picture URL (S3/CloudFront) — set later from profile screen
+
+  // Account settings
+  role         String  @default("buyer") // "buyer" | "seller" | "both"
+  languagePref String  @default("en") // "en" | "fr" — for bilingual support
+
+  // Status flags
+  onboardingCompleted Boolean @default(false) // True after user finishes all onboarding steps
+  isVerified          Boolean @default(false) // True after identity verification (future feature)
+
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastActiveAt DateTime @default(now()) // Updated on each API request (for "Last active" indicator)
+
+  // Relations
+  sessions Session[] // Active login sessions (for token management)
+
+  // Indexes for common queries
+  @@index([email])
+  @@index([googleId])
+  @@index([city]) // For location-based product discovery
+  @@index([createdAt]) // For sorting users by join date
+}
+
+// =============================================================================
+// Session — tracks active login sessions and refresh tokens
+// =============================================================================
+// Each time a user logs in, a new session is created with a refresh token.
+// This allows:
+//   - Multiple devices (each has its own session)
+//   - Token revocation (delete session to force re-login)
+//   - Refresh token rotation (old token is deleted, new one is created)
+//
+// When a user logs out, their session is deleted.
+// When a refresh token is used, the old session is deleted and a new one is created.
+// =============================================================================
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  refreshToken String   @unique // The hashed refresh token
+  expiresAt    DateTime // When this refresh token expires
+  createdAt    DateTime @default(now())
+
+  // Relation — cascading delete: when a user is deleted, all sessions are deleted
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Index for looking up sessions by user (e.g. "log out everywhere")
+  @@index([userId])
+  @@index([expiresAt]) // For cleanup of expired sessions
+}

@@ -1,0 +1,110 @@
+// =============================================================================
+// Express Application Setup
+// =============================================================================
+// Configures the Express app with all middleware and routes.
+// Separated from server.ts so the app can be imported for testing
+// without starting the HTTP server.
+//
+// Middleware order matters:
+//   1. Security (helmet, cors)
+//   2. Parsing (json, urlencoded)
+//   3. Rate limiting
+//   4. Routes
+//   5. Error handler (must be last)
+// =============================================================================
+
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+
+// Route imports
+import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
+
+// Error handler (must be registered last)
+import { errorHandler } from "./middleware/errorHandler";
+
+const app = express();
+
+// =============================================================================
+// Security Middleware
+// =============================================================================
+
+// Helmet — sets various HTTP security headers (XSS protection, HSTS, etc.)
+app.use(helmet());
+
+// CORS — allows the mobile app (Expo) to make requests to this server
+// In production, restrict this to your actual domain/app origin
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGINS?.split(",") || ["http://localhost:8081"],
+    credentials: true,
+  })
+);
+
+// =============================================================================
+// Body Parsing
+// =============================================================================
+
+// Parse JSON request bodies (e.g., POST /api/auth/register with { email, password })
+// Limit to 10MB to prevent abuse (large payloads)
+app.use(express.json({ limit: "10mb" }));
+
+// Parse URL-encoded bodies (for form submissions, if any)
+app.use(express.urlencoded({ extended: true }));
+
+// =============================================================================
+// Rate Limiting
+// =============================================================================
+
+// Limits each IP to a fixed number of requests per time window.
+// Prevents brute-force attacks on login and abuse of the API.
+const limiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests per window
+  standardHeaders: true, // Return rate limit info in headers
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+});
+
+app.use("/api/", limiter);
+
+// =============================================================================
+// Health Check
+// =============================================================================
+
+// Simple endpoint to verify the server is running.
+// Used by load balancers, uptime monitors, and deployment checks.
+app.get("/api/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
+// =============================================================================
+// API Routes
+// =============================================================================
+
+// All routes are prefixed with /api/ to separate them from any future
+// static file serving or web dashboard
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+
+// =============================================================================
+// 404 Handler — for routes that don't match anything above
+// =============================================================================
+
+app.use((_req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// =============================================================================
+// Global Error Handler — must be the LAST middleware registered
+// =============================================================================
+
+app.use(errorHandler);
+
+export default app;
