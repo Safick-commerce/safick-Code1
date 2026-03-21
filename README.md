@@ -1,35 +1,35 @@
-# safick 🛒
+# safick 
 
 A modern, commerce-driven e-commerce mobile application built with React Native and Expo. safick combines shopping, live streaming, and social features to create an engaging shopping experience.
 
-## ✨ Features
+## Features
 
-### 🏠 Home Feed
+### Home Feed
 - **Discover Tab**: Explore trending products and content
 - **For You Tab**: Personalized product recommendations
 - **Following Tab**: See products from sellers you follow
 
-### 🛍️ Shopping Experience
+### Shopping Experience
 - **Product Categories**: Browse by category (Shoes, Women, Men, Kids, Accessories, Beauty, Home)
 - **Search Functionality**: Quick search with real-time results
 - **Shopping Cart**: Add items to cart and manage quantities
 - **Wishlist**: Save favorite products for later
 - **Product Details**: View detailed product information with images and variants
 
-### 📺 Live Features
+### Live Features
 - **Live Streaming**: Watch live product showcases and demonstrations
 - **Interactive Shopping**: Shop directly from live streams
 
-### 💬 Social & Communication
+### Social & Communication
 - **Messages**: Chat with sellers and other users
 - **Notifications**: Stay updated with order status and promotions
 - **User Profiles**: Manage your profile and preferences
 
-### 🎯 Seller Features
+### Seller Features
 - **Sell Tab**: List and manage your products
 - **Product Management**: Create and edit product listings
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Core Technologies
 - **React Native** (0.81.5) - Cross-platform mobile framework
@@ -54,7 +54,7 @@ A modern, commerce-driven e-commerce mobile application built with React Native 
 - **Expo Haptics** - Haptic feedback
 - **Expo Image** - Optimized image component
 
-## 📋 Prerequisites
+## Prerequisites
 
 Before you begin, ensure you have the following installed:
 - **Node.js** (v18 or higher recommended)
@@ -63,7 +63,7 @@ Before you begin, ensure you have the following installed:
 - **iOS Simulator** (for macOS) or **Android Studio** (for Android development)
 - **Expo Go** app (optional, for testing on physical devices)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Installation
 
@@ -92,10 +92,10 @@ Before you begin, ensure you have the following installed:
 - **Web Browser**: `npm run web` or press `w` in the Expo CLI
 - **Expo Go App**: Scan the QR code with the Expo Go app on your device
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-clipCart/
+safick/
 ├── app/                    # Main application directory (file-based routing)
 │   ├── (tabs)/            # Tab navigation screens
 │   │   ├── index.tsx      # Home feed (Discover/For You/Following)
@@ -120,7 +120,7 @@ clipCart/
 └── app.json              # Expo configuration
 ```
 
-## 🎨 Design System
+## Design System
 
 ### Colors
 - **Primary**: `#FF2800` (Red accent)
@@ -143,7 +143,7 @@ clipCart/
 - **Tab Bar Icons**: 24px
 - **Back Buttons**: 24px
 
-## 📱 Available Scripts
+## Available Scripts
 
 - `npm start` - Start the Expo development server
 - `npm run android` - Run on Android emulator
@@ -151,11 +151,11 @@ clipCart/
 - `npm run web` - Run in web browser
 - `npm run lint` - Run ESLint to check code quality
 
-## 🔧 Configuration
+## Configuration
 
 ### Expo Configuration
 The app is configured in `app.json` with:
-- **Name**: clipCart
+- **Name**: safick
 - **Version**: 1.0.0
 - **Orientation**: Portrait
 - **New Architecture**: Enabled
@@ -169,7 +169,7 @@ API_URL=your_api_url
 API_KEY=your_api_key
 ```
 
-## 🧪 Development Guidelines
+## Development Guidelines
 
 ### Code Style
 - Use TypeScript for type safety
@@ -184,7 +184,7 @@ API_KEY=your_api_key
 - Implement proper loading and error states
 - Follow the existing file-based routing structure
 
-## 📦 Building for Production
+## Building for Production
 
 ### Android
 ```bash
@@ -198,7 +198,7 @@ eas build --platform ios
 
 *Note: Requires Expo Application Services (EAS) account setup*
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -206,24 +206,21 @@ eas build --platform ios
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is private and proprietary.
 
-## 👥 Authors
+##  Authors
 
-- Your Name/Team
+- Tamasang Caleb, Bless Tamajong , Tambe Jonathan and Barack Nsoh
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Built with [Expo](https://expo.dev)
 - Icons from [Expo Vector Icons](https://docs.expo.dev/guides/icons/)
 - Styling with [NativeWind](https://www.nativewind.dev/)
 
-## 📞 Support
+## Support
 
-For support, email your-email@example.com or open an issue in the repository.
+For support, email tamasangcaleb1@gmail.com or open an issue in the repository.
 
----
-
-**Made with ❤️ using React Native and Expo**
