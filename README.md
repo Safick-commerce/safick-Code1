@@ -1,6 +1,6 @@
-# clipCart 🛒
+# safick 🛒
 
-A modern, feature-rich e-commerce mobile application built with React Native and Expo. clipCart combines shopping, live streaming, and social features to create an engaging shopping experience.
+A modern, commerce-driven e-commerce mobile application built with React Native and Expo. safick combines shopping, live streaming, and social features to create an engaging shopping experience.
 
 ## ✨ Features
 
