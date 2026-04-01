@@ -1,5 +1,5 @@
 # =============================================================================
-# wispaCart Local Development Services
+# Safick Local Development Services
 # =============================================================================
 # Starts PostgreSQL and Redis for local development.
 #
@@ -11,8 +11,8 @@
 # After starting, the database will be available at:
 #   Host: localhost
 #   Port: 5432
-#   Database: wispacart
-#   User: wispacart
+#   Database: safick
+#   User: safick
 #   Password: dev_password
 #
 # Redis will be available at:
@@ -24,13 +24,13 @@ services:
   # (users, products, conversations, messages, orders, etc.)
   postgres:
     image: postgres:16-alpine
-    container_name: wispacart-postgres
+    container_name: safick-postgres
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: wispacart
-      POSTGRES_USER: wispacart
+      POSTGRES_DB: safick
+      POSTGRES_USER: safick
       POSTGRES_PASSWORD: dev_password
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -38,7 +38,7 @@ services:
   # Redis — used for caching, rate limiting, and Socket.IO adapter (future)
   redis:
     image: redis:7-alpine
-    container_name: wispacart-redis
+    container_name: safick-redis
     restart: unless-stopped
     ports:
       - "6379:6379"

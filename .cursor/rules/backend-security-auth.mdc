@@ -1,0 +1,40 @@
+---
+description: Backend security and authentication guardrails
+globs: backend/**/*
+alwaysApply: false
+---
+
+# Backend Security and Authentication
+
+- Validate every external input at the boundary (request body, params, query, headers).
+- Never trust client-supplied roles or permissions; derive authz from verified server-side identity.
+- Use least privilege for role checks and reject by default when role is missing/unknown.
+- Store secrets only in environment variables; never hardcode API keys, tokens, or credentials.
+- Hash passwords with a strong adaptive algorithm (bcrypt/argon2); never log plaintext secrets.
+- Return generic auth errors to clients and keep sensitive failure details in server logs only.
+
+```ts
+// ❌ BAD: trusts client role + weak auth check
+if (req.body.role === "admin") {
+  return next();
+}
+
+// ✅ GOOD: uses verified identity and explicit role check
+const userRole = req.user?.role;
+if (userRole !== "admin") {
+  return res.status(403).json({ message: "Forbidden" });
+}
+return next();
+```
+
+```ts
+// ❌ BAD: missing validation
+await createUser(req.body);
+
+// ✅ GOOD: validate before use
+const parsed = CreateUserSchema.safeParse(req.body);
+if (!parsed.success) {
+  return res.status(400).json({ message: "Invalid request" });
+}
+await createUser(parsed.data);
+```

@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 4000;
 async function main() {
   // Start the HTTP server
   const server = app.listen(PORT, () => {
-    console.log(`\n🚀 wispaCart backend running on http://localhost:${PORT}`);
+    console.log(`\n🚀 Safick backend running on http://localhost:${PORT}`);
     console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
     console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
   });

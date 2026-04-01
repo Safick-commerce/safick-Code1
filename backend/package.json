@@ -1,7 +1,7 @@
 {
-  "name": "wispacart-backend",
+  "name": "safick-backend",
   "version": "1.0.0",
-  "description": "wispaCart Main Backend — handles auth, user profiles, products, chat, and file uploads",
+  "description": "Safick Main Backend — handles auth, user profiles, products, chat, and file uploads",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -17,7 +17,7 @@
     "docker:down": "docker-compose down"
   },
   "keywords": [
-    "wispacart",
+    "safick",
     "ecommerce",
     "cameroon",
     "social-commerce"
