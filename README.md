@@ -131,7 +131,7 @@ safick/
 - **Active State**: `#000000` (Black)
 
 ### Typography
-- **Font Family**: Inter (primary)
+- **Font Family**: Inter (primary), sf
 - **Font Sizes**: 
   - Search Input: 16px
   - Filter Buttons: 14px
