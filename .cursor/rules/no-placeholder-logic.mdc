@@ -1,0 +1,14 @@
+---
+description: Prevent TODO stubs and fake logic in deliverable code
+globs: **/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# No Placeholder Logic
+
+- Do not leave `501 Not implemented`, fake handlers, or temporary mock branches in merged code.
+- Replace TODO stubs with real behavior, or gate unfinished features behind explicit feature flags.
+- Remove debug-only network calls and console noise before completing a task.
+- If a dependency is blocked, document a concrete follow-up task and safe fallback behavior.
+- Treat "coming soon" UI copy as incomplete unless the route is intentionally disabled.
+- Never present placeholder outputs as production-ready implementation.

@@ -1,0 +1,13 @@
+---
+description: Enforce MVP-first prioritization and scope control
+alwaysApply: true
+---
+
+# MVP Priority Gate
+
+- Every coding task must map to a current MVP goal before implementation.
+- If work is Phase 2/3 or "nice to have", pause and ask for explicit approval.
+- Prefer shipping one complete user flow over starting multiple partial features.
+- Prioritize launch-critical flows: auth, onboarding, listings, chat, reliability.
+- When trade-offs appear, choose simpler delivery over architectural perfection.
+- Keep decisions tied to timeline risk reduction and user impact in Cameroon launch.

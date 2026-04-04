@@ -1,0 +1,13 @@
+---
+description: Enforce a minimum testing bar for critical paths
+alwaysApply: true
+---
+
+# Testing Minimum Bar
+
+- Critical flows require at least one automated smoke test before merge.
+- Critical flows include: auth, onboarding completion, listing creation, chat send/receive.
+- Every bug fix should add a regression test when practical.
+- Prefer small, deterministic tests over broad flaky integration tests.
+- Do not mark launch-critical work complete without a reproducible verification path.
+- If tests are deferred, record risk and a dated follow-up task explicitly.

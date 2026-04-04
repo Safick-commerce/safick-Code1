@@ -1,0 +1,13 @@
+---
+description: Apply a strict definition of done for every feature
+alwaysApply: true
+---
+
+# Definition of Done
+
+- A task is done only when implementation, validation, and integration are complete.
+- "Done" requires: no placeholder logic, no known blocking bug, and clear error handling.
+- For backend work, include request validation and stable API response shape.
+- For frontend work, include loading, empty, and failure states where relevant.
+- Add or update minimal tests for critical behavior before marking complete.
+- Update impacted docs/checklists when feature status changes.

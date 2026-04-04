@@ -1,0 +1,14 @@
+---
+description: Keep roadmap, README, and docs aligned with real implementation
+globs: frontend/**
+alwaysApply: false
+---
+
+# Docs Sync Rule
+
+- When implementation status changes, update related docs in the same task.
+- Keep `frontend/README.md` roadmap and checklist aligned with repository reality.
+- Avoid aspirational wording that implies features are complete when they are not.
+- Add short notes for major scope decisions, deferrals, and launch-impacting trade-offs.
+- Ensure onboarding, auth, and feature flow docs match current app behavior.
+- Treat outdated documentation as technical debt that must be closed quickly.

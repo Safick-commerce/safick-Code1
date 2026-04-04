@@ -1,0 +1,14 @@
+---
+description: Build backend and frontend changes from explicit API contracts
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# API Contract First
+
+- Define request and response schemas before wiring endpoint or screen logic.
+- Validate all external input at the boundary (body, params, query, headers).
+- Keep API payloads stable; avoid ad-hoc response shape changes.
+- Share or mirror domain types across frontend and backend to avoid drift.
+- Add graceful handling for contract errors (400/401/403/404/500) on both sides.
+- When changing a contract, update caller code and docs in the same task.
