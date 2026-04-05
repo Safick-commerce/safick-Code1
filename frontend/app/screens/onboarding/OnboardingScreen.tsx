@@ -1,15 +1,15 @@
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
-import { useState, useCallback } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useUserProfile } from "../../../context/UserProfileContext";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
+import { useUserProfile } from "../../../context/UserProfileContext";
 import WalkthroughSlides from "./WalkthroughSlides";
-import NameUsernameStep from "./steps/NameUsernameStep";
 import GenderStep from "./steps/GenderStep";
-import LocationStep from "./steps/LocationStep";
 import InterestsStep from "./steps/InterestsStep";
+import LocationStep from "./steps/LocationStep";
+import NameUsernameStep from "./steps/NameUsernameStep";
 
 const RED = "#FF2800";
 const TOTAL_STEPS = 4;
@@ -36,6 +36,12 @@ export default function OnboardingScreen() {
   const [city, setCity] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
 
+  // Username availability — updated by NameUsernameStep via onUsernameAvailable
+  const [usernameAvailable, setUsernameAvailable] = useState(false);
+
+  // Loading state for the Sign Up button
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleWalkthroughComplete = useCallback(() => {
     setPhase("steps");
   }, []);
@@ -53,8 +59,12 @@ export default function OnboardingScreen() {
           name.trim().length >= 2 &&
           username.trim().length >= 3 &&
           EMAIL_REGEX.test(email.trim()) &&
-          password.length >= 6 &&
-          agreedToTerms
+          password.length >= 8 &&
+          /[A-Z]/.test(password) &&
+          /[0-9]/.test(password) &&
+          /[^A-Za-z0-9]/.test(password) &&
+          agreedToTerms &&
+          usernameAvailable === true
         );
       case 1:
         return gender.length > 0;
@@ -70,11 +80,13 @@ export default function OnboardingScreen() {
   const handleContinue = useCallback(async () => {
     switch (step) {
       case 0:
+        setIsSubmitting(true);
         await updateProfile({
           displayName: name.trim(),
           username: username.trim(),
           email: email.trim(),
         });
+        setIsSubmitting(false);
         setStep(1);
         break;
       case 1:
@@ -99,7 +111,6 @@ export default function OnboardingScreen() {
   }, [step]);
 
   const handleSkip = useCallback(async () => {
-    // Skipping onboarding should send new users to sign-in flow.
     await signOut();
     router.replace("/screens/loginscreens/signinscreen");
   }, [signOut, router]);
@@ -148,6 +159,7 @@ export default function OnboardingScreen() {
               onEmailChange={setEmail}
               onPasswordChange={setPassword}
               onAgreeChange={setAgreedToTerms}
+              onUsernameAvailable={setUsernameAvailable}
             />
           )}
           {step === 1 && (
@@ -163,14 +175,18 @@ export default function OnboardingScreen() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.continueButton, !valid && styles.continueButtonDisabled]}
+            style={[styles.continueButton, (!valid || isSubmitting) && styles.continueButtonDisabled]}
             onPress={handleContinue}
             activeOpacity={0.85}
-            disabled={!valid}
+            disabled={!valid || isSubmitting}
           >
-            <Text style={styles.continueText}>
-              {step === 0 ? "Sign Up" : isLast ? "Finish" : "Continue"}
-            </Text>
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueText}>
+                {step === 0 ? "Sign Up" : isLast ? "Finish" : "Continue"}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

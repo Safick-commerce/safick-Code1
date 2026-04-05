@@ -2,9 +2,19 @@
 // Collects full name, username, email, password, and terms agreement
 // All state is managed by the parent OnboardingScreen — this is a presentational component
 
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
-import { useState } from "react";
 import { FontAwesome6, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+
+const RED = "#FF2800";
+const GREEN = "#16a34a";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Cameroon: +237 followed by 9 digits starting with 6-9
+const CAMEROON_PHONE_REGEX = /^\+237[6-9]\d{8}$/;
+
+// Mock list of taken usernames — replace with real API call when backend is ready
+const TAKEN_USERNAMES = ["pabless", "safick", "admin", "taylorcale", "clipcart", "brenda"];
 
 interface NameUsernameStepProps {
   name: string;
@@ -17,6 +27,20 @@ interface NameUsernameStepProps {
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onAgreeChange: (value: boolean) => void;
+  onUsernameAvailable?: (available: boolean) => void;
+}
+
+function ValidationHint({ valid, message }: { valid: boolean; message: string }) {
+  return (
+    <View style={hintStyles.row}>
+      <MaterialCommunityIcons
+        name={valid ? "check-circle" : "close-circle"}
+        size={14}
+        color={valid ? GREEN : RED}
+      />
+      <Text style={[hintStyles.text, { color: valid ? GREEN : RED }]}>{message}</Text>
+    </View>
+  );
 }
 
 export default function NameUsernameStep({
@@ -30,9 +54,58 @@ export default function NameUsernameStep({
   onEmailChange,
   onPasswordChange,
   onAgreeChange,
+  onUsernameAvailable,
 }: NameUsernameStepProps) {
-  // Local state only — password visibility toggle doesn't need to persist
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [phone, setPhone] = useState("+237");
+
+  const [touched, setTouched] = useState({
+    name: false,
+    username: false,
+    email: false,
+    phone: false,
+    password: false,
+  });
+
+  // Username availability state
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Check username availability with a debounce (waits 800ms after user stops typing)
+  useEffect(() => {
+    if (username.trim().length < 3) {
+      setUsernameAvailable(null);
+      onUsernameAvailable?.(false);
+      return;
+    }
+
+    setUsernameChecking(true);
+    setUsernameAvailable(null);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      // Simulate a network request (replace this with real API call later)
+      const isTaken = TAKEN_USERNAMES.includes(username.trim().toLowerCase());
+      setUsernameAvailable(!isTaken);
+      onUsernameAvailable?.(!isTaken);
+      setUsernameChecking(false);
+    }, 800);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [username]);
+
+  // Validation flags
+  const emailValid = EMAIL_REGEX.test(email.trim());
+  const phoneValid = CAMEROON_PHONE_REGEX.test(phone);
+  const passwordMinLength = password.length >= 8;
+  const passwordHasUpper = /[A-Z]/.test(password);
+  const passwordHasNumber = /[0-9]/.test(password);
+  const passwordHasSpecial = /[^A-Za-z0-9]/.test(password);
+  const nameValid = name.trim().length >= 2;
 
   return (
     <ScrollView
@@ -43,29 +116,34 @@ export default function NameUsernameStep({
     >
       {/* -------- Header -------- */}
       <Text style={styles.heading}>Create your account</Text>
-      <Text style={styles.subheading}>
-        {"Let's get you set up on safick"}
-      </Text>
+      <Text style={styles.subheading}>{"Let's get you set up on safick"}</Text>
 
-      {/* -------- Full Name Input -------- */}
+      {/* -------- Full Name -------- */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Full Name</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, touched.name && !nameValid && styles.inputError]}
           placeholder="e.g. Brenda"
           placeholderTextColor="#94A3B8"
           value={name}
           onChangeText={onNameChange}
+          onBlur={() => setTouched((t) => ({ ...t, name: true }))}
           autoCapitalize="words"
           autoFocus
         />
+        {touched.name && !nameValid && (
+          <ValidationHint valid={false} message="Name must be at least 2 characters" />
+        )}
       </View>
 
-      {/* -------- Username Input -------- */}
-      {/* Only allows lowercase letters, numbers, dots and underscores */}
+      {/* -------- Username -------- */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Username</Text>
-        <View style={styles.usernameRow}>
+        <View style={[
+          styles.usernameRow,
+          touched.username && usernameAvailable === false && styles.rowError,
+          touched.username && usernameAvailable === true && styles.rowSuccess,
+        ]}>
           <Text style={styles.atSymbol}>@</Text>
           <TextInput
             style={styles.usernameInput}
@@ -76,37 +154,106 @@ export default function NameUsernameStep({
               const cleaned = text.toLowerCase().replace(/[^a-z0-9._]/g, "");
               onUsernameChange(cleaned);
             }}
+            onBlur={() => setTouched((t) => ({ ...t, username: true }))}
             autoCapitalize="none"
             autoCorrect={false}
           />
+          {/* Spinner or check/cross on the right */}
+          {username.trim().length >= 3 && (
+            <View style={styles.usernameStatus}>
+              {usernameChecking ? (
+                <ActivityIndicator size="small" color="#94A3B8" />
+              ) : usernameAvailable === true ? (
+                <MaterialCommunityIcons name="check-circle" size={20} color={GREEN} />
+              ) : usernameAvailable === false ? (
+                <MaterialCommunityIcons name="close-circle" size={20} color={RED} />
+              ) : null}
+            </View>
+          )}
         </View>
+        {touched.username && username.trim().length >= 3 && !usernameChecking && (
+          <ValidationHint
+            valid={usernameAvailable === true}
+            message={usernameAvailable === true ? "Username is available!" : "This username is already taken"}
+          />
+        )}
+        {touched.username && username.trim().length < 3 && (
+          <ValidationHint valid={false} message="Username must be at least 3 characters" />
+        )}
       </View>
 
-      {/* -------- Email Input -------- */}
+      {/* -------- Email -------- */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Email</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            touched.email && !emailValid && styles.inputError,
+            touched.email && emailValid && styles.inputSuccess,
+          ]}
           placeholder="brenda@example.com"
           placeholderTextColor="#94A3B8"
           value={email}
           onChangeText={onEmailChange}
+          onBlur={() => setTouched((t) => ({ ...t, email: true }))}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
         />
+        {touched.email && (
+          <ValidationHint
+            valid={emailValid}
+            message={emailValid ? "Valid email address" : "Enter a valid email (e.g. brenda@example.com)"}
+          />
+        )}
       </View>
 
-      {/* -------- Password Input with show/hide toggle -------- */}
+      {/* -------- Phone Number (Cameroon) -------- */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Phone Number</Text>
+        <View style={[
+          styles.phoneRow,
+          touched.phone && !phoneValid && styles.rowError,
+          touched.phone && phoneValid && styles.rowSuccess,
+        ]}>
+          <View style={styles.countryCode}>
+            <Text style={styles.flag}>🇨🇲</Text>
+            <Text style={styles.countryCodeText}>+237</Text>
+          </View>
+          <View style={styles.phoneDivider} />
+          <TextInput
+            style={styles.phoneInput}
+            placeholder="6XXXXXXXX"
+            placeholderTextColor="#94A3B8"
+            value={phone.slice(4)}
+            onChangeText={(text) => {
+              const digits = text.replace(/[^0-9]/g, "").slice(0, 9);
+              setPhone("+237" + digits);
+            }}
+            onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
+            keyboardType="phone-pad"
+            maxLength={9}
+          />
+        </View>
+        {touched.phone && (
+          <ValidationHint
+            valid={phoneValid}
+            message={phoneValid ? "Valid Cameroon number" : "Enter a valid Cameroon number (e.g. 6XXXXXXXX)"}
+          />
+        )}
+      </View>
+
+      {/* -------- Password -------- */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Password</Text>
-        <View style={styles.passwordRow}>
+        <View style={[styles.passwordRow, touched.password && !passwordMinLength && styles.rowError]}>
           <TextInput
             style={styles.passwordInput}
             placeholder="Create a password"
             placeholderTextColor="#94A3B8"
             value={password}
             onChangeText={onPasswordChange}
+            onBlur={() => setTouched((t) => ({ ...t, password: true }))}
             secureTextEntry={!passwordVisible}
             autoCapitalize="none"
           />
@@ -115,26 +262,27 @@ export default function NameUsernameStep({
             style={styles.eyeButton}
             activeOpacity={0.7}
           >
-            <FontAwesome6
-              name={passwordVisible ? "eye-slash" : "eye"}
-              size={18}
-              color="#64748B"
-            />
+            <FontAwesome6 name={passwordVisible ? "eye-slash" : "eye"} size={18} color="#64748B" />
           </TouchableOpacity>
         </View>
+        {password.length > 0 && (
+          <View style={styles.passwordHints}>
+            <ValidationHint valid={passwordMinLength} message="At least 8 characters" />
+            <ValidationHint valid={passwordHasUpper} message="At least one uppercase letter (A-Z)" />
+            <ValidationHint valid={passwordHasNumber} message="At least one number (0-9)" />
+            <ValidationHint valid={passwordHasSpecial} message="At least one special character (!@#$...)" />
+          </View>
+        )}
       </View>
 
       {/* -------- Terms & Privacy Checkbox -------- */}
-      {/* User must check this before the "Sign Up" button becomes active */}
       <TouchableOpacity
         style={styles.termsRow}
         onPress={() => onAgreeChange(!agreedToTerms)}
         activeOpacity={0.7}
       >
         <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-          {agreedToTerms && (
-            <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-          )}
+          {agreedToTerms && <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />}
         </View>
         <Text style={styles.terms}>
           By tapping sign up you agree to our{" "}
@@ -146,20 +294,26 @@ export default function NameUsernameStep({
   );
 }
 
-// STYLES
+const hintStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 5,
+  },
+  text: {
+    fontSize: 12,
+    fontFamily: "Inter",
+  },
+});
 
 const styles = StyleSheet.create({
-  // ScrollView wrapper — allows the form to scroll when keyboard is open
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 16,
   },
-
-  // Header text
   heading: {
     fontSize: 24,
     fontWeight: "800",
@@ -174,11 +328,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     marginBottom: 28,
   },
-
-  // Shared input group spacing
-  inputGroup: {
-    marginBottom: 20,
-  },
+  inputGroup: { marginBottom: 20 },
   label: {
     fontSize: 14,
     fontWeight: "600",
@@ -186,8 +336,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     marginBottom: 8,
   },
-
-  // Standard text input (used for name and email)
   input: {
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -198,8 +346,8 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     color: "#111827",
   },
-
-  // Username input — row with @ prefix
+  inputError: { borderColor: RED },
+  inputSuccess: { borderColor: GREEN },
   usernameRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -208,6 +356,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
   },
+  rowError: { borderColor: RED },
+  rowSuccess: { borderColor: GREEN },
   atSymbol: {
     fontSize: 16,
     fontWeight: "600",
@@ -222,8 +372,43 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     color: "#111827",
   },
-
-  // Password input — row with eye toggle button
+  usernameStatus: {
+    paddingLeft: 8,
+  },
+  phoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  countryCode: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 14,
+  },
+  flag: { fontSize: 18 },
+  countryCodeText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+    fontFamily: "Inter",
+  },
+  phoneDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "#E2E8F0",
+  },
+  phoneInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontFamily: "Inter",
+    color: "#111827",
+  },
   passwordRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -239,18 +424,17 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     color: "#111827",
   },
-  eyeButton: {
-    padding: 8,
+  eyeButton: { padding: 8 },
+  passwordHints: {
+    marginTop: 10,
+    gap: 4,
   },
-
-  // Terms checkbox row
   termsRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
     marginTop: 8,
   },
-  // Checkbox — toggles between grey border (unchecked) and red filled (checked)
   checkbox: {
     width: 22,
     height: 22,
@@ -262,10 +446,9 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   checkboxChecked: {
-    backgroundColor: "#FF2800",
-    borderColor: "#FF2800",
+    backgroundColor: RED,
+    borderColor: RED,
   },
-  // Terms text — links are bolded in dark color
   terms: {
     flex: 1,
     fontSize: 13,
