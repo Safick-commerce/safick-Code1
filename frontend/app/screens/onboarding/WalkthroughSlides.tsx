@@ -97,11 +97,6 @@ export default function WalkthroughSlides({ onComplete }: WalkthroughSlidesProps
           <Feather name="arrow-right" size={20} color="#fff" />
         </TouchableOpacity>
 
-        {activeIndex < SLIDES.length - 1 && (
-          <TouchableOpacity onPress={onComplete} style={styles.skipButton} activeOpacity={0.7}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );

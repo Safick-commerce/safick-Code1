@@ -14,10 +14,12 @@ import NameUsernameStep from "./steps/NameUsernameStep";
 const RED = "#FF2800";
 const TOTAL_STEPS = 4;
 const MIN_INTERESTS = 2;
+const MIN_SUBMIT_LOADING_MS = 300;
 
 type Phase = "walkthrough" | "steps";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -78,31 +80,39 @@ export default function OnboardingScreen() {
   };
 
   const handleContinue = useCallback(async () => {
-    switch (step) {
-      case 0:
-        setIsSubmitting(true);
-        await updateProfile({
-          displayName: name.trim(),
-          username: username.trim(),
-          email: email.trim(),
-        });
-        setIsSubmitting(false);
-        setStep(1);
-        break;
-      case 1:
-        await updateProfile({ gender });
-        setStep(2);
-        break;
-      case 2:
-        await updateProfile({ city });
-        setStep(3);
-        break;
-      case 3:
-        await updateProfile({ interests });
-        await completeOnboarding();
-        await signIn();
-        router.replace("/(tabs)");
-        break;
+    setIsSubmitting(true);
+    try {
+      switch (step) {
+        case 0:
+          await Promise.all([
+            updateProfile({
+              displayName: name.trim(),
+              username: username.trim(),
+              email: email.trim(),
+            }),
+            sleep(MIN_SUBMIT_LOADING_MS),
+          ]);
+          setStep(1);
+          break;
+        case 1:
+          await updateProfile({ gender });
+          setStep(2);
+          break;
+        case 2:
+          await updateProfile({ city });
+          setStep(3);
+          break;
+        case 3:
+          await updateProfile({ interests });
+          await completeOnboarding();
+          await signIn();
+          router.replace("/(tabs)");
+          break;
+      }
+    } catch (error) {
+      console.error("Failed to continue onboarding:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   }, [step, name, username, email, gender, city, interests, updateProfile, completeOnboarding, signIn, router]);
 

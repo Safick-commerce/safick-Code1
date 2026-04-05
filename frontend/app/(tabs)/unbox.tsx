@@ -9,12 +9,14 @@ import { CategoryFilter, LivePost } from "../../types";
 import { ReadyToShareBannerDecoration } from "../../components/shared/ReadyToShareBannerDecoration";
 import { GuestSignInPlaceholder } from "../../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../../context/AuthContext";
+import { useUserProfile } from "../../context/UserProfileContext";
 
 // Route constants for security
 const ROUTES = {
   NOTIFICATIONS: "/notifications",
   CREATE_NEW: "/createnew",
   GO_LIVE: "/golive",
+  SELLER_ONBOARDING: "/screens/readytoshare/sellersonboardingscreen",
 } as const;
 
 // Category constants - matches type definition
@@ -82,6 +84,7 @@ const RECOMMENDED = [
 export default function LiveScreen() {
   const router = useRouter();
   const { isAuthenticated, isReady } = useAuth();
+  const { profile } = useUserProfile();
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("New");
   const [searchQuery, setSearchQuery] = useState("");
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,19 +108,35 @@ export default function LiveScreen() {
    
   const handleCreateNew = useCallback(() => {
     try {
+      if (!profile.readyToSharePromptSeen) {
+        router.push(ROUTES.SELLER_ONBOARDING as any);
+        return;
+      }
+      if (profile.readyToShareMode === "seller" && !profile.readyToShareSellerOnboardingCompleted) {
+        router.push({ pathname: ROUTES.SELLER_ONBOARDING as any, params: { skipRolechoice: "1" } });
+        return;
+      }
       router.push(ROUTES.CREATE_NEW);
     } catch (error) {
       console.error("Navigation error:", error);
     }
-  }, [router]);
+  }, [profile.readyToShareMode, profile.readyToSharePromptSeen, profile.readyToShareSellerOnboardingCompleted, router]);
 
   const handleGoLive = useCallback(() => {
     try {
+      if (!profile.readyToSharePromptSeen) {
+        router.push(ROUTES.SELLER_ONBOARDING as any);
+        return;
+      }
+      if (profile.readyToShareMode === "seller" && !profile.readyToShareSellerOnboardingCompleted) {
+        router.push({ pathname: ROUTES.SELLER_ONBOARDING as any, params: { skipRolechoice: "1" } });
+        return;
+      }
       router.push(ROUTES.GO_LIVE);
     } catch (error) {
       console.error("Navigation error:", error);
     }
-  }, [router]);
+  }, [profile.readyToShareMode, profile.readyToSharePromptSeen, profile.readyToShareSellerOnboardingCompleted, router]);
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -214,26 +233,29 @@ export default function LiveScreen() {
         ListHeaderComponent={
           <>
             {/* Ready to Share Banner */}
-            <View style={styles.bannerContainer}>
-              <ReadyToShareBannerDecoration variant="dark" />
-              <Text style={styles.bannerTitle}>Ready to share?</Text>
-              <Text style={styles.bannerSubtitle}>Start a stream or upload new products</Text>
-              <View style={styles.bannerButtons}>
-                <TouchableOpacity style={styles.createNewButton} activeOpacity={0.8} onPress={handleCreateNew} accessibilityRole="button" accessibilityLabel="Create new product">
-                  <Ionicons name="add-circle-outline" size={20} color="#000000" />
-                  <Text style={styles.createNewText}>Create New</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.goLiveButton} activeOpacity={0.8} onPress={handleGoLive} accessibilityRole="button" accessibilityLabel="Go live">
-                  <MaterialCommunityIcons name="television-classic" size={18} color="#FFFFFF" />
-                  <Text style={styles.goLiveText}>Go Live</Text>
-                </TouchableOpacity>
+            {profile.readyToShareMode !== "buyer" ? (
+              <View style={styles.bannerContainer}>
+                <ReadyToShareBannerDecoration variant="dark" />
+                <Text style={styles.bannerTitle}>Ready to share?</Text>
+                <Text style={styles.bannerSubtitle}>Start a stream or upload new products</Text>
+                <View style={styles.bannerButtons}>
+                  <TouchableOpacity style={styles.createNewButton} activeOpacity={0.8} onPress={handleCreateNew} accessibilityRole="button" accessibilityLabel="Create new product">
+                    <Ionicons name="add-circle-outline" size={20} color="#000000" />
+                    <Text style={styles.createNewText}>Create New</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.goLiveButton} activeOpacity={0.8} onPress={handleGoLive} accessibilityRole="button" accessibilityLabel="Go live">
+                    <MaterialCommunityIcons name="television-classic" size={18} color="#FFFFFF" />
+                    <Text style={styles.goLiveText}>Go Live</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            ) : null}
 
             <CategoryFilters
               categories={CATEGORIES}
               activeCategory={activeCategory}
               onCategoryChange={handleCategoryChange}
+              showsHorizontalScrollIndicator={false}
             />
 
             {/* Live Now header */}

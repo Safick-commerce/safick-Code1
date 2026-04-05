@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF2800",
     paddingHorizontal: 30,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 8,
     gap: 6,
   },
   followButtonActive: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a1a1a",
     paddingHorizontal: 30,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 8,
     gap: 6,
   },
   messageButtonText: {

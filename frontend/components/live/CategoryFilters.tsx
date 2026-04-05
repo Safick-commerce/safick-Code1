@@ -7,13 +7,19 @@ interface CategoryFiltersProps {
   categories: readonly CategoryFilter[];
   activeCategory: CategoryFilter;
   onCategoryChange: (category: CategoryFilter) => void;
+  showsHorizontalScrollIndicator?: boolean;
 }
 
-function CategoryFilters({ categories, activeCategory, onCategoryChange }: CategoryFiltersProps) {
+function CategoryFilters({
+  categories,
+  activeCategory,
+  onCategoryChange,
+  showsHorizontalScrollIndicator = true,
+}: CategoryFiltersProps) {
   return (
     <ScrollView
       horizontal
-      showsHorizontalScrollIndicator={true}
+      showsHorizontalScrollIndicator={showsHorizontalScrollIndicator}
       contentContainerStyle={styles.content}
       style={styles.scroll}
     >

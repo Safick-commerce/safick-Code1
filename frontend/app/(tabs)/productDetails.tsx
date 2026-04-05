@@ -314,8 +314,8 @@ export default function ProductDetails() {
 
           {/* About Seller + metrics */}
           <View style={styles.sellerAboutSection}>
+          <Text style={styles.sectionTitle}>About Seller</Text>
             <View style={styles.sellerCardContainer}>
-              <Text style={styles.sectionTitle}>About Seller</Text>
 
               <TouchableOpacity
                 style={styles.sellerSection}
@@ -602,16 +602,16 @@ const styles = StyleSheet.create({
   sellerSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    padding: 6,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
-    marginBottom: 6,
-    gap: 12,
+    marginBottom: 4,
+    gap: 8,
   },
   sellerImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 19,
     borderWidth: 2,
     borderColor: '#E5E7EB',
   },
@@ -619,17 +619,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sellerName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#000000',
     fontFamily: 'Inter',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   sellerHandle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
     fontFamily: 'Inter',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   sellerStats: {
     flexDirection: 'row',
@@ -637,12 +637,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sellerRating: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     fontFamily: 'Inter',
   },
   sellerFollowers: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     fontFamily: 'Inter',
   },
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F3F4F6',
     borderRadius: 10,
-    padding: 8,
+    padding: 2,
     backgroundColor: '#F3F4F6',
   },
   sellerMetricsRow: {
