@@ -1,9 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
 import React, { useState } from 'react';
-import { FontAwesome6, MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 
 type LoginscreensProps = {
   /** Called when user taps "Get Started" or "Continue with Google". */
@@ -14,11 +13,9 @@ type LoginscreensProps = {
   logoIconSource?: ImageSourcePropType;
 };
 
-// Video at project root: safick/assets/images/loginscreen.mp4 (3 levels up from app/screens/loginscreens)
 const IMAGE_SOURCE = require('../../../assets/images/LoginSC.jpg');
 /** App icon (same as app.json expo.icon / adaptiveIcon) — shown beside the "k" in Safick. */
 const APP_ICON = require('../../../assets/images/icons.png');
-const VIDEO_SOURCE = require('../../../assets/images/loginscreen.mp4');
 // Brand red used for buttons, active language tab, "CART" text, and "Sign In" link
 const RED = '#FF2800';
 
@@ -29,12 +26,6 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
   // Selected language for the pill selector; currently UI-only (English / Français)
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
 
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7795/ingest/37eacd44-5dc4-4313-8413-ac6c68b6e4f6',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a40776'},body:JSON.stringify({sessionId:'a40776',location:'Loginscreens.tsx:mount',message:'Loginscreens mounted',data:{videoError},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  }, []);
-  // #endregion
-
   return (
     // Outer full-screen container; dark background used when video is hidden or as fallback
     <View style={styles.container}>
@@ -43,12 +34,7 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
           source={IMAGE_SOURCE}
           style={styles.image}
           resizeMode="cover"
-          onError={() => {
-            // #region agent log
-            fetch('http://127.0.0.1:7795/ingest/37eacd44-5dc4-4313-8413-ac6c68b6e4f6',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a40776'},body:JSON.stringify({sessionId:'a40776',location:'Loginscreens.tsx:Video onError',message:'Video onError fired',data:{},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-            // #endregion
-            setVideoError(true);
-          }}
+          onError={() => setVideoError(true)}
         />
       ) : null}
       {/* Semi-transparent dark overlay so white/red text and buttons stay readable over the video */}
@@ -115,7 +101,7 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
                 onSignInPress();
                 return;
               }
-              router.push("/screens/loginscreens/signinscreen");
+              router.push("/auth/signin" as Href);
             }}
             activeOpacity={0.8}
           >

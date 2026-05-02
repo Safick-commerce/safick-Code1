@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
 
 type Props = {
   /** Short line under the title (e.g. why sign-in is needed). */
@@ -20,7 +20,7 @@ export function GuestSignInPlaceholder({ subtitle }: Props) {
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         <TouchableOpacity
           style={styles.primary}
-          onPress={() => router.push("/screens/loginscreens/signinscreen")}
+          onPress={() => router.push("/auth/signin" as Href)}
           activeOpacity={0.9}
           accessibilityRole="button"
           accessibilityLabel="Sign in"

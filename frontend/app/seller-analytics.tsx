@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, TouchableOpacity, TextInput } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function SellerAnalytics() {
@@ -77,7 +77,7 @@ export default function SellerAnalytics() {
             activeOpacity={0.88}
             accessibilityRole="button"
             accessibilityLabel="Create new post"
-            onPress={() => router.push("/createnew")}
+            onPress={() => router.push("/screens/products/create" as Href)}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
             <Text style={styles.postButtonText}>Post</Text>

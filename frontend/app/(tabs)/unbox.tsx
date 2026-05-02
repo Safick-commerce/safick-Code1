@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import CategoryFilters from "../../components/live/CategoryFilters";
@@ -13,7 +13,7 @@ import { useAuth } from "../../context/AuthContext";
 // Route constants for security
 const ROUTES = {
   NOTIFICATIONS: "/notifications",
-  CREATE_NEW: "/createnew",
+  CREATE_NEW: "/screens/products/create",
   GO_LIVE: "/golive",
 } as const;
 
@@ -105,7 +105,7 @@ export default function LiveScreen() {
    
   const handleCreateNew = useCallback(() => {
     try {
-      router.push(ROUTES.CREATE_NEW);
+      router.push(ROUTES.CREATE_NEW as Href);
     } catch (error) {
       console.error("Navigation error:", error);
     }

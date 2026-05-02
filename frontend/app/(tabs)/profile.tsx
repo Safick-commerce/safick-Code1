@@ -1,24 +1,33 @@
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Image, Share, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Ionicons, FontAwesome6, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { type Href, useRouter } from "expo-router";
 import { useCallback } from "react";
-import { useUserProfile } from "../../context/UserProfileContext";
-import { ReadyToShareBannerDecoration } from "../../components/shared/ReadyToShareBannerDecoration";
+import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { GuestSignInPlaceholder } from "../../components/auth/GuestSignInPlaceholder";
+import { ReadyToShareBannerDecoration } from "../../components/shared/ReadyToShareBannerDecoration";
 import { useAuth } from "../../context/AuthContext";
+import { useUserProfile } from "../../context/UserProfileContext";
 
 // Route constants for security
 const ROUTES = {
   USER_TAB: "/userTab",
-  CREATE_NEW: "/createnew",
+  CREATE_NEW: "/screens/products/create",
+  MY_PRODUCTS: "/screens/products/my-products",
   GO_LIVE: "/golive",
   SELLER_ONBOARDING: "/screens/readytoshare/sellersonboardingscreen",
   SELLER_ANALYTICS: "/seller-analytics",
 } as const;
 
 export default function ProfileScreen() {
-  const { isAuthenticated, isReady: authReady, signOut } = useAuth();
+  const {
+    isAuthenticated,
+    isReady: authReady,
+    profileLoading: authProfileLoading,
+    refetchProfile,
+    signOut,
+    user,
+    profile: authProfile,
+  } = useAuth();
   const router = useRouter();
   const { clearProfile, profile } = useUserProfile();
 
@@ -40,7 +49,7 @@ export default function ProfileScreen() {
         router.push({ pathname: ROUTES.SELLER_ONBOARDING as any, params: { skipRolechoice: "1" } });
         return;
       }
-      router.push(ROUTES.CREATE_NEW);
+      router.push(ROUTES.CREATE_NEW as Href);
     } catch (error) {
       console.error("Navigation error:", error);
     }
@@ -89,6 +98,7 @@ export default function ProfileScreen() {
     { id: 3, icon: "notifications-outline", label: "Notification", section: "account", badge: 3 },
     { id: 4, icon: "mail-outline", label: "Change Email", section: "account", badge: null },
     { id: 5, icon: "check-decagram-outline", label: "Verified Seller", section: "account", badge: null, iconLibrary: "MaterialCommunityIcons" },
+    { id: 16, icon: "storefront-outline", label: "My listings", section: "account", badge: null, myProducts: true },
     { id: 6, icon: "share-outline", label: "Share profile", section: "account", badge: null, shareProfile: true },
     
     // Shopping Section
@@ -112,10 +122,51 @@ export default function ProfileScreen() {
     legal: "Legal",
   };
 
+  const displayName =
+    authProfile?.full_name?.trim() ||
+    profile?.displayName?.trim() ||
+    (typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "") ||
+    user?.email?.split("@")?.[0] ||
+    "Account";
+
+  const authUsername = authProfile?.username?.trim();
+  const localUsername = profile?.username?.trim();
+  const handleLabel =
+    authUsername && authUsername.length > 0
+      ? `@${authUsername}`
+      : localUsername && localUsername.length > 0
+        ? `@${localUsername}`
+        : user?.email ?? "";
+
   if (!authReady) {
     return (
       <SafeAreaView style={[styles.container, styles.centeredLoading]} edges={["top", "left", "right"]}>
         <ActivityIndicator size="large" color="#FF2800" />
+      </SafeAreaView>
+    );
+  }
+
+  if (isAuthenticated && authProfileLoading && !authProfile) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centeredLoading]} edges={["top", "left", "right"]}>
+        <ActivityIndicator size="large" color="#FF2800" />
+      </SafeAreaView>
+    );
+  }
+
+  if (isAuthenticated && !authProfileLoading && authProfile === null) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centeredLoading]} edges={["top", "left", "right"]}>
+        <Text style={styles.profileErrorTitle}>Could not load your profile</Text>
+        <Text style={styles.profileErrorSub}>Check your connection and try again.</Text>
+        <TouchableOpacity
+          style={styles.profileRetryButton}
+          onPress={() => void refetchProfile()}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading profile"
+        >
+          <Text style={styles.profileRetryText}>Retry</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -138,7 +189,12 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.userInfoContainer}>
             <View style={styles.usernameContainer}>
-              <Text style={styles.username}>Username</Text>
+              <View style={styles.nameBlock}>
+                <Text style={styles.username}>{displayName}</Text>
+                {handleLabel ? (
+                  <Text style={styles.handleText}>{handleLabel}</Text>
+                ) : null}
+              </View>
               <Ionicons name="chevron-down" size={20} color="#000000" />
             </View>
             <TouchableOpacity 
@@ -245,7 +301,13 @@ export default function ProfileScreen() {
               <TouchableOpacity 
                 style={styles.cardItem}
                 activeOpacity={0.2}
-                onPress={"shareProfile" in card && card.shareProfile ? handleShareProfile : undefined}
+                onPress={
+                  "shareProfile" in card && card.shareProfile
+                    ? handleShareProfile
+                    : "myProducts" in card && (card as { myProducts?: boolean }).myProducts
+                      ? () => router.push(ROUTES.MY_PRODUCTS as Href)
+                      : undefined
+                }
               >
                 <View style={styles.cardLeftSection}>
                   <View style={styles.cardIconContainer}>
@@ -303,6 +365,31 @@ const styles = StyleSheet.create({
   centeredLoading: {
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  profileErrorTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  profileErrorSub: {
+    fontSize: 15,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  profileRetryButton: {
+    backgroundColor: "#FF2800",
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+  },
+  profileRetryText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
   header: {
     flexDirection: 'row',
@@ -471,11 +558,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
+  },
+  nameBlock: {
+    flex: 1,
   },
   username: {
     fontSize: 18,
     fontWeight: '600',
     color: '#000000',
+  },
+  handleText: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
   },
   viewProfileButton: {
     paddingHorizontal: 20,
