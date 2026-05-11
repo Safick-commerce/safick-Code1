@@ -208,6 +208,9 @@ export default function UserMessage() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerAction}>
+            <Ionicons name="call-outline" size={22} color="#1a1a1a" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerAction}>
             <Ionicons name="ellipsis-vertical" size={22} color="#1a1a1a" />
           </TouchableOpacity>
         </View>

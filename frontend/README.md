@@ -626,48 +626,115 @@ Before you begin, ensure you have the following installed:
 
 ## Project Structure
 
+The **SAFICK** repository is a **monorepo**. Code that ships today lives in **`frontend/`** (Expo app) and **`backend/`** (Node.js API). A top-level **`ai-backend/`** folder is **reserved** for the future Python/FastAPI service and is **empty** until that work starts — it is **not** inside `frontend/`.
+
+### Repository layout (current)
+
 ```
-safick/
-├── app/                    # Main application directory (file-based routing)
-│   ├── (tabs)/            # Tab navigation screens
-│   │   ├── index.tsx      # Home feed (Discover/For You/Following)
-│   │   ├── categories.tsx # Category browsing
-│   │   ├── live.tsx       # Live streaming
-│   │   ├── sell.tsx       # Seller dashboard
-│   │   ├── profile.tsx    # User profile
-│   │   ├── productDetails.tsx  # Product detail page
-│   │   └── userprofile.tsx     # Seller profile page
-│   ├── cart.tsx           # Saved items / cart
-│   ├── wishlist.tsx       # Wishlist
-│   ├── messages.tsx       # Messages inbox
-│   ├── usermessage.tsx    # Individual chat with seller
-│   ├── notifications.tsx  # Notifications
-│   └── _layout.tsx        # Root layout (wraps CartProvider)
-├── components/            # Reusable components
-│   ├── tabs/             # Tab-specific components (DiscoverTab, ForYouTab, FollowingTab)
-│   ├── shared/           # Shared components (ProductCard, VideoSideIcons)
-│   └── live/             # Live stream components
-├── context/              # React Context providers
-│   └── CartContext.tsx    # Cart/saved items state management
-├── data/                 # Shared data constants
-│   └── feedProducts.ts   # Product data for feed tabs
-├── types/                # TypeScript type definitions
-├── utils/                # Utility functions
-├── constants/            # App constants
-├── hooks/                # Custom React hooks
-├── assets/               # Images, fonts, and other assets
-├── docs/                 # Documentation & flowcharts
-├── app.json              # Expo configuration
-└── ai-backend/           # AI services backend (Python/FastAPI)
-    ├── app/              # FastAPI application
-    │   ├── api/          # API routes
-    │   ├── services/     # AI service implementations
-    │   ├── models/       # ML model management
-    │   └── utils/        # Helper functions
-    ├── models/           # Downloaded AI models
-    ├── requirements.txt  # Python dependencies
-    └── docker-compose.yml # Service orchestration
+SAFICK/
+├── .cursor/                 # Cursor rules & internal plans (dev environment)
+├── backend/                 # Main API — Node.js, Express, Prisma, PostgreSQL
+├── frontend/                # Mobile app — Expo Router, React Native, NativeWind
+└── ai-backend/              # (Reserved) future AI / ML services — not implemented yet
 ```
+
+**Implementation plans:** phased work for the API is in [`backend/README.md`](../backend/README.md); for ML services in [`ai-backend/README.md`](../ai-backend/README.md).
+
+### `frontend/` — Expo (React Native) app
+
+```
+frontend/
+├── app/                              # Expo Router (file-based routes)
+│   ├── (tabs)/                       # Tab navigator
+│   │   ├── _layout.tsx
+│   │   ├── index.tsx                 # Home — Discover / For You / Following
+│   │   ├── categories.tsx
+│   │   ├── unbox.tsx                 # Live-style discovery UI
+│   │   ├── productDetails.tsx
+│   │   ├── profile.tsx
+│   │   ├── userTab.tsx
+│   │   └── userprofile.tsx
+│   ├── screens/                      # Multi-step flows (not tab roots)
+│   │   ├── Intro/
+│   │   │   └── Loginintroscreen.tsx
+│   │   ├── loginscreens/
+│   │   │   ├── Loginscreens.tsx
+│   │   │   └── signinscreen.tsx
+│   │   ├── onboarding/
+│   │   │   ├── OnboardingScreen.tsx
+│   │   │   ├── WalkthroughSlides.tsx
+│   │   │   └── steps/                # Gender, interests, location, name/username, …
+│   │   └── readytoshare/
+│   │       ├── RoleChoiceStep.tsx
+│   │       └── sellersonboardingscreen.tsx
+│   ├── _layout.tsx                   # Root layout
+│   ├── index.tsx                     # Entry / initial navigation
+│   ├── global.css
+│   ├── createnew.tsx                 # Create listing (seller)
+│   ├── golive.tsx
+│   ├── messages.tsx
+│   ├── sellermessage.tsx
+│   ├── usermessage.tsx
+│   ├── notifications.tsx
+│   ├── search.tsx
+│   ├── wishlist.tsx
+│   ├── userprofile.tsx               # Standalone profile route
+│   └── seller-analytics.tsx
+├── components/
+│   ├── auth/                         # e.g. guest sign-in placeholder
+│   ├── live/                         # Live feed UI (filters, cards, grid)
+│   ├── shared/                       # ProductCard, VideoSideIcons, …
+│   └── tabs/                         # DiscoverTab, ForYouTab, FollowingTab
+├── context/                          # React context providers
+│   ├── AuthContext.tsx
+│   ├── MessageContext.tsx
+│   ├── UserProfileContext.tsx
+│   └── WishlistContext.tsx
+├── data/                             # Seed / static data used by the UI
+│   ├── cameroonCities.ts
+│   ├── feedProducts.ts
+│   └── interestCategories.ts
+├── types/
+│   └── index.ts
+├── assets/
+│   └── images/
+├── docs/                             # Strategy, flowcharts, design notes
+├── app.json
+├── babel.config.js
+├── metro.config.js
+├── tailwind.config.js
+├── tsconfig.json
+├── eslint.config.js
+├── package.json
+└── README.md
+```
+
+There is **no** top-level `utils/`, `constants/`, or `hooks/` folder in the repo yet; add them when shared helpers grow.
+
+### `backend/` — main API (current)
+
+```
+backend/
+├── prisma/
+│   └── schema.prisma
+├── src/
+│   ├── config/                       # env, Prisma / DB client
+│   ├── controllers/                  # auth, user
+│   ├── middleware/                   # auth JWT, validation, errors
+│   ├── routes/                       # auth.routes, user.routes
+│   ├── services/                     # auth.service, user.service
+│   ├── types/
+│   ├── app.ts                        # Express app assembly
+│   └── server.ts                     # HTTP entrypoint
+├── docker-compose.yml                # Local PostgreSQL (optional)
+├── .env.example
+├── package.json
+└── tsconfig.json
+```
+
+### Planned: `ai-backend/` (future)
+
+When built, the Python/FastAPI stack will live in **`ai-backend/`** at the **repository root**. The intended package layout is described under **AI Services Directory Structure** below.
 
 ## 🎨 Design System
 
@@ -699,7 +766,7 @@ safick/
 | Milestone | Target Date | Status |
 |---|---|---|
 | Frontend complete (UI/UX + all screens) | End of march 2026|Progress | 
-| Main Backend development (API, database, chat) | May 2026 | Not Started |
+| Main Backend development (API, database, chat) | May 2026 | In progress — Express + Prisma scaffold; auth/user routes |
 | AI Backend development (recommendations, search) | May-June 2026 | Not Started |
 | Internal testing & bug fixes | Early June 2026 | Not Started |
 | Beta launch (10-20 testers in Douala) | Mid June 2026 | Not Started |

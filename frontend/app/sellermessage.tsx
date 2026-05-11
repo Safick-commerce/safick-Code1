@@ -86,7 +86,7 @@ export default function SellerMessage() {
                     <MaterialIcons name="photo-library" size={24} color="#1a1a1a" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.inputIconButton}>
-                    <MaterialIcons name="emoji-emotions" size={24} color="#1a1a1a" />
+                    <MaterialIcons name="keyboard-voice" size={24} color="#1a1a1a" />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.sendButton, inputText.trim() ? styles.sendButtonActive : null]}

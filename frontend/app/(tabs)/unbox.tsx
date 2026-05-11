@@ -84,7 +84,7 @@ const RECOMMENDED = [
 export default function LiveScreen() {
   const router = useRouter();
   const { isAuthenticated, isReady } = useAuth();
-  const { profile } = useUserProfile();
+  const { profile, isLoaded: profileLoaded } = useUserProfile();
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("New");
   const [searchQuery, setSearchQuery] = useState("");
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,7 +170,7 @@ export default function LiveScreen() {
     return MOCK_LIVE_POSTS;
   }, [activeCategory]);
 
-  if (!isReady) {
+  if (!isReady || !profileLoaded) {
     return (
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <View style={styles.centeredLoading}>
@@ -180,7 +180,7 @@ export default function LiveScreen() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || profile.isGuestUser) {
     return (
       <GuestSignInPlaceholder subtitle="Sign in to access live content, create listings, and go live." />
     );

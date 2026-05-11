@@ -65,6 +65,7 @@ export default function GoLiveScreen() {
 
   useEffect(() => {
     if (!isReady || !isAuthenticated || !isLoaded) return;
+    if (profile.isGuestUser) return;
     if (!profile.readyToSharePromptSeen || !profile.readyToShareMode) {
       router.replace("/screens/readytoshare/sellersonboardingscreen");
     }
@@ -72,6 +73,7 @@ export default function GoLiveScreen() {
     isAuthenticated,
     isLoaded,
     isReady,
+    profile.isGuestUser,
     profile.readyToShareMode,
     profile.readyToSharePromptSeen,
     router,
@@ -87,17 +89,17 @@ export default function GoLiveScreen() {
     return true;
   };
 
-  if (!isReady) {
+  if (!isReady || !isLoaded) {
     return (
       <SafeAreaView style={[styles.screen, styles.centered]} edges={["top", "left", "right"]}>
         <ActivityIndicator size="large" color="#FF2800" />
       </SafeAreaView>
     );
   }
-  if (!isAuthenticated) {
+  if (!isAuthenticated || profile.isGuestUser) {
     return <GuestSignInPlaceholder subtitle="Sign in to start or schedule live sessions." />;
   }
-  if (!isLoaded || !profile.readyToSharePromptSeen || !profile.readyToShareMode) {
+  if (!profile.readyToSharePromptSeen || !profile.readyToShareMode) {
     return (
       <SafeAreaView style={[styles.screen, styles.centered]} edges={["top", "left", "right"]}>
         <ActivityIndicator size="large" color="#FF2800" />

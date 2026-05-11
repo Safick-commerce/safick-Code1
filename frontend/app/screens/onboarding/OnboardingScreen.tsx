@@ -1,11 +1,10 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { type Href, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
 import { useUserProfile } from "../../../context/UserProfileContext";
-import { supabase } from "../../../lib/supabase";
 import WalkthroughSlides from "./WalkthroughSlides";
 import GenderStep from "./steps/GenderStep";
 import InterestsStep from "./steps/InterestsStep";
@@ -15,18 +14,18 @@ import NameUsernameStep from "./steps/NameUsernameStep";
 const RED = "#FF2800";
 const TOTAL_STEPS = 4;
 const MIN_INTERESTS = 2;
+const MIN_SUBMIT_LOADING_MS = 300;
 
 type Phase = "walkthrough" | "steps";
 
-type OnboardingRole = "buyer" | "seller";
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const { skipWalkthrough } = useLocalSearchParams<{ skipWalkthrough?: string }>();
   const { updateProfile, completeOnboarding } = useUserProfile();
-  const { signUp, signOut, isAuthenticated, refetchProfile } = useAuth();
+  const { signIn } = useAuth();
   const [phase, setPhase] = useState<Phase>(skipWalkthrough === "1" ? "steps" : "walkthrough");
   const [step, setStep] = useState(0);
 
@@ -38,7 +37,6 @@ export default function OnboardingScreen() {
   const [gender, setGender] = useState("");
   const [city, setCity] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
-  const [selectedRole, setSelectedRole] = useState<OnboardingRole>("buyer");
 
   // Username availability — updated by NameUsernameStep via onUsernameAvailable
   const [usernameAvailable, setUsernameAvailable] = useState(false);
@@ -82,112 +80,55 @@ export default function OnboardingScreen() {
   };
 
   const handleContinue = useCallback(async () => {
-    switch (step) {
-      case 0:
-        setIsSubmitting(true);
-        try {
-          if (!isAuthenticated) {
-            await signUp(email.trim(), password, name.trim());
-          }
-          await updateProfile({
-            displayName: name.trim(),
-            username: username.trim(),
-            email: email.trim(),
-          });
-          const {
-            data: { user: authUser },
-            error: authErr,
-          } = await supabase.auth.getUser();
-          if (!authErr && authUser) {
-            const { error: dbErr } = await supabase
-              .from("profiles")
-              .update({
-                full_name: name.trim(),
-                username: username.trim(),
-              })
-              .eq("id", authUser.id);
-            if (dbErr) {
-              Alert.alert("Profile", dbErr.message);
-            } else {
-              await refetchProfile();
-            }
-          }
+    setIsSubmitting(true);
+    try {
+      switch (step) {
+        case 0:
+          await Promise.all([
+            updateProfile({
+              displayName: name.trim(),
+              username: username.trim(),
+              email: email.trim(),
+            }),
+            sleep(MIN_SUBMIT_LOADING_MS),
+          ]);
           setStep(1);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Could not create your account.";
-          Alert.alert("Sign up", message);
-        } finally {
-          setIsSubmitting(false);
-        }
-        break;
-      case 1:
-        await updateProfile({ gender });
-        setStep(2);
-        break;
-      case 2:
-        await updateProfile({ city });
-        setStep(3);
-        break;
-      case 3:
-        await updateProfile({
-          interests,
-          readyToShareMode: selectedRole === "seller" ? "seller" : "buyer",
-        });
-        await completeOnboarding();
-        try {
-          const {
-            data: { user: authUser },
-            error: authErr,
-          } = await supabase.auth.getUser();
-          if (!authErr && authUser) {
-            const { error: dbErr } = await supabase
-              .from("profiles")
-              .update({
-                full_name: name.trim(),
-                username: username.trim(),
-                role: selectedRole,
-                onboarding_completed: true,
-              })
-              .eq("id", authUser.id);
-            if (dbErr) {
-              Alert.alert("Profile", dbErr.message);
-            } else {
-              await refetchProfile();
-            }
-          }
-        } catch (e) {
-          const message = e instanceof Error ? e.message : "Could not save your profile.";
-          Alert.alert("Profile", message);
-        }
-        router.replace("/(tabs)");
-        break;
+          break;
+        case 1:
+          await updateProfile({ gender });
+          setStep(2);
+          break;
+        case 2:
+          await updateProfile({ city });
+          setStep(3);
+          break;
+        case 3:
+          await updateProfile({ interests });
+          await completeOnboarding();
+          await signIn();
+          router.replace("/(tabs)");
+          break;
+      }
+    } catch (error) {
+      console.error("Failed to continue onboarding:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [
-    step,
-    name,
-    username,
-    email,
-    password,
-    gender,
-    city,
-    interests,
-    isAuthenticated,
-    signUp,
-    updateProfile,
-    completeOnboarding,
-    refetchProfile,
-    router,
-    selectedRole,
-  ]);
+  }, [step, name, username, email, gender, city, interests, updateProfile, completeOnboarding, signIn, router]);
 
   const handleBack = useCallback(() => {
     if (step > 0) setStep(step - 1);
   }, [step]);
 
   const handleSkip = useCallback(async () => {
-    await signOut();
-    router.replace("/auth/signin" as Href);
-  }, [signOut, router]);
+    try {
+      await completeOnboarding({ asGuest: true });
+      await signIn();
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("Failed to skip onboarding:", error);
+    }
+  }, [completeOnboarding, signIn, router]);
 
   if (phase === "walkthrough") {
     return <WalkthroughSlides onComplete={handleWalkthroughComplete} />;
@@ -243,34 +184,7 @@ export default function OnboardingScreen() {
             <LocationStep city={city} onCityChange={setCity} />
           )}
           {step === 3 && (
-            <View style={styles.step3Wrap}>
-              <Text style={styles.roleHeading}>How will you use Safick?</Text>
-              <View style={styles.roleRow}>
-                <TouchableOpacity
-                  style={[styles.rolePill, selectedRole === "buyer" && styles.rolePillActive]}
-                  onPress={() => setSelectedRole("buyer")}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: selectedRole === "buyer" }}
-                >
-                  <Text style={[styles.rolePillText, selectedRole === "buyer" && styles.rolePillTextActive]}>
-                    Buyer
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.rolePill, selectedRole === "seller" && styles.rolePillActive]}
-                  onPress={() => setSelectedRole("seller")}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: selectedRole === "seller" }}
-                >
-                  <Text style={[styles.rolePillText, selectedRole === "seller" && styles.rolePillTextActive]}>
-                    Seller
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <InterestsStep interests={interests} onToggle={toggleInterest} />
-            </View>
+            <InterestsStep interests={interests} onToggle={toggleInterest} />
           )}
         </View>
 
@@ -367,44 +281,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     fontFamily: "Inter",
-  },
-  step3Wrap: {
-    flex: 1,
-  },
-  roleHeading: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#374151",
-    paddingHorizontal: 24,
-    marginBottom: 12,
-    fontFamily: "Inter",
-  },
-  roleRow: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 24,
-    marginBottom: 20,
-  },
-  rolePill: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  rolePillActive: {
-    borderColor: RED,
-    backgroundColor: "#FFF5F5",
-  },
-  rolePillText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#6B7280",
-    fontFamily: "Inter",
-  },
-  rolePillTextActive: {
-    color: RED,
   },
 });
