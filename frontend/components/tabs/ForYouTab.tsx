@@ -1,25 +1,63 @@
-import { View, Text, StyleSheet, Dimensions, Image, ImageBackground, TouchableOpacity } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { EvilIcons } from "@expo/vector-icons";
-import ProductCard from "../shared/ProductCard";
-import VideoSideIcons from "../shared/VideoSideIcons";
-import { FEED_PRODUCTS } from "../../data/feedProducts";
+import FeedProductCard from "../shared/FeedProductCard";
+import { getAllProducts } from "../../utils/productApi";
+import type { StoreProduct } from "../../types/storeProduct";
 import { useAuth } from "../../context/AuthContext";
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// Route constants for security
 const ROUTES = {
-  PRODUCT_DETAILS: "/productDetails",
-  SIGN_IN: "/screens/loginscreens/signinscreen",
+  PRODUCT_DETAILS: "/(tabs)/productDetails",
+  SIGN_IN: "/auth/signin",
   USER_PROFILE: "/userprofile",
 } as const;
 
 export default function ForYouTab() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const list = await getAllProducts();
+      setProducts(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load products.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      void load();
+    }, [load])
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void load();
+  }, [load]);
 
   const handleBuyPress = useCallback(() => {
     try {
@@ -31,69 +69,82 @@ export default function ForYouTab() {
         pathname: ROUTES.SIGN_IN as any,
         params: { redirectTo: ROUTES.PRODUCT_DETAILS },
       });
-    } catch (error) {
-      console.error("Navigation error:", error);
+    } catch (err) {
+      console.error("Navigation error:", err);
     }
   }, [isAuthenticated, router]);
 
   const handleUserProfilePress = useCallback(() => {
     try {
       router.push(ROUTES.USER_PROFILE);
-    } catch (error) {
-      console.error("Navigation error:", error);
+    } catch (err) {
+      console.error("Navigation error:", err);
     }
   }, [router]);
 
   return (
-    <ImageBackground 
-      source={require('../../assets/images/seller4.jpeg')}
-      style={styles.container}
-      resizeMode="cover"
-    >
-      {/* Profile header: avatar + username in one container */}
+    <View style={styles.container}>
+      <Image
+        source={require("../../assets/images/seller4.jpeg")}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+      />
+      <View style={styles.scrim} />
+
       <View style={styles.profileHeaderContainer}>
         <View style={styles.profileCircleContainer}>
           <View style={styles.profileCircle}>
             <Image
-              source={require('../../assets/images/seller4.jpeg')}
+              source={require("../../assets/images/seller4.jpeg")}
               style={styles.profileCircleImage}
-              resizeMode="cover"
+              contentFit="cover"
             />
           </View>
         </View>
-        <TouchableOpacity style={styles.usernameContainer} onPress={handleUserProfilePress} activeOpacity={0.8}>
-          <Text style={styles.username}>Brenda Style</Text>
+        <TouchableOpacity
+          style={styles.usernameContainer}
+          onPress={handleUserProfilePress}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+        >
+          <Text style={styles.username}>For you</Text>
           <View style={styles.locationRow}>
             <EvilIcons name="location" size={16} color="#FFFFFF" />
-            <Text style={styles.locationText}>Douala, Cameroon</Text>
+            <Text style={styles.locationText}>Discover listings</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.followButton} 
-          onPress={() => setIsFollowing(!isFollowing)}
-        >
-          <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-            {isFollowing ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
       </View>
 
-      <ProductCard
-        product={FEED_PRODUCTS.workoutSet}
-        onPress={handleBuyPress}
-        containerStyle={styles.productCardPosition}
-      />
-
-      {/* User Info and Product Description */}
-      <View style={styles.userInfoContainer}>
-        <Text style={styles.productDescription}>
-          This is a pink up and down everything perfect for summer vibe. 
-          #fashion #ootd
-        </Text>
-      </View>
-
-      <VideoSideIcons />
-    </ImageBackground>
+      {loading && products.length === 0 ? (
+        <View style={styles.feedLoading}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      ) : error ? (
+        <View style={styles.feedLoading}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={products}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+          }
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No products yet. Sellers can add listings from Profile.</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.cardRow}>
+              <View style={styles.cardInner}>
+                <FeedProductCard product={item} onPress={handleBuyPress} />
+              </View>
+            </View>
+          )}
+        />
+      )}
+    </View>
   );
 }
 
@@ -101,101 +152,90 @@ const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
     flex: 1,
+    backgroundColor: "#111827",
   },
-  contentContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productCardPosition: {
-    bottom: 60,
-  },
-  userInfoContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 16,
-    right: 80, // Leave space for right icons
-    paddingRight: 16,
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
   profileHeaderContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 16,
     left: 16,
-    right: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
-  },
-  usernameContainer: {
-    flexShrink: 0,
-  },
-  username: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    marginBottom: 2,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    marginLeft: 2,
-  },
-  followButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
-    paddingHorizontal: 20,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  followButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Inter',
-  },
-  followButtonTextActive: {
-    color: '#000000',
-  },
-  productDescription: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    lineHeight: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    zIndex: 2,
   },
   profileCircleContainer: {},
   profileCircle: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 2,
-    borderColor: '#000000',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderColor: "#000000",
+    overflow: "hidden",
   },
   profileCircleImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
+  },
+  usernameContainer: {
+    flexShrink: 0,
+  },
+  username: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    fontFamily: "Inter",
+    marginBottom: 2,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  locationText: {
+    fontSize: 12,
+    color: "#FFFFFF",
+    fontFamily: "Inter",
+    marginLeft: 2,
+  },
+  list: {
+    flex: 1,
+    marginTop: 88,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  feedLoading: {
+    flex: 1,
+    marginTop: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  cardRow: {
+    marginBottom: 16,
+  },
+  cardInner: {
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 16,
+    padding: 12,
+    overflow: "hidden",
+  },
+  emptyText: {
+    color: "#FFFFFF",
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 24,
+  },
+  errorText: {
+    color: "#FECACA",
+    textAlign: "center",
+    fontSize: 14,
   },
 });
-

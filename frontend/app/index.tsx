@@ -1,54 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { type Href, useRouter } from "expo-router";
 import Loginscreens from "./screens/loginscreens/Loginscreens";
 import { useUserProfile } from "../context/UserProfileContext";
-
-const AUTH_KEY = "user_logged_in";
+import { useAuth } from "../context/AuthContext";
 
 export default function Index() {
   const router = useRouter();
   const { profile, isLoaded: profileLoaded } = useUserProfile();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, isReady: authReady } = useAuth();
 
-  useEffect(() => {
-    if (!profileLoaded) return;
-    (async () => {
-      try {
-        const value = await AsyncStorage.getItem(AUTH_KEY);
-        const hasAuth = value === "true";
-
-        // Force login first when onboarding is not complete.
-        // This prevents walkthrough from appearing before Loginscreens.
-        if (hasAuth && profile.onboardingCompleted) {
-          setIsLoggedIn(true);
-        } else {
-          setIsLoggedIn(false);
-          if (hasAuth) {
-            await AsyncStorage.removeItem(AUTH_KEY);
-          }
-        }
-      } catch {
-        setIsLoggedIn(false);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [profileLoaded, profile.onboardingCompleted]);
-
-  const handleLoginSuccess = async () => {
-    await AsyncStorage.setItem(AUTH_KEY, "true");
-    setIsLoggedIn(true);
-    router.replace("/screens/onboarding/OnboardingScreen" as any);
+  const handleGetStarted = () => {
+    router.replace("/screens/onboarding/OnboardingScreen");
   };
 
   const handleSignInPress = () => {
-    router.push("/screens/loginscreens/signinscreen");
+    router.push("/auth/signin" as Href);
   };
 
-  if (isLoading || !profileLoaded) {
+  if (!authReady || !profileLoaded) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#FF2800" />
@@ -56,12 +26,12 @@ export default function Index() {
     );
   }
 
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return (
       <Loginscreens
-        onSuccess={handleLoginSuccess}
+        onSuccess={handleGetStarted}
         onSignInPress={handleSignInPress}
-        logoIconSource={require('../assets/images/icons.png')}
+        logoIconSource={require("../assets/images/icons.png")}
       />
     );
   }
@@ -75,7 +45,7 @@ function RedirectAfterAuth({ onboardingDone }: { onboardingDone: boolean }) {
     if (onboardingDone) {
       router.replace("/(tabs)");
     } else {
-      router.replace("/screens/onboarding/OnboardingScreen" as any);
+      router.replace("/screens/onboarding/OnboardingScreen");
     }
   }, [router, onboardingDone]);
 

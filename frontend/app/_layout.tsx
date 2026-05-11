@@ -13,8 +13,14 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { MessageProvider } from "../context/MessageContext";
 import { UserProfileProvider } from "../context/UserProfileContext";
 import { AuthProvider } from "../context/AuthContext";
+import { useAuthGuard } from "../hooks/useAuthGuard";
 
 SplashScreen.preventAutoHideAsync();
+
+function AuthGate() {
+  useAuthGuard();
+  return null;
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -38,6 +44,7 @@ export default function RootLayout() {
           <MessageProvider>
             <KeyboardProvider>
               <WishlistProvider>
+                <AuthGate />
                 <StatusBar style="dark" />
                 <Stack
                   screenOptions={{
@@ -46,7 +53,14 @@ export default function RootLayout() {
                       backgroundColor: "#ffffff",
                     },
                   }}
-                />
+                >
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="auth" />
+                  <Stack.Screen name="cart" />
+                  <Stack.Screen name="messages" />
+                  <Stack.Screen name="notifications" />
+                  <Stack.Screen name="wishlist" />
+                </Stack>
               </WishlistProvider>
             </KeyboardProvider>
           </MessageProvider>
