@@ -54,6 +54,12 @@ export default function RootLayout() {
                     },
                   }}
                 >
+                  <Stack.Screen
+                    options={{
+                      headerShown: true,
+
+                    }}
+                  />
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen name="auth" />
                   <Stack.Screen name="cart" />

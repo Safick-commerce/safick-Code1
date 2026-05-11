@@ -13,84 +13,74 @@ type LoginscreensProps = {
   logoIconSource?: ImageSourcePropType;
 };
 
-const IMAGE_SOURCE = require('../../../assets/images/LoginSC.jpg');
 /** App icon (same as app.json expo.icon / adaptiveIcon) — shown beside the "k" in Safick. */
-const APP_ICON = require('../../../assets/images/icons.png');
-// Brand red used for buttons, active language tab, "CART" text, and "Sign In" link
+const APP_ICON = require('../../../assets/images/safick-prlogo02.png');
 const RED = '#FF2800';
+const COPY = {
+  english: 'English',
+  french: 'Français',
+  tagline: 'DISCOVER, CONNECT, AND SHOP WITH PEOPLE YOU CAN TRUST TODAY.',
+  getStarted: 'Get Started',
+  hasAccount: 'I already have an account',
+  signIn: 'Sign In',
+  termsPrefix: 'By clicking continue, you agree to our',
+  terms: 'Terms of Service',
+  and: 'and',
+  privacy: 'Privacy Policy',
+} as const;
 
-export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource }: LoginscreensProps) {
+export default function LoginScreen({ onSuccess, onSignInPress, logoIconSource }: LoginscreensProps) {
   const router = useRouter();
-  // If the background video fails to load, we hide it and rely on the dark container background
-  const [videoError, setVideoError] = useState(false);
-  // Selected language for the pill selector; currently UI-only (English / Français)
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
 
   return (
-    // Outer full-screen container; dark background used when video is hidden or as fallback
     <View style={styles.container}>
-      {!videoError ? (
-        <Image
-          source={IMAGE_SOURCE}
-          style={styles.image}
-          resizeMode="cover"
-          onError={() => setVideoError(true)}
-        />
-      ) : null}
-      {/* Semi-transparent dark overlay so white/red text and buttons stay readable over the video */}
-      <View style={styles.overlay} />
-      {/* Main content area: respects safe area (status bar, notch). Space-between puts language at top, hero in middle, buttons at bottom. */}
-      <SafeAreaView style={styles.safeContent} edges={['top', 'left', 'right']}>
-        {/* ---------- Language selector (top) ---------- */}
+      <SafeAreaView style={styles.safeContent} edges={['left', 'top', 'right']}>
         <View style={styles.languageRow}>
           <View style={styles.languagePill}>
             <TouchableOpacity
               style={[styles.languageTab, language === 'en' && styles.languageTabActive]}
               onPress={() => setLanguage('en')}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Switch language to English"
             >
-              <Text style={[styles.languageText, language === 'en' && styles.languageTextActive]}>English</Text>
+              <Text style={[styles.languageText, language === 'en' && styles.languageTextActive]}>{COPY.english}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.languageTab, language === 'fr' && styles.languageTabActive]}
               onPress={() => setLanguage('fr')}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Switch language to French"
             >
-              <Text style={[styles.languageText, language === 'fr' && styles.languageTextActive]}>Français</Text>
+              <Text style={[styles.languageText, language === 'fr' && styles.languageTextActive]}>{COPY.french}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ---------- Logo + tagline (center) ---------- */}
         <View style={styles.hero}>
           <View style={styles.logoRow}>
-            <Text style={styles.brandName}>Safic</Text>
-            <View style={styles.brandKWithIcon}>
-              <Text style={styles.brandName}>k</Text>
-              <Image
-                source={logoIconSource ?? APP_ICON}
-                style={styles.brandAppIcon}
-                resizeMode="contain"
-              />
-            </View>
+            <Image
+              source={logoIconSource ?? APP_ICON}
+              style={styles.brandAppIcon}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
           </View>
-          <Text style={styles.tagline}> DISCOVER, CONNECT, AND SHOP WITH PEOPLE YOU CAN TRUST TODAY. </Text>
+          <Text style={styles.tagline}>{COPY.tagline}</Text>
         </View>
 
-        {/* ---------- Bottom: primary actions + sign-in link + community ---------- */}
         <View style={styles.bottom}>
-          {/* Main CTA: marks user as logged in and typically navigates to the main app */}
           <TouchableOpacity
             style={styles.buttonPrimary}
             onPress={() => onSuccess?.()}
             activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Get started"
           >
-            <Text style={styles.buttonPrimaryText}>Get Started</Text>
-            <FontAwesome6
-              name="arrow-right"
-              size={20}
-              color="#ffffff"
-            />
+            <Text style={styles.buttonPrimaryText}>{COPY.getStarted}</Text>
+            <FontAwesome6 name="arrow-right" size={20} color="#ffffff" />
           </TouchableOpacity>
 
           {/* "I already have an account" → uses onSignInPress if provided, otherwise onSuccess */}
@@ -104,18 +94,19 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
               router.push("/auth/signin" as Href);
             }}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Go to Sign In"
           >
-            <Text style={styles.signInPrompt}>I already have an account </Text>
-            <Text style={styles.signInLink}>Sign In</Text>
+            <Text style={styles.signInPrompt}>{COPY.hasAccount} </Text>
+            <Text style={styles.signInLink}>{COPY.signIn}</Text>
           </TouchableOpacity>
 
-          {/* Terms footer */}
           <View style={styles.termsFooter}>
             <Text style={styles.termsText}>
-              By clicking continue, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text>
-              {' '}and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              {COPY.termsPrefix}{' '}
+              <Text style={styles.termsLink}>{COPY.terms}</Text>
+              {' '}{COPY.and}{' '}
+              <Text style={styles.termsLink}>{COPY.privacy}</Text>
             </Text>
           </View>
         </View>
@@ -123,144 +114,74 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
     </View>
   );
 }
-
-
-// STYLES
 const styles = StyleSheet.create({
-  // Full-screen wrapper; dark background when video is hidden or as base
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
   },
-  // Video fills the screen and is positioned behind everything
-  image: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  // Overlay on top of video so text and buttons stay readable (35% black)
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.58)',
-  },
-  // Main content: horizontal padding, space-between for top / center / bottom sections
   safeContent: {
     flex: 1,
     paddingHorizontal: 24,
     justifyContent: 'space-between',
   },
-  // Wrapper for the language pill so it stays centered at the top
   languageRow: {
     alignItems: 'center',
     paddingTop: 8,
   },
-  // Pill container for English | Français (row, rounded, semi-transparent dark)
   languagePill: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: '#F1F2F4',
     borderRadius: 24,
     padding: 4,
   },
-  // Each language tab (inactive: transparent; active gets languageTabActive)
   languageTab: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
   },
-  // Active tab: brand red background
   languageTabActive: {
     backgroundColor: RED,
   },
   languageText: {
-    color: '#ffffff',
+    color: '#4B5563',
     fontSize: 15,
     fontWeight: '600',
   },
   languageTextActive: {
     color: '#ffffff',
   },
-  // Center block: logo + tagline; flex: 1 so it takes the middle space
   hero: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
   },
-  // Brand name above tagline
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
-  brandKWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   brandAppIcon: {
-    width: 40,
-    height: 40,
-    marginLeft: -20,
-    transform: [{ rotate: '40deg' }],
+    width: 130,
+    height: 130,
   },
-  brandName: {
-    fontSize: 64,
-    fontWeight: '800',
-    color: '#000000',
-    letterSpacing: 2,
-  },
-  // "CLIP" text: large, bold, white
-  logoClip: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 1,
-  },
-  // Wrapper for logo image + "CART" (row, slight negative margin for overlap)
-  logoCartWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: -1,
-  },
-  // Size and position of the custom logo image next to "CART"
-  logoCartIcon: {
-    width: 100,
-    height: 100,
-    marginRight: -24,
-    marginLeft: -30,
-    // Rotate the icon (e.g. -15 = tilt left, 15 = tilt right, 90 = upright). Change this to adjust.
-    transform: [{ rotate: '-12deg' }],
-  },
-  // "CART" text: same size as CLIP, brand red
-  logoCart: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: RED,
-    letterSpacing: 1,
-  },
-  // Small "safick" label under the main logo (currently not rendered in JSX but kept for consistency)
-  logoSmall: {
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: 16,
-    letterSpacing: 0.5,
-  },
-  // Tagline under the logo: "DISCOVER . CONNECT . SHOP"
   tagline: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: 3, // space between letters
+    color: '#111827',
+    letterSpacing: 3,
     textAlign: 'center',
     marginTop: 0,
-    fontFamily: 'Rebel sans',
+    lineHeight: 28,
   },
-  // Bottom section: buttons and links; gap between items, padding from bottom
   bottom: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingTop: 14,
     paddingBottom: 32,
     gap: 16,
   },
-  // Red "Get Started" button: pill shape, shadow
   buttonPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -280,12 +201,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  buttonPrimaryArrow: {},
-  buttonPrimaryArrowPressed: {
-    marginTop: -4,
-    transform: [{ translateY: -2 }],
-  },
-  // Row for "I already have an account" + "Sign In" link
   signInRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -293,7 +208,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   signInPrompt: {
-    color: 'rgba(255,255,255,0.9)',
+    color: '#111827',
     fontSize: 15,
   },
   signInLink: {
@@ -308,12 +223,12 @@ const styles = StyleSheet.create({
   termsText: {
     fontSize: 13,
     fontWeight: '400',
-    color: 'rgba(255,255,255,0.86)',
+    color: '#4B5563',
     textAlign: 'center',
     lineHeight: 20,
   },
   termsLink: {
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: RED,
   },
 });

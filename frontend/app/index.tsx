@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { type Href, useRouter } from "expo-router";
-import Loginscreens from "./screens/loginscreens/Loginscreens";
+import LoginScreen from "./screens/loginscreens/Loginscreens";
 import { useUserProfile } from "../context/UserProfileContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -28,10 +28,10 @@ export default function Index() {
 
   if (!isAuthenticated) {
     return (
-      <Loginscreens
+      <LoginScreen
         onSuccess={handleGetStarted}
         onSignInPress={handleSignInPress}
-        logoIconSource={require("../assets/images/icons.png")}
+        logoIconSource={require("../assets/images/safick-prlogo02.png")}
       />
     );
   }
