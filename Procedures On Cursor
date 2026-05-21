@@ -1,0 +1,14 @@
+PS C:\Users\user\safick-Code1> git branch
+* main
+PS C:\Users\user\safick-Code1> git checkout Testing-production
+branch 'Testing-production' set up to track 'origin/Testing-production'.
+Switched to a new branch 'Testing-production'
+PS C:\Users\user\safick-Code1>  git branch
+* Testing-production
+  main
+PS C:\Users\user\safick-Code1> git fetch origin
+PS C:\Users\user\safick-Code1> git pull origin Testing-production
+From https://github.com/clipCart/safick-Code1
+ * branch            Testing-production -> FETCH_HEAD
+Already up to date.
+PS C:\Users\user\safick-Code1> 
