@@ -1,4 +1,4 @@
-import { Text, View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import { Text, View, TouchableOpacity, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, AntDesign, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -15,6 +15,7 @@ const ROUTES = {
   SAVED: "/wishlist",
   MESSAGES: "/messages",
   NOTIFICATIONS: "/notifications",
+  SEARCH: "/search",
 } as const;
 
 export default function Index() {
@@ -44,6 +45,14 @@ export default function Index() {
   const handleNotificationPress = useCallback(() => {
     try {
       router.push(ROUTES.NOTIFICATIONS);
+    } catch (error) {
+      console.error("Navigation error:", error);
+    }
+  }, [router]);
+
+  const handleSearchPress = useCallback(() => {
+    try {
+      router.push(ROUTES.SEARCH);
     } catch (error) {
       console.error("Navigation error:", error);
     }
@@ -81,15 +90,6 @@ export default function Index() {
     handleTabPress("Discover");
   }, [handleTabPress]);
 
-  // Input validation for search
-  const [searchQuery, setSearchQuery] = useState("");
-  const handleSearchChange = useCallback((text: string) => {
-    // Basic sanitization - remove potentially dangerous characters
-    const sanitized = text.replace(/[<>\"']/g, '');
-    setSearchQuery(sanitized);
-    // TODO: Add debouncing and actual search logic
-  }, []);
-
   // Initialize scroll position to "For you" tab (index 1)
   useEffect(() => {
     const initialIndex = TABS.indexOf("For you");
@@ -122,20 +122,18 @@ export default function Index() {
         {/* Search Bar with Action Icons */}
         <View style={styles.headerRow}>
           {/* Search Bar */}
-          <View style={styles.searchBarContainer}>
+          <TouchableOpacity
+            style={styles.searchBarContainer}
+            onPress={handleSearchPress}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Search Safick"
+          >
             <Ionicons name="search" size={26} color="#000000" />
-            <TextInput
-              placeholder="Search Safick..."
-              placeholderTextColor="rgba(0, 0, 0, 0.62)"
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel="Search Safick"
-              accessibilityRole="search"
-            />
-          </View>
+            <Text style={styles.searchPlaceholder} numberOfLines={1}>
+              Search Safick...
+            </Text>
+          </TouchableOpacity>
 
           {/* Action Icons */}
           <View style={styles.iconsContainer}>
@@ -266,13 +264,13 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  searchInput: {
+  searchPlaceholder: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
-    padding: 6, // Remove default padding
-    includeFontPadding: false, // Better text alignment on Android
-    textAlignVertical: 'center',
+    paddingVertical: 6,
+    color: "rgba(0, 0, 0, 0.62)",
+    includeFontPadding: false,
   },
   iconsContainer: {
     flexDirection: 'row',

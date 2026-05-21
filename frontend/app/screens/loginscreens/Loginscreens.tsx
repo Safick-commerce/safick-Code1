@@ -14,45 +14,19 @@ type LoginscreensProps = {
   logoIconSource?: ImageSourcePropType;
 };
 
-// Video at project root: safick/assets/images/loginscreen.mp4 (3 levels up from app/screens/loginscreens)
-const IMAGE_SOURCE = require('../../../assets/images/LoginSC.jpg');
 /** App icon (same as app.json expo.icon / adaptiveIcon) — shown beside the "k" in Safick. */
 const APP_ICON = require('../../../assets/images/icons.png');
-const VIDEO_SOURCE = require('../../../assets/images/loginscreen.mp4');
 // Brand red used for buttons, active language tab, "CART" text, and "Sign In" link
 const RED = '#FF2800';
 
 export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource }: LoginscreensProps) {
   const router = useRouter();
-  // If the background video fails to load, we hide it and rely on the dark container background
-  const [videoError, setVideoError] = useState(false);
   // Selected language for the pill selector; currently UI-only (English / Français)
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
 
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7795/ingest/37eacd44-5dc4-4313-8413-ac6c68b6e4f6',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a40776'},body:JSON.stringify({sessionId:'a40776',location:'Loginscreens.tsx:mount',message:'Loginscreens mounted',data:{videoError},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  }, []);
-  // #endregion
-
   return (
-    // Outer full-screen container; dark background used when video is hidden or as fallback
+    // Outer full-screen container with plain white background
     <View style={styles.container}>
-      {!videoError ? (
-        <Image
-          source={IMAGE_SOURCE}
-          style={styles.image}
-          resizeMode="cover"
-          onError={() => {
-            // #region agent log
-            fetch('http://127.0.0.1:7795/ingest/37eacd44-5dc4-4313-8413-ac6c68b6e4f6',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a40776'},body:JSON.stringify({sessionId:'a40776',location:'Loginscreens.tsx:Video onError',message:'Video onError fired',data:{},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-            // #endregion
-            setVideoError(true);
-          }}
-        />
-      ) : null}
-      {/* Semi-transparent dark overlay so white/red text and buttons stay readable over the video */}
-      <View style={styles.overlay} />
       {/* Main content area: respects safe area (status bar, notch). Space-between puts language at top, hero in middle, buttons at bottom. */}
       <SafeAreaView style={styles.safeContent} edges={['top', 'left', 'right']}>
         {/* ---------- Language selector (top) ---------- */}
@@ -78,9 +52,7 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
         {/* ---------- Logo + tagline (center) ---------- */}
         <View style={styles.hero}>
           <View style={styles.logoRow}>
-            <Text style={styles.brandName}>Safic</Text>
             <View style={styles.brandKWithIcon}>
-              <Text style={styles.brandName}>k</Text>
               <Image
                 source={logoIconSource ?? APP_ICON}
                 style={styles.brandAppIcon}
@@ -115,7 +87,7 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
                 onSignInPress();
                 return;
               }
-              router.push("/screens/loginscreens/signinscreen");
+              router.push("/auth/signin");
             }}
             activeOpacity={0.8}
           >
@@ -144,20 +116,7 @@ const styles = StyleSheet.create({
   // Full-screen wrapper; dark background when video is hidden or as base
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
-  },
-  // Video fills the screen and is positioned behind everything
-  image: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  // Overlay on top of video so text and buttons stay readable (35% black)
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.58)',
+    backgroundColor: '#FFFFFF',
   },
   // Main content: horizontal padding, space-between for top / center / bottom sections
   safeContent: {
@@ -213,10 +172,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandAppIcon: {
-    width: 40,
-    height: 40,
-    marginLeft: -20,
-    transform: [{ rotate: '40deg' }],
+    width: 200,
+    height: 200,
   },
   brandName: {
     fontSize: 64,
@@ -262,12 +219,12 @@ const styles = StyleSheet.create({
   // Tagline under the logo: "DISCOVER . CONNECT . SHOP"
   tagline: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: 3, // space between letters
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: 1.2,
     textAlign: 'center',
     marginTop: 0,
-    fontFamily: 'PlayfairDisplay_800ExtraBold',
+    fontFamily: 'Inter',
   },
   // Bottom section: buttons and links; gap between items, padding from bottom
   bottom: {
@@ -307,13 +264,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   signInPrompt: {
-    color: 'rgba(255,255,255,0.9)',
+    color: '#374151',
     fontSize: 15,
+    fontFamily: 'Inter',
   },
   signInLink: {
     color: RED,
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'Inter',
   },
   termsFooter: {
     marginTop: 18,
@@ -322,12 +281,14 @@ const styles = StyleSheet.create({
   termsText: {
     fontSize: 13,
     fontWeight: '400',
-    color: 'rgba(255,255,255,0.86)',
+    color: '#4B5563',
     textAlign: 'center',
     lineHeight: 20,
+    fontFamily: 'Inter',
   },
   termsLink: {
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#111827',
+    fontFamily: 'Inter',
   },
 });

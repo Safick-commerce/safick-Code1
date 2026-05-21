@@ -1,11 +1,13 @@
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons } from "@expo/vector-icons";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,7 +23,7 @@ const RED = "#FF2800";
 export default function SignInScreen() {
   const router = useRouter();
   const { redirectTo } = useLocalSearchParams<{ redirectTo?: string }>();
-  const { signIn } = useAuth();
+  const { signIn, signInWithOAuth, resetPassword } = useAuth();
   const { profile, isLoaded: profileLoaded } = useUserProfile();
 
   const [email, setEmail] = useState("");
@@ -59,6 +61,37 @@ export default function SignInScreen() {
     }
   }, [email, password, signIn, navigateAfterLogin]);
 
+  const handleForgotPassword = useCallback(async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      Alert.alert("Reset password", "Enter your email first, then tap Forgot Password.");
+      return;
+    }
+    try {
+      await resetPassword(trimmed);
+      Alert.alert("Check your inbox", "Password reset instructions were sent to your email.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not send reset email.";
+      Alert.alert("Reset password", message);
+    }
+  }, [email, resetPassword]);
+
+  const handleOAuthSignIn = useCallback(
+    async (provider: "google" | "apple") => {
+      setSubmitting(true);
+      try {
+        await signInWithOAuth(provider);
+        navigateAfterLogin();
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "Could not sign in.";
+        Alert.alert(`${provider === "google" ? "Google" : "Apple"} sign in failed`, message);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [signInWithOAuth, navigateAfterLogin]
+  );
+
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.safe, styles.center]} edges={["top", "left", "right"]}>
@@ -85,15 +118,20 @@ export default function SignInScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.content}>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in with your email and password.</Text>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.title}>Login</Text>
+          <Text style={styles.subtitle}>Welcome Back!</Text>
 
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
-            placeholder="you@example.com"
-            placeholderTextColor="#9CA3AF"
+            placeholder="Enter email"
+            placeholderTextColor="#94A3B8"
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -106,8 +144,8 @@ export default function SignInScreen() {
           <View style={styles.passwordRow}>
             <TextInput
               style={styles.passwordInput}
-              placeholder="••••••••"
-              placeholderTextColor="#9CA3AF"
+              placeholder="Enter password"
+              placeholderTextColor="#94A3B8"
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
@@ -119,9 +157,13 @@ export default function SignInScreen() {
               accessibilityRole="button"
               accessibilityLabel={showPassword ? "Hide password" : "Show password"}
             >
-              <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#6B7280" />
+              <FontAwesome6 name={showPassword ? "eye-slash" : "eye"} size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword} disabled={submitting}>
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.primary, submitting && styles.primaryDisabled]}
@@ -132,18 +174,54 @@ export default function SignInScreen() {
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryText}>Sign In</Text>
+              <Text style={styles.primaryText}>Log In</Text>
             )}
           </TouchableOpacity>
 
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>or</Text>
+            <View style={styles.orLine} />
+          </View>
+
           <TouchableOpacity
-            style={styles.secondary}
-            onPress={() => router.replace("/screens/onboarding/OnboardingScreen")}
+            style={[styles.socialButton, submitting && styles.socialButtonDisabled]}
+            activeOpacity={0.8}
+            onPress={() => handleOAuthSignIn("google")}
             disabled={submitting}
           >
-            <Text style={styles.secondaryText}>Create an account</Text>
+            <Image source={require("../../assets/images/Google.png")} style={styles.googleLogo} />
+            <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
-        </View>
+
+          <TouchableOpacity
+            style={[styles.socialButton, submitting && styles.socialButtonDisabled]}
+            activeOpacity={0.8}
+            onPress={() => handleOAuthSignIn("apple")}
+            disabled={submitting}
+          >
+            <Ionicons name="logo-apple" size={22} color="#0F172A" />
+            <Text style={styles.socialButtonText}>Continue with Apple</Text>
+          </TouchableOpacity>
+
+          <View style={styles.termsFooter}>
+            <Text style={styles.termsText}>
+              By clicking continue, you agree to our <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
+              <Text style={styles.termsLink}>Privacy Policy</Text>
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.secondary}
+            onPress={() =>
+              router.replace("/screens/onboarding/OnboardingScreen?skipWalkthrough=1" as Href)
+            }
+            disabled={submitting}
+          >
+            <Text style={styles.secondaryPrompt}>Don't have an account? </Text>
+            <Text style={styles.secondaryText}>Sign up now</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -159,19 +237,26 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    width: "100%",
+  },
+  contentContainer: {
     paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingTop: 12,
+    paddingBottom: 32,
   },
   title: {
-    fontSize: 26,
-    fontWeight: "800",
+    fontSize: 14,
+    fontWeight: "600",
     color: "#111827",
-    marginBottom: 8,
+    marginBottom: 6,
+    fontFamily: "PlayfairDisplay_800ExtraBold",
   },
   subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-    marginBottom: 28,
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 24,
+    fontFamily: "PlayfairDisplay_800ExtraBold",
   },
   label: {
     fontSize: 14,
@@ -181,11 +266,11 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: 14,
     color: "#111827",
     marginBottom: 18,
   },
@@ -193,22 +278,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    marginBottom: 24,
-    paddingRight: 8,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
   },
   passwordInput: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    fontSize: 14,
     color: "#111827",
   },
   eye: { padding: 8 },
+  forgotPassword: {
+    alignSelf: "flex-end",
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  forgotPasswordText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   primary: {
     backgroundColor: RED,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
@@ -219,14 +313,76 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
   },
+  orRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 24,
+    marginBottom: 16,
+    gap: 12,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  orText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    fontWeight: "500",
+  },
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    backgroundColor: "#F1F5F9",
+    paddingVertical: 15,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  socialButtonDisabled: {
+    opacity: 0.6,
+  },
+  socialButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0F172A",
+  },
+  googleLogo: {
+    width: 20,
+    height: 20,
+  },
   secondary: {
     marginTop: 20,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     paddingVertical: 12,
+  },
+  secondaryPrompt: {
+    color: "#64748B",
+    fontSize: 15,
   },
   secondaryText: {
     color: RED,
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  termsFooter: {
+    marginTop: 24,
+    paddingHorizontal: 8,
+  },
+  termsText: {
+    fontSize: 13,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: "#0F172A",
+    fontWeight: "700",
   },
 });

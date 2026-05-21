@@ -36,7 +36,7 @@ export default function TabsLayout() {
           backgroundColor: "#ffffff",
           borderTopWidth: 1,
           borderTopColor: "#E5E7EB",
-          height: 90,
+          height: 105,
           paddingBottom: 4,
           paddingTop: 4,
         },
@@ -105,6 +105,12 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="userprofile"
+        options={{
+          href: null, // Hide from tab bar but keep accessible via navigation
+        }}
+      />
+      <Tabs.Screen
+        name="edit_profile"
         options={{
           href: null, // Hide from tab bar but keep accessible via navigation
         }}

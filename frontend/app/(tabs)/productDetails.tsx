@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, NativeSyntheticEvent, NativeScrollEvent, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome6, Fontisto, AntDesign } from "@expo/vector-icons";
 import { useState, useCallback, useRef } from "react";
 import { useWishlist } from "../../context/WishlistContext";
-import { useMessage } from "../../context/MessageContext";
+import { openConversation } from "../../utils/conversationApi";
+import { primeConversationBootstrap } from "../../utils/conversationBootstrapCache";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -29,8 +30,9 @@ const RECOMMENDED_FOR_YOU = [
 
 export default function ProductDetails() {
   const router = useRouter();
+  const { id: productId } = useLocalSearchParams<{ id?: string | string[] }>();
+  const resolvedProductId = typeof productId === "string" ? productId : productId?.[0];
   const { toggleWishlist, isSaved } = useWishlist();
-  const { addToMessage } = useMessage();
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -45,18 +47,28 @@ export default function ProductDetails() {
     console.log("Seller Profile pressed");
   }, [router]);
 
-  const handleMessageSeller = useCallback(() => {
-    addToMessage({
-      id: 'brenda-style-1',
-      seller: {
-        name: product.seller.name,
-        message: 'Tap to start chatting',
-        avatar: product.seller.image,
-        status: 'online',
-      },
-    });
-    router.push("/usermessage");
-  }, [addToMessage]);
+  const handleMessageSeller = useCallback(async () => {
+    if (!resolvedProductId) {
+      Alert.alert(
+        "Message seller",
+        "Open a product from search or your listings to start a chat with the seller.",
+      );
+      return;
+    }
+    try {
+      const bootstrap = await openConversation(resolvedProductId);
+      primeConversationBootstrap(bootstrap.conversation.id, bootstrap);
+      router.push({
+        pathname: "/usermessage",
+        params: { conversationId: bootstrap.conversation.id },
+      });
+    } catch (error) {
+      Alert.alert(
+        "Could not start chat",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    }
+  }, [resolvedProductId, router]);
 
   const handleSaveProduct = useCallback(() => {
     toggleWishlist({

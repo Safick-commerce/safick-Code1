@@ -1,10 +1,11 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
 import { useUserProfile } from "../../../context/UserProfileContext";
+import { supabase } from "../../../lib/supabase";
 import WalkthroughSlides from "./WalkthroughSlides";
 import GenderStep from "./steps/GenderStep";
 import InterestsStep from "./steps/InterestsStep";
@@ -25,7 +26,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { skipWalkthrough } = useLocalSearchParams<{ skipWalkthrough?: string }>();
   const { updateProfile, completeOnboarding } = useUserProfile();
-  const { signIn } = useAuth();
+  const { isAuthenticated, signIn, signUp } = useAuth();
   const [phase, setPhase] = useState<Phase>(skipWalkthrough === "1" ? "steps" : "walkthrough");
   const [step, setStep] = useState(0);
 
@@ -104,17 +105,91 @@ export default function OnboardingScreen() {
           break;
         case 3:
           await updateProfile({ interests });
+          if (!isAuthenticated) {
+            await signUp(email.trim(), password, {
+              fullName: name.trim(),
+              username: username.trim(),
+              gender,
+              city,
+              interests,
+            });
+            try {
+              await signIn(email.trim(), password);
+            } catch (signInError) {
+              // If "Confirm email" is enabled in Supabase, signUp creates the
+              // user but does not start a session — signIn then fails with
+              // "Email not confirmed". Persist onboarding locally and route
+              // the user to sign in after they tap the confirmation link.
+              const signInMessage =
+                signInError instanceof Error ? signInError.message : "";
+              if (/email not confirmed/i.test(signInMessage)) {
+                await completeOnboarding();
+                Alert.alert(
+                  "Check your email",
+                  "We sent a confirmation link to your email. Tap the link, then sign in to finish setting up your account."
+                );
+                router.replace("/auth/signin");
+                return;
+              }
+              throw signInError;
+            }
+          }
+
+          // Sync onboarding fields to the user's profiles row. The handle_new_user
+          // trigger only fills in name/username/email — gender, city, interests,
+          // and onboarding_completed have to be written by the client once a
+          // session exists. Non-fatal on failure: local state already has the
+          // values and the user can retry from the profile screen later.
+          try {
+            const {
+              data: { user: currentUser },
+            } = await supabase.auth.getUser();
+            if (currentUser) {
+              const { error: profileError } = await supabase
+                .from("profiles")
+                .update({
+                  gender: gender || null,
+                  city: city || null,
+                  interests,
+                  onboarding_completed: true,
+                })
+                .eq("id", currentUser.id);
+              if (profileError) {
+                console.warn(
+                  "[onboarding] failed to sync profile fields:",
+                  profileError.message
+                );
+              }
+            }
+          } catch (syncError) {
+            console.warn("[onboarding] profile sync error:", syncError);
+          }
+
           await completeOnboarding();
-          await signIn();
           router.replace("/(tabs)");
           break;
       }
     } catch (error) {
       console.error("Failed to continue onboarding:", error);
+      const rawMessage = error instanceof Error ? error.message : "";
+      // Supabase masks any failure in the auth.users → public.profiles trigger
+      // as this generic string. Show a friendlier message and point developers
+      // at the schema bootstrap script.
+      const isTriggerFailure = /database error saving new user/i.test(rawMessage);
+      if (isTriggerFailure) {
+        console.error(
+          "[onboarding] Supabase auth trigger failed. Run backend/supabase/schema.sql " +
+            "in the Supabase SQL Editor, then check Dashboard → Logs → Auth Logs."
+        );
+      }
+      const message = isTriggerFailure
+        ? "We couldn't create your account right now. Please try again in a moment."
+        : rawMessage || "Please try again.";
+      Alert.alert("Could not finish onboarding", message);
     } finally {
       setIsSubmitting(false);
     }
-  }, [step, name, username, email, gender, city, interests, updateProfile, completeOnboarding, signIn, router]);
+  }, [step, name, username, email, password, gender, city, interests, updateProfile, completeOnboarding, isAuthenticated, signIn, signUp, router]);
 
   const handleBack = useCallback(() => {
     if (step > 0) setStep(step - 1);
@@ -122,13 +197,12 @@ export default function OnboardingScreen() {
 
   const handleSkip = useCallback(async () => {
     try {
-      await completeOnboarding({ asGuest: true });
-      await signIn();
+      await completeOnboarding({ asGuest: !isAuthenticated });
       router.replace("/(tabs)");
     } catch (error) {
       console.error("Failed to skip onboarding:", error);
     }
-  }, [completeOnboarding, signIn, router]);
+  }, [completeOnboarding, isAuthenticated, router]);
 
   if (phase === "walkthrough") {
     return <WalkthroughSlides onComplete={handleWalkthroughComplete} />;

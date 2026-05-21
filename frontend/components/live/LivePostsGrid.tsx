@@ -10,9 +10,18 @@ interface LivePostsGridProps {
   postsPerRow?: number;
   ListHeaderComponent?: ReactElement;
   ListFooterComponent?: ReactElement;
+  ListEmptyComponent?: ReactElement | null;
+  onScrollBeginDrag?: () => void;
 }
 
-function LivePostsGrid({ posts, postsPerRow = 2, ListHeaderComponent, ListFooterComponent }: LivePostsGridProps) {
+function LivePostsGrid({
+  posts,
+  postsPerRow = 2,
+  ListHeaderComponent,
+  ListFooterComponent,
+  ListEmptyComponent,
+  onScrollBeginDrag,
+}: LivePostsGridProps) {
   // Calculate card width based on screen size
   // Account for: horizontal padding (10), gaps between cards (12), and margins (6 * 2 per card)
   const cardWidth = useMemo(() => {
@@ -50,11 +59,14 @@ function LivePostsGrid({ posts, postsPerRow = 2, ListHeaderComponent, ListFooter
       keyExtractor={keyExtractor}
       ListHeaderComponent={ListHeaderComponent}
       ListFooterComponent={ListFooterComponent}
+      ListEmptyComponent={ListEmptyComponent}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
       removeClippedSubviews
       maxToRenderPerBatch={5}
       windowSize={5}
+      keyboardShouldPersistTaps="handled"
+      onScrollBeginDrag={onScrollBeginDrag}
     />
   );
 }

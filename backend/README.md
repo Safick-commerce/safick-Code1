@@ -9,7 +9,67 @@ Node.js **Express** API with **Prisma** and **PostgreSQL**. This service is the 
 | Express app, security middleware, rate limit, health | Done |
 | Prisma models `User`, `Session` | Done |
 | Routes `/api/auth`, `/api/users` (skeleton) | In progress |
-| Redis, Socket.IO, S3, products, chat, notifications | Not started |
+| Supabase `profiles` table + `handle_new_user` trigger (`supabase/schema.sql`) | Done |
+| Socket.IO (auth + rooms + typing) | Done |
+| Conversations + messages REST + DB persist | Done — run `supabase/conversations.sql`, then `npx prisma db pull` or use schema in repo |
+| Redis, S3, products API via Express, notifications | Not started / partial |
+
+## Supabase schema bootstrap
+
+Auth/onboarding currently goes through Supabase (not Prisma). The mobile app
+calls `supabase.auth.signUp`, and Supabase fires a trigger on `auth.users`
+that mirrors the new user into `public.profiles`. If that trigger is missing
+or broken, signup fails with the generic `AuthApiError: Database error saving
+new user`.
+
+To apply (or re-apply) the schema:
+
+1. Open the Supabase Dashboard → SQL Editor → New query.
+2. Paste the full contents of [`supabase/schema.sql`](./supabase/schema.sql).
+3. Click Run. The script is idempotent.
+4. Verify the trigger exists: `select tgname from pg_trigger where tgrelid = 'auth.users'::regclass;`
+   should include `on_auth_user_created`.
+
+If signup still fails after applying the script, the underlying Postgres
+error is logged in Supabase Dashboard → Logs → Auth Logs (Supabase masks it
+in the client response for security).
+
+### Auth / onboarding smoke test (manual)
+
+Critical flow — run this before shipping any change that touches auth,
+onboarding, or `public.profiles`. (See `.cursor/rules/testing-minimum-bar.mdc`.)
+
+1. In Supabase Dashboard → Authentication → Users, delete any existing test
+   user with the email you're about to use (cascades to `profiles`).
+2. From the mobile app, sign up with a fresh email through onboarding
+   (Step 1 → 4). Pick a username that you know is unused.
+3. Expected on Step 1 (NameUsername):
+   - Typing a username already present in `profiles` → red X + "already taken".
+   - Typing an unused username → green check + "available".
+4. Expected after tapping **Finish** on Step 4 (Interests):
+   - No error alert.
+   - App navigates to `/(tabs)`.
+5. Verify profiles in Supabase SQL Editor:
+   ```sql
+   select id, email, full_name, username, gender, city, interests,
+          onboarding_completed
+   from public.profiles
+   order by created_at desc
+   limit 1;
+   ```
+   All onboarding fields should be populated and `onboarding_completed = true`.
+
+6. **Chat tables:** run [`supabase/conversations.sql`](./supabase/conversations.sql), then `npm run db:generate`.
+
+### Deferred follow-up — automated auth smoke test
+
+**Status:** deferred. **Risk:** schema or trigger regressions in
+`public.profiles` only surface through manual signup; a quiet break would
+ship to TestFlight unnoticed. **Owner:** unassigned. **Target:** before the
+first external beta. **Scope:** Node test (`backend/tests/auth.smoke.ts`)
+that uses the Supabase service-role key to (a) create a test user via
+`auth.admin.createUser`, (b) assert the matching `profiles` row exists, (c)
+write the onboarding fields, (d) read them back, (e) delete the user.
 
 ## Target source layout (what to grow into)
 
@@ -49,8 +109,8 @@ backend/
 │   ├── services/                  # business logic per domain
 │   ├── socket/                    # Socket.IO namespaces / handlers
 │   │   ├── index.ts               # attach to HTTP server + Redis adapter
-│   │   ├── chat.socket.ts         # join room, send message, typing
-│   │   └── presence.socket.ts     # optional: online / last seen
+│   │   ├── chat.socket.ts         # join room, send message, typing, live chat
+│   │   └── presence.socket.ts     # ping_presence (extend for online status)
 │   ├── jobs/                      # optional: BullMQ / cron (thumbnails, cleanup)
 │   ├── types/
 │   ├── utils/                     # pagination, ids, slug helpers
@@ -77,9 +137,12 @@ backend/
 6. **Deal** (or fields on `Conversation`) — status enum: e.g. `inquired` → `negotiating` → `agreed` → `delivered` → `completed` (align with product README).
 7. **Notification** — userId, type, payload JSON, readAt (push via FCM later).
 
-**Phase 2+ (when live/analytics ship):**
+**Phase 1 (MVP — live selling):**
 
-- **LiveEvent** — sellerId, scheduledAt, status, playback/recording keys if you store VOD.
+- **LiveEvent** — sellerId, title, category, status (`scheduled` \| `live` \| `ended`), `livekit_room_name`, `playback_url` (HLS), timestamps, optional viewer count cache.
+
+**Phase 2+ (post-launch):**
+
 - **Review** — tied to completed deal, rating, text, moderator flags.
 - **Report** / **Block** — reporter, target, reason.
 
@@ -101,14 +164,15 @@ Aligned with Cameroon MVP: real data in the app, chat as the transaction surface
 | 8 | **Search** | PostgreSQL `tsvector` on product title/description/category (good enough for MVP) |
 | 9 | **Notifications** | Persist in-app notifications; FCM device registration + send on new message (minimal) |
 | 10 | **Frontend integration** | API client in Expo, replace mocks in `feedProducts`, contexts, messages |
+| 11 | **Live (Unbox)** | **LiveKit Cloud** tokens + `LiveEvent` CRUD; feed + HLS playback URL; live chat room per session — see `../frontend/docs/PHASE1_LIVE.md` |
 
-**Definition of done for Phase 1:** buyer can open a product, start a thread, exchange messages with seller, and see real listings from the DB; seller can create listings with images/video URLs.
+**Definition of done for Phase 1:** buyer can open a product, start a thread, exchange messages with seller, and see real listings from the DB; seller can create listings with images/video URLs; **seller can go live and buyer can watch from Unbox with live chat**.
 
-### Phase 2 — Growth & live
+### Phase 2 — Growth
 
 | Workstream | Notes |
 |------------|--------|
-| Live events API | Schedule, go-live state, viewer counts (depends on streaming provider choice) |
+| Live enhancements | Scheduled events, in-stream shop, clips/VOD library, Live Stream AI |
 | Analytics | Aggregates for `seller-analytics` screen (views, inquiries) |
 | Reviews | After `completed` deal, one review per party rules |
 | Moderation hooks | Report queue export or admin-only routes (even if admin UI is manual) |
@@ -119,6 +183,30 @@ Aligned with Cameroon MVP: real data in the app, chat as the transaction surface
 |------------|--------|
 | Payments | Orange Money / Mobile Money — only when product/legal ready; webhooks |
 | **AI** | Semantic / hybrid search, recommendations: **main backend** proxies to `ai-backend/` (see `../ai-backend/README.md`) |
+
+## Socket.IO (real-time chat)
+
+No vendor signup. The server shares port **4000** with Express.
+
+1. Set `SUPABASE_URL` + `SUPABASE_ANON_KEY` in `backend/.env` (same as the app).
+2. `npm run dev` — logs `Socket.IO: same origin`.
+3. App: `EXPO_PUBLIC_API_URL=http://<your-ip>:4000` in `frontend/.env`.
+4. Client connects with `auth: { token: session.access_token }`.
+
+| Client emits | Purpose |
+|--------------|---------|
+| `join_conversation` | `{ conversationId }` |
+| `send_message` | `{ conversationId, text, clientId? }` |
+| `join_live` / `live_message` | Live room chat |
+| `typing` | `{ roomType, roomId, isTyping }` |
+
+| Server emits | Purpose |
+|--------------|---------|
+| `message` | New DM (also echoed to sender) |
+| `live_message` | New live chat line |
+| `typing` | Other party typing |
+
+Messages are **broadcast only** until the conversations REST + DB layer lands (see `chat.socket.ts` TODOs).
 
 ## Local development
 

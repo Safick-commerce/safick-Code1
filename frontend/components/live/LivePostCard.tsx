@@ -1,6 +1,7 @@
 import { View, Text, Image, StyleSheet, ImageSourcePropType, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
 import { LivePost } from "../../types";
-import { memo } from "react";
+import { memo, useCallback } from "react";
 
 interface LivePostCardProps {
   post: LivePost;
@@ -8,6 +9,15 @@ interface LivePostCardProps {
 }
 
 function LivePostCard({ post, cardWidth }: LivePostCardProps) {
+  const router = useRouter();
+  const onJoin = useCallback(() => {
+    try {
+      router.push({ pathname: "/watch-live", params: { liveId: post.id } });
+    } catch (e) {
+      console.error("[LivePostCard] join live", e);
+    }
+  }, [router, post.id]);
+
   const imageSource: ImageSourcePropType = typeof post.imageUrl === 'string'
     ? { uri: post.imageUrl }
     : post.imageUrl;
@@ -47,7 +57,13 @@ function LivePostCard({ post, cardWidth }: LivePostCardProps) {
       </View>
 
       {/* Join button */}
-      <TouchableOpacity style={styles.joinButton} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.joinButton}
+        activeOpacity={0.8}
+        onPress={onJoin}
+        accessibilityRole="button"
+        accessibilityLabel={`Join ${post.sellerName} live`}
+      >
         <Text style={styles.joinText}>Join</Text>
       </TouchableOpacity>
     </View>

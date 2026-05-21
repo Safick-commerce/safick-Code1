@@ -1,28 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Image } from "react-native";
+import { useMemo, useState } from "react";
+
+import { DISCOVER_CATEGORIES, type DiscoverCategoryName } from "../../constants/categories";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Category circles data - add your images here
-// To add images: 
-// 1. Download images from Unsplash, Pexels, or Pixabay
-// 2. Save them to: safick/assets/images/
-// 3. Update the image path below (e.g., 'fashion.png', 'beauty.png')
-const CATEGORY_CIRCLES = [
-  { id: 1, name: 'Fashion', image: require('../../assets/images/fashion.jpg') }, // ✅ Has image
-  { id: 2, name: 'Shoes', image: require('../../assets/images/shoe2.jpg') }, // ⚠️ Change to: fashion.png
-  { id: 3, name: 'Electronics', image: require('../../assets/images/electronics.jpg') }, // ⚠️ Change to: electronics.png
-  { id: 4, name: 'Beauty', image: require('../../assets/images/beauty.jpg') }, // ⚠️ Change to: beauty.png
-  { id: 5, name: 'Home', image: require('../../assets/images/home.jpg') }, // ⚠️ Change to: home.png
-  { id: 6, name: 'Sports', image: require('../../assets/images/sports.jpg') }, // ⚠️ Change to: sports.png
-  { id: 7, name: 'Toys', image: require('../../assets/images/toys.jpg') }, // ⚠️ Change to: toys.png
-  { id: 8, name: 'Books', image: require('../../assets/images/gadgets.jpg') }, // ⚠️ Change to: books.png
-  { id: 9, name: 'Gadgets', image: require('../../assets/images/accessories.jpg') }, // ⚠️ Change to: gadgets.png
-  { id: 10, name: 'Accessories', image: require('../../assets/images/tools.jpg') }, // ⚠️ Change to: accessories.png
-  // Add more categories here:
-  // { id: 11, name: 'Jewelry', image: require('../../assets/images/jewelry.png') },
-  // { id: 12, name: 'Watches', image: require('../../assets/images/watches.png') },
-] as const;
 
 // Popular cards: use full width (one gap between two cards), responsive height
 const CONTENT_PADDING = 1;
@@ -30,66 +12,124 @@ const CARD_GAP = 6;
 const CARD_WIDTH = (SCREEN_WIDTH - CONTENT_PADDING * 2 - CARD_GAP) / 2;
 const IMAGE_HEIGHT = Math.round(SCREEN_HEIGHT * 0.36);
 
-const POPULAR_PRODUCTS = [
+type PopularProduct = {
+  id: number;
+  seller: string;
+  name: string;
+  price: string;
+  rating: number;
+  location: string;
+  image: number;
+  sellerAvatar: number;
+  category: DiscoverCategoryName;
+};
+
+const POPULAR_PRODUCTS: PopularProduct[] = [
   {
-    id: 1, seller: 'Tracy', name: 'Elite Series Smartwatch - Silver Edition',
-    price: '25,000 XAF', rating: 4.8, location: 'Douala',
-    image: require('../../assets/images/seller3.jpeg'),
-    sellerAvatar: require('../../assets/images/seller.png'),
+    id: 1,
+    seller: "Tracy",
+    name: "Elite Series Smartwatch - Silver Edition",
+    price: "25,000 XAF",
+    rating: 4.8,
+    location: "Douala",
+    image: require("../../assets/images/seller3.jpeg"),
+    sellerAvatar: require("../../assets/images/seller.png"),
+    category: "Electronics",
   },
   {
-    id: 2, seller: 'Emily Shop', name: 'SpeedRunner Pro X - Limited Red',
-    price: '42,500 XAF', rating: 5.0, location: 'Douala',
-    image: require('../../assets/images/seller4.jpeg'),
-    sellerAvatar: require('../../assets/images/seller2.png'),
+    id: 2,
+    seller: "Emily Shop",
+    name: "SpeedRunner Pro X - Limited Red",
+    price: "42,500 XAF",
+    rating: 5.0,
+    location: "Douala",
+    image: require("../../assets/images/seller4.jpeg"),
+    sellerAvatar: require("../../assets/images/seller2.png"),
+    category: "Shoes",
   },
   {
-    id: 3, seller: 'Brenda Style', name: 'Acoustic Pro Bass Headphones',
-    price: '18,000 XAF', rating: 4.9, location: 'Yaoundé',
-    image: require('../../assets/images/seller.png'),
-    sellerAvatar: require('../../assets/images/seller3.jpeg'),
+    id: 3,
+    seller: "Brenda Style",
+    name: "Acoustic Pro Bass Headphones",
+    price: "18,000 XAF",
+    rating: 4.9,
+    location: "Yaoundé",
+    image: require("../../assets/images/seller.png"),
+    sellerAvatar: require("../../assets/images/seller3.jpeg"),
+    category: "Electronics",
   },
   {
-    id: 4, seller: 'Luxury Hub', name: 'Glow Essence Skincare Ritual',
-    price: '12,500 XAF', rating: 4.7, location: 'Buea',
-    image: require('../../assets/images/seller4.jpeg'),
-    sellerAvatar: require('../../assets/images/seller04.jpeg'),
+    id: 4,
+    seller: "Luxury Hub",
+    name: "Glow Essence Skincare Ritual",
+    price: "12,500 XAF",
+    rating: 4.7,
+    location: "Buea",
+    image: require("../../assets/images/seller4.jpeg"),
+    sellerAvatar: require("../../assets/images/seller04.jpeg"),
+    category: "Beauty",
   },
   {
-    id: 5, seller: 'TechWorld', name: 'Stealth Walkers - All Black Edition',
-    price: '35,000 XAF', rating: 4.8, location: 'Douala',
-    image: require('../../assets/images/seller2.png'),
-    sellerAvatar: require('../../assets/images/seller.png'),
+    id: 5,
+    seller: "TechWorld",
+    name: "Stealth Walkers - All Black Edition",
+    price: "35,000 XAF",
+    rating: 4.8,
+    location: "Douala",
+    image: require("../../assets/images/seller2.png"),
+    sellerAvatar: require("../../assets/images/seller.png"),
+    category: "Shoes",
   },
   {
-    id: 6, seller: 'NatureCo', name: 'Master Shot Lens 50mm f/1.8',
-    price: '85,000 XAF', rating: 5.0, location: 'Bamenda',
-    image: require('../../assets/images/seller2.png'),
-    sellerAvatar: require('../../assets/images/seller3.jpeg'),
+    id: 6,
+    seller: "NatureCo",
+    name: "Master Shot Lens 50mm f/1.8",
+    price: "85,000 XAF",
+    rating: 5.0,
+    location: "Bamenda",
+    image: require("../../assets/images/seller2.png"),
+    sellerAvatar: require("../../assets/images/seller3.jpeg"),
+    category: "Gadgets",
   },
   {
-    id: 7, seller: 'FitGear', name: 'Wireless Charging Pad Pro',
-    price: '8,500 XAF', rating: 4.5, location: 'Limbe',
-    image: require('../../assets/images/seller2.png'),
-    sellerAvatar: require('../../assets/images/seller2.png'),
+    id: 7,
+    seller: "FitGear",
+    name: "Wireless Charging Pad Pro",
+    price: "8,500 XAF",
+    rating: 4.5,
+    location: "Limbe",
+    image: require("../../assets/images/seller2.png"),
+    sellerAvatar: require("../../assets/images/seller2.png"),
+    category: "Accessories",
   },
   {
-    id: 8, seller: 'StyleVault', name: 'Premium Leather Crossbody Bag',
-    price: '22,000 XAF', rating: 4.6, location: 'Douala',
-    image: require('../../assets/images/seller2.png'),
-    sellerAvatar: require('../../assets/images/seller04.jpeg'),
+    id: 8,
+    seller: "StyleVault",
+    name: "Premium Leather Crossbody Bag",
+    price: "22,000 XAF",
+    rating: 4.6,
+    location: "Douala",
+    image: require("../../assets/images/seller2.png"),
+    sellerAvatar: require("../../assets/images/seller04.jpeg"),
+    category: "Fashion",
   },
 ];
 
-// Split products into rows of 2 for the grid layout
-const POPULAR_ROWS: (typeof POPULAR_PRODUCTS[number])[][] = [];
-for (let i = 0; i < POPULAR_PRODUCTS.length; i += 2) {
-  POPULAR_ROWS.push(POPULAR_PRODUCTS.slice(i, i + 2));
-}
-
-
 export default function DiscoverTab() {
-  
+  const [activeDiscoverCategory, setActiveDiscoverCategory] = useState<string | null>(null);
+
+  const filteredProducts = useMemo(() => {
+    if (!activeDiscoverCategory) return POPULAR_PRODUCTS;
+    return POPULAR_PRODUCTS.filter((p) => p.category === activeDiscoverCategory);
+  }, [activeDiscoverCategory]);
+
+  const popularRows = useMemo(() => {
+    const rows: PopularProduct[][] = [];
+    for (let i = 0; i < filteredProducts.length; i += 2) {
+      rows.push(filteredProducts.slice(i, i + 2));
+    }
+    return rows;
+  }, [filteredProducts]);
 
   return (
     <View style={styles.container}>
@@ -105,16 +145,37 @@ export default function DiscoverTab() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.circleScrollContainer}
           >
-            {CATEGORY_CIRCLES.map((category) => (
+            <View style={styles.circleContainer}>
+              <TouchableOpacity
+                style={[styles.discoverCircle, activeDiscoverCategory === null && styles.discoverCircleSelected]}
+                onPress={() => setActiveDiscoverCategory(null)}
+                activeOpacity={0.88}
+                accessibilityRole="button"
+                accessibilityLabel="All categories"
+                accessibilityState={{ selected: activeDiscoverCategory === null }}
+              >
+                <MaterialCommunityIcons name="view-grid-outline" size={28} color="#111827" />
+              </TouchableOpacity>
+              <Text style={styles.circleText}>All</Text>
+            </View>
+            {DISCOVER_CATEGORIES.map((category) => (
               <View key={category.id} style={styles.circleContainer}>
-                <TouchableOpacity style={styles.circle}>
-                  <Image
-                    source={category.image}
-                    style={styles.circleImage}
-                    resizeMode="cover"
-                  />
+                <TouchableOpacity
+                  style={[
+                    styles.discoverCircle,
+                    activeDiscoverCategory === category.name && styles.discoverCircleSelected,
+                  ]}
+                  onPress={() => setActiveDiscoverCategory(category.name)}
+                  activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel={category.name}
+                  accessibilityState={{ selected: activeDiscoverCategory === category.name }}
+                >
+                  <Image source={category.image} style={styles.discoverCircleImage} resizeMode="cover" />
                 </TouchableOpacity>
-                <Text style={styles.circleText}>{category.name}</Text>
+                <Text style={styles.circleText} numberOfLines={1}>
+                  {category.name}
+                </Text>
               </View>
             ))}
           </ScrollView>
@@ -125,41 +186,51 @@ export default function DiscoverTab() {
           <View style={styles.titleRow}>
             <View style={styles.titleContainer}>
               <Text style={styles.popularText}>Popular Now</Text>
-              <Text style={styles.recommendedSubText}>Recommended For You</Text>
-            </View>
-            <TouchableOpacity>
-              <Text style={styles.contentText}>
-                See All
+              <Text style={styles.recommendedSubText}>
+                {activeDiscoverCategory ? `${activeDiscoverCategory} ` : "Recommended For You"}
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
         {/* Product cards grid — 2 per row */}
-        {POPULAR_ROWS.map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.downContainer}>
-            <View style={styles.triangleScrollContainer}>
-              {row.map((card, index) => (
-                <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
-                  <View style={styles.triangle}>
-                    <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
-                    <View style={styles.ratingBadge}>
-                      <Ionicons name="star" size={12} color="#ffa500" />
-                      <Text style={styles.ratingText}>{card.rating}</Text>
-                    </View>
-                    <View style={styles.sellerRow}>
-                      <View style={styles.avatarContainer}>
-                        <Image source={card.sellerAvatar} style={styles.avatarImage} resizeMode="cover" />
-                      </View>
-                      <Text style={styles.sellerName} numberOfLines={1}>{card.seller}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.productName} numberOfLines={2}>{card.name}</Text>
-                  <Text style={styles.productPrice}>{card.price}</Text>
-                </View>
-              ))}
-            </View>
+        {filteredProducts.length === 0 ? (
+          <View style={styles.emptyCategoryWrap}>
+            <Text style={styles.emptyCategoryTitle}>
+              No picks in {activeDiscoverCategory} right now
+            </Text>
+            <Text style={styles.emptyCategorySub}>Try another category or view All.</Text>
           </View>
-        ))}
+        ) : (
+          popularRows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.downContainer}>
+              <View style={styles.triangleScrollContainer}>
+                {row.map((card, index) => (
+                  <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
+                    <View style={styles.triangle}>
+                      <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
+                      <View style={styles.ratingBadge}>
+                        <Ionicons name="star" size={12} color="#ffa500" />
+                        <Text style={styles.ratingText}>{card.rating}</Text>
+                      </View>
+                      <View style={styles.sellerRow}>
+                        <View style={styles.avatarContainer}>
+                          <Image source={card.sellerAvatar} style={styles.avatarImage} resizeMode="cover" />
+                        </View>
+                        <Text style={styles.sellerName} numberOfLines={1}>
+                          {card.seller}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {card.name}
+                    </Text>
+                    <Text style={styles.productPrice}>{card.price}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -204,27 +275,34 @@ const styles = StyleSheet.create({
   },
   circleScrollContainer: {
     paddingHorizontal: 5,
-    alignItems: 'center',
+    alignItems: "center",
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   circleContainer: {
     marginHorizontal: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
+    maxWidth: 80,
   },
-  circle: {
+  discoverCircle: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: '#E5E7EB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F3F4F6",
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  circleImage: {
-    width: '100%',
-    height: '100%',
+  discoverCircleSelected: {
+    borderColor: "#FF2800",
+    borderWidth: 2,
+  },
+  discoverCircleImage: {
+    width: "100%",
+    height: "100%",
   },
   triangleScrollContainer: {
     flexDirection: 'row',
@@ -335,12 +413,29 @@ const styles = StyleSheet.create({
   },
   circleText: {
     marginTop: 8,
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#000000",
+    textAlign: "center",
+    alignSelf: "stretch",
+  },
+  emptyCategoryWrap: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  emptyCategoryTitle: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-    textAlign: 'center',
-    alignSelf: 'flex-start',
-    width: '100%',
+    fontWeight: "600",
+    color: "#111827",
+    textAlign: "center",
+  },
+  emptyCategorySub: {
+    fontSize: 14,
+    color: "#64748B",
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 20,
   },
 });
 

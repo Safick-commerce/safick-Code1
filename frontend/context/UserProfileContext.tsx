@@ -7,6 +7,7 @@ export interface UserProfile {
   displayName: string;
   username: string;
   email: string;
+  isGuestUser: boolean;
   gender: string;
   city: string;
   interests: string[];
@@ -20,6 +21,7 @@ const DEFAULT_PROFILE: UserProfile = {
   displayName: "",
   username: "",
   email: "",
+  isGuestUser: false,
   gender: "",
   city: "",
   interests: [],
@@ -33,7 +35,7 @@ interface UserProfileContextType {
   profile: UserProfile;
   isLoaded: boolean;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
-  completeOnboarding: () => Promise<void>;
+  completeOnboarding: (options?: { asGuest?: boolean }) => Promise<void>;
   clearProfile: () => Promise<void>;
 }
 
@@ -71,8 +73,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const completeOnboarding = useCallback(async () => {
-    const updated = { ...profile, onboardingCompleted: true };
+  const completeOnboarding = useCallback(async (options?: { asGuest?: boolean }) => {
+    const updated = {
+      ...profile,
+      onboardingCompleted: true,
+      isGuestUser: options?.asGuest === true,
+    };
     await persist(updated);
   }, [profile, persist]);
 

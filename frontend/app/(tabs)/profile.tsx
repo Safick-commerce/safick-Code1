@@ -18,10 +18,24 @@ const ROUTES = {
 } as const;
 
 export default function ProfileScreen() {
-  const { isAuthenticated, isReady: authReady, signOut } = useAuth();
+  const { isAuthenticated, isReady: authReady, signOut, profile: authProfile, profileLoading } = useAuth();
   const router = useRouter();
   const { clearProfile, profile, isLoaded: profileLoaded } = useUserProfile();
 
+  // Prefer the canonical Supabase row, fall back to the local AsyncStorage
+  // copy populated during onboarding (handles the brief window before the
+  // profile row finishes loading after sign-in).
+  const displayName =
+    authProfile?.display_name ||
+    authProfile?.full_name ||
+    profile.displayName ||
+    "Your profile";
+  const handle =
+    authProfile?.username ||
+    profile.username ||
+    "";
+  const avatarUrl = authProfile?.avatar_url || null;
+  
   const handleProfilePress = useCallback(() => {
     try {
       router.push(ROUTES.USER_TAB);
@@ -85,14 +99,13 @@ export default function ProfileScreen() {
   const actionCards = [
     // Account Section
     { id: 1, icon: "pulse-outline", label: "Account Health", section: "account", badge: null },
-    { id: 2, icon: "settings-outline", label: "Settings", section: "account", badge: null },
-    { id: 3, icon: "notifications-outline", label: "Notification", section: "account", badge: 3 },
+    { id: 3, icon: "notifications-outline", label: "Notification", section: "account", badge: null},
     { id: 4, icon: "mail-outline", label: "Change Email", section: "account", badge: null },
     { id: 5, icon: "check-decagram-outline", label: "Verified Seller", section: "account", badge: null, iconLibrary: "MaterialCommunityIcons" },
     { id: 6, icon: "share-outline", label: "Share profile", section: "account", badge: null, shareProfile: true },
     
     // Shopping Section
-    { id: 7, icon: "heart-outline", label: "Wishlist", section: "shopping", badge: 5 },
+    { id: 7, icon: "heart-outline", label: "Wishlist", section: "shopping", badge: null },
     { id: 8, icon: "language-outline", label: "Language", section: "shopping", badge: null },
     { id: 9, icon: "card-outline", label: "Payment", section: "shopping", badge: null },
     { id: 10, icon: "location-outline", label: "Addresses", section: "shopping", badge: null },
@@ -133,12 +146,25 @@ export default function ProfileScreen() {
         <View style={styles.profileSection}>
           <View style={styles.profilePictureContainer}>
             <View style={styles.profilePicture}>
-              <Ionicons name="person" size={30} color="#000000" />
+              {avatarUrl ? (
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={styles.profilePictureImage}
+                  resizeMode="cover"
+                  accessibilityLabel="Profile picture"
+                />
+              ) : profileLoading ? (
+                <ActivityIndicator size="small" color="#FF2800" />
+              ) : (
+                <Ionicons name="person" size={30} color="#000000" />
+              )}
             </View>
           </View>
           <View style={styles.userInfoContainer}>
             <View style={styles.usernameContainer}>
-              <Text style={styles.username}>Username</Text>
+              <Text style={styles.username} numberOfLines={1}>
+                {handle ? `@${handle}` : displayName}
+              </Text>
               <Ionicons name="chevron-down" size={20} color="#000000" />
             </View>
             <TouchableOpacity 
@@ -466,6 +492,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  profilePictureImage: {
+    width: '100%',
+    height: '100%',
   },
   usernameContainer: {
     flexDirection: 'row',

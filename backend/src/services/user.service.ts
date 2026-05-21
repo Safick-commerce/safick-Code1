@@ -1,99 +1,169 @@
 // =============================================================================
 // User Service
 // =============================================================================
-// Contains all user-related business logic:
-//   - Finding users by ID, email, or username
-//   - Updating user profiles
-//   - Completing the onboarding flow
-//   - Username availability checking
-//   - Building public profile data (excludes private fields)
+// Business logic for profiles — no HTTP here (that's the controller's job).
 //
-// TODO: Implement each function in the next step
+// Data source: public.profiles (Supabase), synced via Prisma after db pull.
+// profiles.id matches auth.users.id from Supabase Auth.
+//
+// Layering:
+//   Route → Controller → Service (this file) → prisma.profiles → PostgreSQL
+//
+// Implemented: username check, public profile, response mappers.
+// Next: updateProfile, completeOnboarding (after requireAuth uses Supabase JWT).
 // =============================================================================
 
-// --- User Lookup ---
+import type { ProfileRow } from "../types/prisma";
+import { prisma } from "../config/database";
+import { AppError } from "../middleware/errorHandler";
+import type { PublicUserResponse, UserResponse } from "../types";
+import { validateUsernameFormat } from "../utils/username";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/** Returned by checkUsernameAvailability — matches frontend onboarding hints. */
+export type UsernameAvailabilityResult = {
+  available: boolean;
+  reason?: string;
+};
+
+export type CheckUsernameOptions = {
+  /** When editing profile, treat this user's current username as available. */
+  excludeUserId?: string;
+};
+
+// =============================================================================
+// Lookups
+// =============================================================================
 
 /**
- * Finds a user by their database ID.
- * Returns the full user object (for authenticated endpoints like GET /users/me).
- *
- * @param id - The user's UUID
- * @returns The User record or null
+ * Load a profile by primary key.
+ * Same UUID Supabase assigns on sign-up (profiles.id → auth.users.id).
  */
-// export async function findById(id: string) { ... }
+export async function findProfileById(id: string): Promise<ProfileRow | null> {
+  return prisma.profiles.findUnique({
+    where: { id },
+  });
+}
+
+// =============================================================================
+// Username availability (onboarding / edit profile)
+// =============================================================================
 
 /**
- * Finds a user by email address.
- * Used during login and registration to check for existing accounts.
+ * Check whether a username is free to use.
  *
- * @param email - The email to look up
- * @returns The User record or null
+ * Steps:
+ *   1. Validate format (length, allowed chars) — no DB hit if invalid.
+ *   2. Query profiles for a matching username (case-normalized to lowercase).
+ *
+ * Used by GET /api/users/check-username/:username
  */
-// export async function findByEmail(email: string) { ... }
+export async function checkUsernameAvailability(
+  rawUsername: string,
+  options: CheckUsernameOptions = {},
+): Promise<UsernameAvailabilityResult> {
+  const format = validateUsernameFormat(rawUsername);
+  if (!format.valid) {
+    return { available: false, reason: format.reason };
+  }
 
-// --- Profile Updates ---
+  const existing = await prisma.profiles.findFirst({
+    where: {
+      username: format.normalized,
+      ...(options.excludeUserId ? { NOT: { id: options.excludeUserId } } : {}),
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return { available: false, reason: "Username is already taken" };
+  }
+
+  return { available: true };
+}
+
+// =============================================================================
+// Public profile (seller pages)
+// =============================================================================
 
 /**
- * Updates a user's profile fields.
- * Only allows updating specific fields (not email, role, etc.).
- *
- * Allowed fields: displayName, city, languagePref, avatarUrl, gender
- *
- * @param userId - The user's UUID
- * @param updates - Object with fields to update
- * @returns The updated User record
+ * Full profile for GET /api/users/me (authenticated — includes private fields).
  */
-// export async function updateProfile(userId: string, updates: Partial<...>) { ... }
-
-// --- Onboarding ---
+export async function getMeProfile(userId: string): Promise<UserResponse | null> {
+  const profile = await findProfileById(userId);
+  if (!profile) return null;
+  return toUserResponse(profile);
+}
 
 /**
- * Completes the onboarding flow for a user.
- * Sets username, gender, city, interests and marks onboardingCompleted = true.
- *
- * This is called once — after the user finishes all 4 onboarding steps
- * (or 3 steps for Google users who already have a name).
- *
- * Validates:
- *   - Username is unique
- *   - Username format is valid (lowercase, alphanumeric + dots/underscores, 3-30 chars)
- *   - At least 2 interests selected
- *   - City is a valid Cameroonian city
- *
- * @param userId - The user's UUID
- * @param data - { username, displayName?, gender, city, interests }
- * @returns The updated User record with onboardingCompleted = true
- * @throws AppError(409) if username is already taken
+ * Public-safe profile for GET /api/users/:id.
+ * Omits email, phone, and gender via toPublicUserResponse.
  */
-// export async function completeOnboarding(userId: string, data: OnboardingData) { ... }
+export async function getPublicProfile(userId: string): Promise<PublicUserResponse | null> {
+  const profile = await findProfileById(userId);
+  if (!profile) return null;
+  return toPublicUserResponse(profile);
+}
 
-// --- Username ---
+// =============================================================================
+// Response mappers — DB snake_case → API camelCase
+// =============================================================================
+// Prisma introspection uses column names from Postgres (snake_case).
+// The mobile app expects camelCase in JSON (UserResponse / PublicUserResponse).
 
-/**
- * Checks if a username is available (not taken by another user).
- * Called in real-time as the user types during onboarding.
- *
- * Also validates the username format:
- *   - 3-30 characters
- *   - Lowercase letters, numbers, dots (.) and underscores (_) only
- *   - Cannot start or end with a dot or underscore
- *   - No consecutive dots or underscores
- *
- * @param username - The username to check
- * @returns { available: boolean, reason?: string }
- */
-// export async function checkUsernameAvailability(username: string) { ... }
+/** Full profile for authenticated endpoints (GET /api/users/me). */
+export function toUserResponse(profile: ProfileRow): UserResponse {
+  return {
+    id: profile.id,
+    email: profile.email ?? "",
+    username: profile.username,
+    displayName: profile.display_name ?? profile.full_name,
+    bio: profile.bio,
+    phone: profile.phone,
+    gender: profile.gender,
+    city: profile.city,
+    interests: profile.interests ?? [],
+    avatarUrl: profile.avatar_url,
+    coverImageUrl: profile.cover_image_url,
+    role: profile.role,
+    languagePref: "en", // profiles table has no language column yet — default for MVP
+    onboardingCompleted: profile.onboarding_completed,
+    isVerified: false, // future feature — not on profiles row today
+    createdAt: profile.created_at.toISOString(),
+    lastActiveAt: (profile.updated_at ?? profile.created_at).toISOString(),
+  };
+}
 
-// --- Public Profile ---
+/** Subset of fields safe to expose without authentication (no email / phone / gender). */
+export function toPublicUserResponse(profile: ProfileRow): PublicUserResponse {
+  return {
+    id: profile.id,
+    username: profile.username,
+    displayName: profile.display_name ?? profile.full_name,
+    bio: profile.bio,
+    avatarUrl: profile.avatar_url,
+    coverImageUrl: profile.cover_image_url,
+    city: profile.city,
+    role: profile.role,
+    isVerified: false,
+    createdAt: profile.created_at.toISOString(),
+    lastActiveAt: (profile.updated_at ?? profile.created_at).toISOString(),
+  };
+}
 
-/**
- * Returns a user's public profile data (for seller pages, etc.).
- * Strips out private fields like email, passwordHash, googleId.
- *
- * Public fields: id, displayName, username, avatarUrl, city, role,
- *                isVerified, createdAt, lastActiveAt
- *
- * @param userId - The user's UUID
- * @returns Public-safe user data or null if user not found
- */
-// export async function getPublicProfile(userId: string) { ... }
+// =============================================================================
+// Helpers
+// =============================================================================
+
+/** Throw AppError(404) when a profile lookup returned null — use in protected routes. */
+export function assertProfileExists(
+  profile: ProfileRow | null,
+  message = "User not found",
+): asserts profile is ProfileRow {
+  if (!profile) {
+    throw new AppError(message, 404);
+  }
+}

@@ -19,6 +19,20 @@
 - **Message-to-buy model** - Buyers connect directly with sellers via in-app chat
 - **No logistics burden** - Sellers handle their own delivery (marketplace model)
 
+### Trust Model (the SAFICK Promise)
+
+SAFICK doesn't sell anything, real Cameroonians do. The platform's role is to make those people findable, accountable, and easy to trust. The promise is deliberately bounded: we do not guarantee individual transactions (no escrow, no in-app payment at launch), but we do guarantee the visibility of trust signals and the speed of our response when something goes wrong.
+
+- **Verified profiles** — phone mandatory at signup; ID verification unlocks the "Verified" badge after a number of completed sales (Phase 2).
+- **Reviews tied to confirmed deals** — no anonymous reviews; both buyer and seller must confirm completion.
+- **Visible trust cards on every profile** — completed deals, response rate, average review, join date, verified status. Buyers see this before sending the first message; sellers see the same on the buyer side.
+- **Cash-on-delivery surfaced as the default** suggested payment in the deal flow; pre-payment requires explicit warning tap-through.
+- **Agreed-price lock** in chat before status moves to Agreed; locked record is the source of truth in any dispute.
+- **Real consequences for bad actors** — consequence ladder of warning → 7-day suspension → permanent ban, with monthly public transparency reports.
+- **A human at the other end** — visible customer-service channel (email + WhatsApp + number) and a named team responding by name in the help thread.
+
+Disputes follow a published SLA: 4h triage, 24h investigation, 48h resolution. See the Trust & Safety feature list under [Features](#features) and the Pre-Launch Checklist for the operations commitments.
+
 ### Business Model: Social Commerce Marketplace
 
 safick operates as a **social commerce marketplace** — a hybrid of TikTok-style product discovery and Facebook Marketplace's "message the seller" model.
@@ -115,12 +129,12 @@ safick serves two distinct user types:
 - No in-app payments -- buyers and sellers arrange payment privately (Orange Money, cash on delivery)
 - No delivery or logistics system -- sellers handle their own delivery
 - No web version -- mobile only at launch (web planned for future based on market demand)
-- No admin dashboard -- moderation handled manually at launch
-- No live streaming -- deferred to Phase 2
-- No seller-buyer chat deal tracking phase 2
-- No AI features -- deferred to Phase 3
+- No admin dashboard -- moderation handled manually at launch (named human on-call, daily triage); structured admin tool ships in Phase 2
+- No automated dispute resolution -- disputes are handled by the on-call moderator via the 4h / 24h / 48h SLA described in the Trust Model; a structured in-app dispute flow ships in Phase 2
+- No escrow or buyer-protection guarantee -- payments are arranged off-platform (cash on delivery, mobile money); SAFICK surfaces trust signals and enforces consequences but does not insure individual transactions
+- No in-stream checkout or shop-from-live cart -- buyers message sellers about products (Phase 2)
+- No AI features -- deferred to Phase 3 (see the "AI that speaks Cameroon" roadmap maintained by the team)
 - No multi-country support -- Cameroon only at launch
-- No escrow or dispute resolution system -- trust is built via reviews and verified sellers
 
 ## Features
 
@@ -143,6 +157,9 @@ safick serves two distinct user types:
 ### Social & Communication
 - **Product-Linked Chats**: Every conversation is tied to a specific product for trackability
 - **Deal Status Tracking**: Lightweight transaction flow (Inquired → Negotiating → Agreed → Delivered → Completed)
+- **Agreed-Price Lock**: Both parties tap to confirm the final price in chat before the status moves to Agreed; the locked record is the source of truth in any dispute (eliminates "transport gouge" scenarios at handoff)
+- **Photo-on-Delivery Step**: Seller or buyer uploads a handoff photo when the status moves to Delivered; resolves the majority of "I never received it" disputes without human moderation
+- **First-Message Safety Nudge**: Modal shown the first time a buyer messages any seller, plus a soft warning when the conversation tries to redirect off-platform (phone numbers / WhatsApp mentions in the first 3 messages)
 - **Messages**: Chat with sellers and other users track deal status (future phase)
 - **Notifications**: Stay updated with new products and promotions
 - **User Profiles**: Manage your profile and preferences
@@ -157,12 +174,22 @@ safick serves two distinct user types:
 - **Earnings Dashboard**: Track revenue and payouts
 
 ### Trust & Safety
-- **Seller Ratings & Reviews**: Buyers rate sellers after confirmed delivery
-- **Verified Sellers**: Sellers can verify their identity (phone/ID) for a trust badge after a number of sales on the platform 
-- **Deal Confirmation Flow**: Both parties confirm when a transaction is completed*
-- **Report / Block**: Users can flag bad actors for review
-- **Response Time Badges**: "Usually responds within 1 hour" on seller profiles(future phase)
+- **Phone Verification** (mandatory at signup): no anonymous accounts, foundational identity layer
+- **Seller Trust Card** on every profile: completed deals, response rate, average review, join date, verified status — visible *before* the first message
+- **Buyer Trust Card** visible to seller: protects the supply side from time-wasters and fake buyers (e.g. "0 completed deals, joined 2 days ago")
+- **Seller Ratings & Reviews**: tied to confirmed deals; mandatory review prompt after the deal flow completes; auto-1-star applied on unresolved disputes
+- **Verified Seller Badge**: phone is verified at signup (MVP); ID verification unlocks the "Verified" badge after a number of completed sales (Phase 2)
+- **Deal Confirmation Flow**: both parties confirm when a transaction is completed
+- **Structured Fraud Reports**: report categories (Item not received / Wrong item / Seller unresponsive / Impersonation / Off-platform redirect / Other) instead of free-text email, so triage is fast and consistent
+- **Block & Off-Platform Redirect Warnings**: soft warning to the buyer when chat tries to push the conversation to WhatsApp or another channel
+- **Cash-on-Delivery as Default**: surfaced as the recommended payment in the deal flow; pre-payment requires the buyer to tap through an explicit risk warning
+- **Visible Customer-Service Channel**: email + WhatsApp number in the app menu, staffed by a real human during business hours
+- **In-App SAFICK Promise Page**: plain French and English; states exactly what SAFICK protects against and what it doesn't (no escrow, no logistics) — honesty is the platform's trust moat
+- **Seller Scam-Awareness Onboarding**: 4-screen flow before a seller's first listing goes live, covering fake mobile-money receipts, fake buyers, and impersonation
+- **Response Time Badges**: "Usually responds within 1 hour" on seller profiles (Phase 1)
 - **Seller Activity Indicators**: "Last active 2 hours ago" / "Joined 38 months ago"
+- **Consequence Ladder**: warning → 7-day suspension → permanent ban; visible on the public trust page after due process
+- **Monthly Transparency Report**: anonymized totals (accounts banned, disputes resolved, average response time) — published in-app and on SAFICK social channels (Phase 2)
 
 ### Transactions (Current Model)
 - **No in-app payments at launch** — buyers and sellers arrange payment directly (mobile money, cash on delivery)
@@ -772,7 +799,7 @@ When built, the Python/FastAPI stack will live in **`ai-backend/`** at the **rep
 | Beta launch (10-20 testers in Douala) | Mid June 2026 | Not Started |
 | Seller onboarding (recruit 50-100 sellers) | June 2026 | Not Started |
 | **MVP Launch (Douala, Cameroon)** | **July 2026** | Not Started |
-| Phase 2 features (live streaming, seller tools) | Q4 2026 | Planned |
+| Phase 2 features (live enhancements, seller tools) | Q4 2026 | Planned |
 | Phase 3 features (payments, AI, growth) | Q1-Q2 2027 | Planned |
 
 ### Phase 1: MVP Core Features -- Target: July 2026
@@ -809,23 +836,49 @@ When built, the Python/FastAPI stack will live in **`ai-backend/`** at the **rep
 - [ ] Product-linked chats (product card attached to conversation when messaging seller)
 - [ ] In-app messaging (buyer-seller) with text and image support
 - [ ] Deal status tracking in chat (Inquired → Negotiating → Agreed → Delivered → Completed)
+- [ ] Agreed-price lock step (both parties confirm the final price before status moves to Agreed)
+- [ ] Photo-on-delivery upload when status moves to Delivered
+- [ ] First-message safety nudge modal (shown on a buyer's first message to any seller)
+- [ ] Off-platform redirect warning when phone/WhatsApp mentioned in early chat
 - [ ] Buyer confirms delivery → prompts review
 - [ ] Chat history serves as transaction record
 
 #### Trust & Safety
-- [ ] Seller ratings & reviews (tied to confirmed deals)
-- [ ] Report / block functionality
+- [ ] Phone verification mandatory at signup
+- [ ] Seller trust card on profile (completed deals, response rate, reviews, join date, verified status — visible before first message)
+- [ ] Buyer trust card visible to seller
+- [ ] Seller ratings & reviews (tied to confirmed deals; mandatory review prompt after deal completion)
+- [ ] Structured fraud-report categories (Item not received / Wrong item / Seller unresponsive / Impersonation / Off-platform / Other) — not a free-text-only report
+- [ ] Block functionality
+- [ ] Cash-on-delivery surfaced as default suggested payment; pre-payment requires explicit warning tap-through
+- [ ] Visible customer-service channel in app menu (email + WhatsApp number, real human)
+- [ ] In-app SAFICK Promise page (FR + EN) explaining what SAFICK protects and what it does not
+- [ ] Seller onboarding scam-awareness flow (4 screens) covering fake MoMo receipts, fake buyers, impersonation
 - [ ] Seller profiles with follower count and join date
 - [ ] Response time indicators on seller profiles
+- [ ] Consequence ladder published internally (warning → 7-day suspension → permanent ban)
+
+#### Live streaming & Unbox (core vision — ships in MVP)
+See **[docs/PHASE1_LIVE.md](./docs/PHASE1_LIVE.md)** for provider choice (**LiveKit Cloud** recommended), architecture, and out-of-scope items.
+
+- [ ] **LiveKit Cloud** (or Agora fallback) + Expo dev build — seller publish, viewer **HLS** playback
+- [ ] `LiveEvent` API: start / end / feed / session detail (`live.routes` or Supabase)
+- [ ] Unbox feed backed by API (replace `MOCK_LIVE_POSTS` in `liveFeed.ts`)
+- [ ] Go Live: real broadcast (wire `golive.tsx`; no fake “you are live” without a stream)
+- [ ] Watch Live: real player in `watch-live.tsx`
+- [ ] Live chat (text) per session
+- [ ] End stream + optional replay URL (storage/CDN)
+- [ ] Smoke test: start → watch → chat message
+
+**Phase 1 live success line:** seller goes live → buyer watches from Unbox → can chat → seller can list the product during the live -> buyer and reserve the product which will go to the reserve tab in the message tab.
 
 ### Phase 2: Enhanced Features (Post-Launch) -- Target: Q4 2026
 
-#### Live Streaming
-- [ ] Live stream hosting
-- [ ] Live chat during streams
-- [ ] Shop from live stream
-- [ ] Schedule live events
-- [ ] Record live streams
+#### Live enhancements (post-MVP)
+- [ ] Shop from live stream / pinned products
+- [ ] Schedule live events (calendar, reminders)
+- [ ] Advanced recordings (clips, highlights library)
+- [ ] Live Stream AI (product detection) — see Phase 3 AI roadmap
 
 #### Advanced Social & Trust
 - [ ] Saved items / wishlist
@@ -874,9 +927,18 @@ When built, the Python/FastAPI stack will live in **`ai-backend/`** at the **rep
 #### Business
 - [ ] Seller onboarding program (recruit 20-50 initial sellers)
 - [ ] Terms of Service & Privacy Policy
-- [ ] User support system
-- [ ] Marketing materials
-- [ ] Community guidelines for trust & safety
+- [ ] User support system: dedicated email + WhatsApp number staffed during business hours by a named team member
+- [ ] Marketing materials (launch video, press kit, app-store listing) — brief and storyboards in [`docs/launch-readiness/`](./docs/launch-readiness/)
+- [ ] Community guidelines for trust & safety (plain FR + EN, with Cameroon-specific examples)
+- [ ] SAFICK Promise approved as launch copy across in-app page, app-store listing, and press kit
+
+#### Trust & Safety Operations
+- [ ] Named on-call for daily dispute triage (Tamasang week 1, then rotation across the team)
+- [ ] Dispute SLA published internally and visible to users: 4h triage / 24h investigation / 48h resolution
+- [ ] Consequence ladder documented and shared (warning → 7-day suspension → permanent ban)
+- [ ] Light internal admin tooling for moderation (Slack / shared inbox triage acceptable for launch; structured admin tool ships in Phase 2)
+- [ ] Monthly transparency report cadence agreed (Barak owns; first report by 7th of August 2026)
+- [ ] Documented playbook for the 8 named fraud scenarios so any team member can triage — full playbook in [`docs/launch-readiness/safick-trust-and-safety-playbook.canvas.tsx`](./docs/launch-readiness/safick-trust-and-safety-playbook.canvas.tsx)
 
 #### Testing
 - [ ] Beta testing with 10-20 users

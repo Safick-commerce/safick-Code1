@@ -67,6 +67,8 @@ export interface Category {
 // Live/Seller types
 export interface LivePost {
   id: string;
+  /** Profile / auth user id when the feed row is backed by real data — used for “seller is live” UI. */
+  sellerId?: string;
   sellerName: string;
   imageUrl: string | number;
   sellerAvatar?: string | number;

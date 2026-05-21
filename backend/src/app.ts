@@ -17,10 +17,12 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { getCorsOrigins } from "./config/cors";
 
 // Route imports
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
+import conversationRoutes from "./routes/conversation.routes";
 
 // Error handler (must be registered last)
 import { errorHandler } from "./middleware/errorHandler";
@@ -38,9 +40,9 @@ app.use(helmet());
 // In production, restrict this to your actual domain/app origin
 app.use(
   cors({
-    origin: process.env.CORS_ORIGINS?.split(",") || ["http://localhost:8081"],
+    origin: getCorsOrigins(),
     credentials: true,
-  })
+  }),
 );
 
 // =============================================================================
@@ -71,6 +73,23 @@ const limiter = rateLimit({
 app.use("/api/", limiter);
 
 // =============================================================================
+// Root — browsers open http://localhost:PORT with no path; APIs return JSON here
+// =============================================================================
+
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Safick backend API",
+    hint: "JSON only — no web UI. Try /api/health or use the app / curl / Postman for POST routes.",
+    links: {
+      health: "/api/health",
+      auth: "/api/auth (POST register | login | refresh | logout | google)",
+      users: "/api/users/me (GET/PUT + auth header) … see user.routes.ts",
+      socket: "Socket.IO on this host — auth: { token: supabase access_token }",
+    },
+  });
+});
+
+// =============================================================================
 // Health Check
 // =============================================================================
 
@@ -92,6 +111,7 @@ app.get("/api/health", (_req, res) => {
 // static file serving or web dashboard
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/conversations", conversationRoutes);
 
 // =============================================================================
 // 404 Handler — for routes that don't match anything above

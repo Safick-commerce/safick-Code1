@@ -67,9 +67,12 @@ export const onboardingSchema = z.object({
 // PUT /api/users/me — profile updates (from settings screen)
 export const updateProfileSchema = z.object({
   displayName: z.string().min(2).max(100).optional(),
+  bio: z.string().max(500).optional(),
+  phone: z.string().max(32).optional(),
   city: z.string().min(1).optional(),
   languagePref: z.enum(["en", "fr"]).optional(),
   avatarUrl: z.string().url().optional(),
+  coverImageUrl: z.string().url().optional(),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
 });
 
@@ -77,21 +80,24 @@ export const updateProfileSchema = z.object({
 // Response Types — what the API returns to the frontend
 // =============================================================================
 
-// User object returned in API responses (excludes sensitive fields)
+// User object returned in API responses (private — GET /api/users/me)
 export interface UserResponse {
   id: string;
   email: string;
   username: string | null;
   displayName: string | null;
+  bio: string | null;
+  phone: string | null;
   gender: string | null;
   city: string | null;
   interests: string[];
   avatarUrl: string | null;
+  coverImageUrl: string | null;
   role: string;
   languagePref: string;
   onboardingCompleted: boolean;
   isVerified: boolean;
-  createdAt: string; // ISO date string
+  createdAt: string;
   lastActiveAt: string;
 }
 
@@ -103,12 +109,14 @@ export interface AuthResponse {
   isNewUser: boolean;
 }
 
-// Public user profile (for seller pages — even less data than UserResponse)
+// Public user profile (seller pages — no email, phone, or gender)
 export interface PublicUserResponse {
   id: string;
   username: string | null;
   displayName: string | null;
+  bio: string | null;
   avatarUrl: string | null;
+  coverImageUrl: string | null;
   city: string | null;
   role: string;
   isVerified: boolean;
@@ -129,3 +137,58 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+// =============================================================================
+// Conversation / message schemas
+// =============================================================================
+
+export const openConversationSchema = z.object({
+  productId: z.string().uuid("Invalid product id"),
+});
+
+export const sendMessageBodySchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+  clientId: z.string().max(64).optional(),
+});
+
+export const listMessagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+});
+
+export interface ConversationPeerResponse {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface ConversationLastMessageResponse {
+  body: string;
+  createdAt: string;
+  senderId: string;
+}
+
+export interface ConversationResponse {
+  id: string;
+  productId: string;
+  productTitle: string;
+  productImageUrl: string | null;
+  buyerId: string;
+  sellerId: string;
+  peer: ConversationPeerResponse;
+  lastMessage: ConversationLastMessageResponse | null;
+  createdAt: string;
+  lastMessageAt: string | null;
+}
+
+export type ConversationListItemResponse = ConversationResponse;
+
+export interface MessageResponse {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAt: string;
+}
+
+export type OpenConversationInput = z.infer<typeof openConversationSchema>;
+export type SendMessageBodyInput = z.infer<typeof sendMessageBodySchema>;

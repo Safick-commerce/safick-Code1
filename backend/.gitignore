@@ -9,6 +9,7 @@ dist/
 
 # Prisma
 prisma/*.db
+src/generated/prisma/
 
 # IDE
 .vscode/

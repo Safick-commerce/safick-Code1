@@ -5,6 +5,7 @@
 import { FontAwesome6, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { supabase } from "../../../../lib/supabase";
 
 const RED = "#FF2800";
 const GREEN = "#16a34a";
@@ -12,9 +13,6 @@ const GREEN = "#16a34a";
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Cameroon: +237 followed by 9 digits starting with 6-9
 const CAMEROON_PHONE_REGEX = /^\+237[6-9]\d{8}$/;
-
-// Mock list of taken usernames — replace with real API call when backend is ready
-const TAKEN_USERNAMES = ["pabless", "safick", "admin", "taylorcale", "clipcart", "brenda"];
 
 interface NameUsernameStepProps {
   name: string;
@@ -72,7 +70,10 @@ export default function NameUsernameStep({
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Check username availability with a debounce (waits 800ms after user stops typing)
+  // Check username availability against public.profiles, with a debounce so we
+  // don't spam Supabase on every keystroke. The DB has a unique index on
+  // username (see backend/supabase/schema.sql) — this query just lets the UI
+  // give the user instant feedback before they hit Continue.
   useEffect(() => {
     if (username.trim().length < 3) {
       setUsernameAvailable(null);
@@ -85,18 +86,46 @@ export default function NameUsernameStep({
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    debounceRef.current = setTimeout(() => {
-      // Simulate a network request (replace this with real API call later)
-      const isTaken = TAKEN_USERNAMES.includes(username.trim().toLowerCase());
-      setUsernameAvailable(!isTaken);
-      onUsernameAvailable?.(!isTaken);
-      setUsernameChecking(false);
-    }, 800);
+    let cancelled = false;
+    debounceRef.current = setTimeout(async () => {
+      const value = username.trim().toLowerCase();
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("username", value)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (error) {
+          // Network/RPC failure: don't block the user with a confusing UI —
+          // log it, mark as unavailable so Continue stays disabled, and let
+          // the DB unique constraint be the final guard at signUp time.
+          console.warn("[username] availability check failed:", error.message);
+          setUsernameAvailable(false);
+          onUsernameAvailable?.(false);
+          return;
+        }
+
+        const isTaken = data !== null;
+        setUsernameAvailable(!isTaken);
+        onUsernameAvailable?.(!isTaken);
+      } catch (e) {
+        if (cancelled) return;
+        console.warn("[username] availability check error:", e);
+        setUsernameAvailable(false);
+        onUsernameAvailable?.(false);
+      } finally {
+        if (!cancelled) setUsernameChecking(false);
+      }
+    }, 500);
 
     return () => {
+      cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [username]);
+  }, [username, onUsernameAvailable]);
 
   // Validation flags
   const emailValid = EMAIL_REGEX.test(email.trim());

@@ -23,6 +23,7 @@ import { ResizeMode, Video } from "expo-av";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../context/UserProfileContext";
+import { createProduct } from "../utils/productApi";
 
 /** Wizard: record/select video → trim/edit → listing fields → photos → review/post. */
 type CreateStep = "capture" | "playback" | "edit" | "details" | "photos" | "review";
@@ -95,6 +96,34 @@ export default function CreateNewScreen() {
 
   const detailsValid = useMemo(() => Object.values(detailsErrors).every((err) => !err), [detailsErrors]);
   const canPost = Boolean(recordedVideoUri) && detailsValid && photos.length > 0;
+
+  const handlePost = useCallback(async () => {
+    if (!canPost || postState === "posting") return;
+
+    const parsedPrice = Number(price.replace(/,/g, ""));
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      Alert.alert("Product", "Please enter a valid price.");
+      return;
+    }
+
+    setPostState("posting");
+    try {
+      await createProduct({
+        title: title.trim(),
+        description: description.trim() || null,
+        price: parsedPrice,
+        imageUri: photos[0],
+      });
+      Alert.alert("Posted successfully", "Your listing is live.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not post your listing.";
+      Alert.alert("Post failed", message);
+    } finally {
+      setPostState("idle");
+    }
+  }, [canPost, postState, price, title, description, photos, router]);
 
   useEffect(() => {
     if (!isReady || !isAuthenticated || !isLoaded) return;
@@ -707,7 +736,7 @@ export default function CreateNewScreen() {
           </View>
         )}
 
-        {/* Summary + stub post (replace with API) */}
+        {/* Summary + post to Supabase (video upload: Phase 2 — first photo is listing image) */}
         {step === "review" && (
           <View style={{ gap: 14 }}>
             <Text style={styles.reviewHeading}>Review and Post</Text>
@@ -837,13 +866,7 @@ export default function CreateNewScreen() {
               <TouchableOpacity
                 style={[styles.primaryBtn, !canPost && styles.disabled]}
                 disabled={!canPost || postState === "posting"}
-                onPress={() => {
-                  setPostState("posting");
-                  setTimeout(() => {
-                    Alert.alert("Posted successfully", "Your product post is now live.");
-                    setPostState("idle");
-                  }, 700);
-                }}
+                onPress={handlePost}
               >
                 <Text style={styles.primaryBtnText}>{postState === "posting" ? "Posting..." : "Post"}</Text>
               </TouchableOpacity>
@@ -894,7 +917,7 @@ const styles = StyleSheet.create({
   permissionBtn: { backgroundColor: "#FF2800", borderRadius: 10, paddingHorizontal: 20, paddingVertical: 12 },
   permissionBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
 
-  topRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  topRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: -10 },
   iconBtn: { width: 36, height: 36, borderRadius: 999, alignItems: "center", justifyContent: "center", backgroundColor: "#F9FAFB" },
   content: { padding: 14, gap: 12, paddingBottom: 28 },
   stepper: { flex: 1, flexDirection: "row", justifyContent: "space-between" },

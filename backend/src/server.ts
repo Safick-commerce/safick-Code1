@@ -1,10 +1,7 @@
 // =============================================================================
 // Server Entry Point
 // =============================================================================
-// Starts the Express HTTP server and handles graceful shutdown.
-//
-// This file is kept separate from app.ts so the Express app can be
-// imported independently for testing (without starting the server).
+// HTTP (Express) + Socket.IO on the same port.
 //
 // To run in development:
 //   npm run dev        → starts with tsx watch (auto-restarts on file changes)
@@ -14,32 +11,37 @@
 //   npm start          → runs the compiled JavaScript
 // =============================================================================
 
+import { createServer } from "http";
 import app from "./app";
 import { prisma } from "./config/database";
+import { initSocket, closeSocket } from "./socket";
 
-// Port defaults to 4000 if not set in .env
 const PORT = process.env.PORT || 4000;
 
 async function main() {
-  // Start the HTTP server
-  const server = app.listen(PORT, () => {
+  const httpServer = createServer(app);
+  initSocket(httpServer);
+
+  httpServer.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`\n🚀 Safick backend running on http://localhost:${PORT}`);
+    console.log(`   LAN: use http://<your-pc-ip>:${PORT} on physical phones`);
     console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
-    console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
+    console.log(`   Health check: http://localhost:${PORT}/api/health`);
+    console.log(`   Socket.IO: same origin (WebSocket upgrade)\n`);
   });
 
-  // --- Graceful Shutdown ---
-  // When the process is killed (Ctrl+C, Docker stop, etc.), clean up resources
-  // before exiting so we don't leave dangling database connections.
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received. Shutting down gracefully...`);
 
-    // Stop accepting new connections
-    server.close(() => {
-      console.log("HTTP server closed.");
+    await closeSocket();
+
+    await new Promise<void>((resolve) => {
+      httpServer.close(() => {
+        console.log("HTTP server closed.");
+        resolve();
+      });
     });
 
-    // Disconnect from the database
     await prisma.$disconnect();
     console.log("Database disconnected.");
 
@@ -54,3 +56,4 @@ main().catch((error) => {
   console.error("Failed to start server:", error);
   process.exit(1);
 });
+

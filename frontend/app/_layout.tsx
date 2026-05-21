@@ -13,6 +13,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { MessageProvider } from "../context/MessageContext";
 import { UserProfileProvider } from "../context/UserProfileContext";
 import { AuthProvider } from "../context/AuthContext";
+import { SocketProvider } from "../context/SocketContext";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +41,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        <SocketProvider>
         <UserProfileProvider>
           <MessageProvider>
             <KeyboardProvider>
@@ -66,11 +68,22 @@ export default function RootLayout() {
                   <Stack.Screen name="messages" />
                   <Stack.Screen name="notifications" />
                   <Stack.Screen name="wishlist" />
+                  <Stack.Screen name="search" />
+                  <Stack.Screen name="unbox-search" />
+                  <Stack.Screen
+                    name="watch-live"
+                    options={{
+                      presentation: "fullScreenModal",
+                      animation: "slide_from_bottom",
+                    }}
+                  />
+                  <Stack.Screen name="discover-category" />
                 </Stack>
               </WishlistProvider>
             </KeyboardProvider>
           </MessageProvider>
         </UserProfileProvider>
+        </SocketProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

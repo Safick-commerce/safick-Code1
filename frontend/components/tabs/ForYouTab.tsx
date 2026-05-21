@@ -6,22 +6,20 @@ import ProductCard from "../shared/ProductCard";
 import VideoSideIcons from "../shared/VideoSideIcons";
 import { FEED_PRODUCTS } from "../../data/feedProducts";
 import { useAuth } from "../../context/AuthContext";
-import { useUserProfile } from "../../context/UserProfileContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Route constants for security
 const ROUTES = {
   PRODUCT_DETAILS: "/productDetails",
-  SIGN_IN: "/screens/loginscreens/signinscreen",
+  SIGN_IN: "/auth/signin",
   USER_PROFILE: "/userprofile",
 } as const;
 
 export default function ForYouTab() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const { profile } = useUserProfile();
-  const isMember = isAuthenticated && !profile.isGuestUser;
+  const isMember = isAuthenticated;
   const [isFollowing, setIsFollowing] = useState(false);
 
   const handleBuyPress = useCallback(() => {

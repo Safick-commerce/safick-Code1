@@ -18,6 +18,13 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodSchema, ZodError } from "zod";
 
+declare module "express-serve-static-core" {
+  interface Request {
+    /** Set by validateQuery — Express 5 req.query is read-only. */
+    validatedQuery?: unknown;
+  }
+}
+
 /**
  * Creates a middleware that validates req.body against the given Zod schema.
  * If validation passes, the parsed (and type-safe) data replaces req.body.
@@ -32,8 +39,7 @@ export function validate(schema: ZodSchema) {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        // Format Zod errors into a readable list for the client
-        const errors = error.errors.map((e) => ({
+        const errors = error.issues.map((e) => ({
           field: e.path.join("."),
           message: e.message,
         }));
@@ -51,16 +57,17 @@ export function validate(schema: ZodSchema) {
 
 /**
  * Same as validate(), but for query parameters instead of body.
- * Useful for GET requests with filters, pagination, etc.
+ * Useful for GET requests with filters, pagination(the process of dividing a large amount 
+ * of content into smaller, discrete, and manageable pages), etc.
  */
 export function validateQuery(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      req.query = schema.parse(req.query);
+      req.validatedQuery = schema.parse(req.query);
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const errors = error.errors.map((e) => ({
+        const errors = error.issues.map((e) => ({
           field: e.path.join("."),
           message: e.message,
         }));

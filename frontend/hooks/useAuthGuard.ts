@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
+import { useUserProfile } from "../context/UserProfileContext";
 
 /**
  * Keeps navigation aligned with Supabase auth:
@@ -9,15 +10,18 @@ import { useAuth } from "../context/AuthContext";
  */
 export function useAuthGuard() {
   const { isReady, isAuthenticated } = useAuth();
+  const { profile, isLoaded: profileLoaded } = useUserProfile();
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || !profileLoaded) return;
 
     const path = pathname ?? "";
 
-    if (!isAuthenticated && path.startsWith("/(tabs)")) {
+    const canUseTabsAsGuest = !isAuthenticated && profile.isGuestUser;
+
+    if (!isAuthenticated && !canUseTabsAsGuest && path.startsWith("/(tabs)")) {
       router.replace("/");
       return;
     }
@@ -25,5 +29,5 @@ export function useAuthGuard() {
     if (isAuthenticated && path.startsWith("/auth")) {
       router.replace("/");
     }
-  }, [isReady, isAuthenticated, pathname, router]);
+  }, [isReady, isAuthenticated, profileLoaded, profile.isGuestUser, pathname, router]);
 }

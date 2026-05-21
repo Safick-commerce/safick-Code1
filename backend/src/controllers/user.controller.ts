@@ -1,105 +1,114 @@
 // =============================================================================
 // User Controller
 // =============================================================================
-// Handles HTTP request/response for user profile and onboarding endpoints.
-// Controllers are thin — they extract data from the request, call the service
-// layer for business logic, and format the response.
+// Thin HTTP layer: read req → call user.service → send JSON.
+// Controllers should not contain business rules or direct Prisma calls.
 //
-// TODO: Implement each handler in the next step
+// Pattern for every handler:
+//   1. Extract params / body / req.userId (from requireAuth)
+//   2. Delegate to user.service
+//   3. res.status(...).json(...) or next(error) for global errorHandler
 // =============================================================================
 
 import { Request, Response, NextFunction } from "express";
+import * as userService from "../services/user.service";
+import { parseUuid } from "../utils/uuid";
 
 /**
  * GET /api/users/me
  *
  * Returns the currently authenticated user's full profile.
- * Used on app launch to restore the user session.
- *
- * Requires: Authorization header with valid access token
- * Response: { user: User }
+ * Requires: Authorization: Bearer <Supabase access_token>
+ * Response: { user: UserResponse }
  */
 export async function getMe(req: Request, res: Response, next: NextFunction) {
-  // TODO: Implement
-  // 1. Get userId from req.userId (set by requireAuth middleware)
-  // 2. Call userService.findById(userId)
-  // 3. Return { user }
-  res.status(501).json({ error: "Not implemented yet" });
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const user = await userService.getMeProfile(userId);
+    if (!user) {
+      res.status(404).json({ error: "Profile not found" });
+      return;
+    }
+
+    res.json({ user });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /**
  * PUT /api/users/me
  *
- * Updates the current user's profile fields.
- * Used from the profile settings screen (change name, city, avatar, etc.).
- *
+ * Updates profile fields from the settings screen.
  * Requires: Authorization header
- * Request body: Partial<{ displayName, city, languagePref, avatarUrl }>
- * Response: { user: User }
+ * Body: Partial<{ displayName, city, avatarUrl, gender }> (see updateProfileSchema)
+ * Response: { user: UserResponse }
  */
 export async function updateMe(req: Request, res: Response, next: NextFunction) {
-  // TODO: Implement
-  // 1. Get userId from req.userId
-  // 2. Validate request body with Zod schema (only allowed fields)
-  // 3. Call userService.updateProfile(userId, updates)
-  // 4. Return { user }
+  // TODO: validate body → userService.updateProfile
   res.status(501).json({ error: "Not implemented yet" });
 }
 
 /**
  * PUT /api/users/me/onboarding
  *
- * Completes the onboarding flow — sets username, gender, city, interests
- * in a single request and marks onboardingCompleted = true.
- *
- * For Google users: displayName may already be set from Google, but
- * the user can edit it. Username is always required (picked during onboarding).
- *
+ * Completes onboarding in one call (username, gender, city, interests).
  * Requires: Authorization header
- * Request body: { username, displayName?, gender, city, interests }
- * Response: { user: User }
+ * Body: OnboardingInput (see onboardingSchema in types/index.ts)
+ * Response: { user: UserResponse }
  */
 export async function completeOnboarding(req: Request, res: Response, next: NextFunction) {
-  // TODO: Implement
-  // 1. Get userId from req.userId
-  // 2. Validate request body with onboarding Zod schema
-  // 3. Check username uniqueness
-  // 4. Call userService.completeOnboarding(userId, data)
-  // 5. Return { user }
+  // TODO: validate body → userService.completeOnboarding
   res.status(501).json({ error: "Not implemented yet" });
 }
 
 /**
  * GET /api/users/:id
  *
- * Returns a user's public profile (for seller profile pages).
- * Only returns public fields (no email, no auth details).
- *
- * No auth required — anyone can view a seller's public profile.
- * Response: { user: PublicUser }
+ * Public profile for seller / user pages. No auth required.
+ * Response: { user: PublicUserResponse } or 404
  */
 export async function getPublicProfile(req: Request, res: Response, next: NextFunction) {
-  // TODO: Implement
-  // 1. Get id from req.params.id
-  // 2. Call userService.getPublicProfile(id)
-  // 3. Return { user } (only public fields: displayName, username, avatar, city, etc.)
-  res.status(501).json({ error: "Not implemented yet" });
+  try {
+    const id = parseUuid(String(req.params.id));
+    if (!id) {
+      res.status(400).json({
+        error: "Invalid user id",
+        message: "Use a real profile UUID from Supabase (e.g. a1b2c3d4-e5f6-7890-abcd-ef1234567890).",
+      });
+      return;
+    }
+
+    const user = await userService.getPublicProfile(id);
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.json({ user });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /**
  * GET /api/users/check-username/:username
  *
- * Checks if a username is available.
- * Called in real-time as the user types during onboarding.
- *
- * No auth required — needs to work before account exists.
- * Response: { available: boolean }
+ * Real-time username availability (onboarding). No auth required.
+ * Response: { available: boolean, reason?: string }
  */
 export async function checkUsername(req: Request, res: Response, next: NextFunction) {
-  // TODO: Implement
-  // 1. Get username from req.params.username
-  // 2. Validate format (lowercase, alphanumeric + dots/underscores, 3-30 chars)
-  // 3. Check if username exists in database
-  // 4. Return { available: boolean }
-  res.status(501).json({ error: "Not implemented yet" });
+  try {
+    const username = String(req.params.username);
+    const result = await userService.checkUsernameAvailability(username);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
 }

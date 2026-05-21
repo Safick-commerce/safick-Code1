@@ -1,34 +1,53 @@
 // =============================================================================
 // Prisma Client Singleton
 // =============================================================================
-// Creates a single shared instance of the Prisma client for the entire app.
-// In development, this prevents creating too many database connections when
-// the server is restarted by the file watcher (tsx watch).
+// Prisma ORM 7+ uses a PostgreSQL driver adapter (node-pg). Connection URLs:
+//   - Runtime (this file): DATABASE_URL — Supabase transaction pooler
+//   - CLI (migrate, db pull): prisma.config.ts → DIRECT_URL
 //
-// Usage in other files:
-//   import { prisma } from "@config/database";
-//   const user = await prisma.user.findUnique({ where: { id } });
+// Client types are generated to src/generated/prisma — run npm run db:generate
+// after schema changes so prisma.profiles and other delegates exist in the IDE.
 // =============================================================================
 
-import { PrismaClient } from "@prisma/client";
+import dotenv from "dotenv";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma";
 
-// In development, store the client on the global object so it survives hot reloads.
-// In production, just create a new client — the server only starts once.
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+dotenv.config();
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    // Log queries in development for debugging
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set. Add it to backend/.env (see .env.example).");
+}
+
+const adapter = new PrismaPg({
+  connectionString,
+  // Supabase uses TLS; if you see SSL errors locally, try:
+  // ssl: { rejectUnauthorized: false },
+});
+
+function createPrismaClient() {
+  return new PrismaClient({
+    adapter,
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]
         : ["error"],
   });
+}
 
-// Only cache the client on the global object in development
+type PrismaClientInstance = ReturnType<typeof createPrismaClient>;
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClientInstance | undefined;
+};
+
+/** Singleton — types come from src/generated/prisma (npm run db:generate). */
+export const prisma: PrismaClientInstance =
+  globalForPrisma.prisma ?? createPrismaClient();
+
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
+export type { PrismaClientInstance };

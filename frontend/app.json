@@ -15,7 +15,8 @@
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/safick-prlogo.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",
@@ -36,7 +37,13 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos for your profile picture."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

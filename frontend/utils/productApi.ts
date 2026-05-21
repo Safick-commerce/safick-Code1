@@ -152,3 +152,81 @@ export async function getMyProducts(): Promise<StoreProduct[]> {
 
   return mapProducts(data);
 }
+
+export type ProductSellerPreview = {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  city: string | null;
+};
+
+export type ProductDetail = StoreProduct & {
+  seller: ProductSellerPreview | null;
+};
+
+function mapSeller(raw: unknown): ProductSellerPreview | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== "string") return null;
+  return {
+    id: r.id,
+    display_name: typeof r.display_name === "string" ? r.display_name : null,
+    username: typeof r.username === "string" ? r.username : null,
+    full_name: typeof r.full_name === "string" ? r.full_name : null,
+    avatar_url: typeof r.avatar_url === "string" ? r.avatar_url : null,
+    city: typeof r.city === "string" ? r.city : null,
+  };
+}
+
+/** Load one listing with seller profile for the product details screen. */
+export async function getProductById(id: string): Promise<ProductDetail | null> {
+  const { data: row, error } = await supabase
+    .from("products")
+    .select("id, title, description, price, image_url, seller_id, created_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const product = parseProductRow(row);
+  if (!product) return null;
+
+  const { data: profileRow, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, display_name, username, full_name, avatar_url, city")
+    .eq("id", product.seller_id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.warn("[getProductById] profile:", profileError.message);
+  }
+
+  return {
+    ...product,
+    seller: mapSeller(profileRow),
+  };
+}
+
+/** Other listings for “Recommended” (newest first, excludes current). */
+export async function getRelatedProducts(
+  excludeId: string,
+  limit = 6,
+): Promise<StoreProduct[]> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, title, description, price, image_url, seller_id, created_at")
+    .neq("id", excludeId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn("[getRelatedProducts]", error.message);
+    return [];
+  }
+
+  return mapProducts(data);
+}
