@@ -11,4 +11,8 @@ PS C:\Users\user\safick-Code1> git pull origin Testing-production
 From https://github.com/clipCart/safick-Code1
  * branch            Testing-production -> FETCH_HEAD
 Already up to date.
+
+   STARTING THE PROJECT (do same for front and backend)
 PS C:\Users\user\safick-Code1> 
+PS C:\Users\user\safick-Code1> cd backend
+PS C:\Users\user\safick-Code1\backend> npm install
