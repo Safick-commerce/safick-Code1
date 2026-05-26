@@ -113,6 +113,23 @@ export async function createProduct(input: CreateProductInput): Promise<StorePro
   return parsed;
 }
 
+/** Most recent listing for a seller — used when starting chat from their profile. */
+export async function getFirstProductIdForSeller(sellerId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id")
+    .eq("seller_id", sellerId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data && typeof data.id === "string" ? data.id : null;
+}
+
 export async function getAllProducts(): Promise<StoreProduct[]> {
   const { data, error } = await supabase
     .from("products")

@@ -1,4 +1,4 @@
-import { Text, View, TouchableOpacity, StyleSheet, ScrollView, Image } from "react-native";
+import { Text, View, TouchableOpacity, StyleSheet, ScrollView, Image, ImageSourcePropType } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -6,20 +6,28 @@ import { useWishlist } from "../context/WishlistContext";
 import { useMessage } from "../context/MessageContext";
 import { useCallback } from "react";
 
+function avatarUrlFromImage(image: ImageSourcePropType): string | null {
+  if (typeof image === "object" && image !== null && "uri" in image) {
+    const uri = (image as { uri?: string }).uri;
+    return typeof uri === "string" && uri.trim() ? uri.trim() : null;
+  }
+  return null;
+}
+
 export default function WishlistScreen() {
   const router = useRouter();
   const { wishlistItems, removeFromWishlist, clearWishlist, getWishlistCount } = useWishlist();
   const { addToMessage } = useMessage();
 
-  const handleMessageSeller = useCallback((item: { id: string; sellerName?: string; image: any }) => {
+  const handleMessageSeller = useCallback((item: { id: string; sellerName?: string; image: ImageSourcePropType }) => {
     try {
       addToMessage({
         id: `seller-${item.id}`,
         seller: {
-          name: item.sellerName ?? 'Seller',
-          message: 'Tap to start chatting',
-          avatar: item.image,
-          status: 'online',
+          name: item.sellerName ?? "Seller",
+          message: "Tap to start chatting",
+          avatarUrl: avatarUrlFromImage(item.image),
+          status: "online",
         },
       });
       router.push("/usermessage");
@@ -28,9 +36,9 @@ export default function WishlistScreen() {
     }
   }, [router, addToMessage]);
 
-  const handleProductPress = useCallback(() => {
+  const handleProductPress = useCallback((id: string) => {
     try {
-      router.push("/productDetails");
+      router.push({ pathname: "/productDetails", params: { id } });
     } catch (error) {
       console.error("Navigation error:", error);
     }
@@ -76,13 +84,13 @@ export default function WishlistScreen() {
           {wishlistItems.map((item) => (
             <View key={item.id} style={styles.wishlistItem}>
               {/* Product Image — tap to view details */}
-              <TouchableOpacity onPress={handleProductPress}>
+              <TouchableOpacity onPress={() => handleProductPress(item.id)}>
                 <Image source={item.image} style={styles.itemImage} resizeMode="cover" />
               </TouchableOpacity>
 
               {/* Product Info */}
               <View style={styles.itemInfo}>
-                <TouchableOpacity onPress={handleProductPress}>
+                <TouchableOpacity onPress={() => handleProductPress(item.id)}>
                   <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
                 </TouchableOpacity>
                 <Text style={styles.itemPrice}>{item.price}</Text>

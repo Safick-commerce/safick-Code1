@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import * as ExpoSplashScreen from "expo-splash-screen";
+import { useEffect, type ReactNode } from "react";
 import {
   useFonts,
   PlayfairDisplay_800ExtraBold,
@@ -11,16 +11,90 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { WishlistProvider } from "../context/WishlistContext";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { MessageProvider } from "../context/MessageContext";
-import { UserProfileProvider } from "../context/UserProfileContext";
-import { AuthProvider } from "../context/AuthContext";
+import { UserProfileProvider, useUserProfile } from "../context/UserProfileContext";
+import { AuthProvider, useAuth } from "../context/AuthContext";
 import { SocketProvider } from "../context/SocketContext";
 import { useAuthGuard } from "../hooks/useAuthGuard";
+import Splashscreen from "./screens/Intro/splashscreen";
 
-SplashScreen.preventAutoHideAsync();
+ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AuthGate() {
   useAuthGuard();
   return null;
+}
+
+/**
+ * Shows the in-app splash until Supabase session + local profile are restored.
+ * Native Expo splash is hidden as soon as this component mounts.
+ */
+function BootstrapGate({ children }: { children: ReactNode }) {
+  const { isReady: authReady } = useAuth();
+  const { isLoaded: profileLoaded } = useUserProfile();
+  const bootstrapped = authReady && profileLoaded;
+
+  useEffect(() => {
+    ExpoSplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  if (!bootstrapped) {
+    return <Splashscreen />;
+  }
+
+  return children;
+}
+
+function AppTree() {
+  return (
+    <AuthProvider>
+      <SocketProvider>
+        <UserProfileProvider>
+          <BootstrapGate>
+            <MessageProvider>
+              <KeyboardProvider>
+                <WishlistProvider>
+                  <AuthGate />
+                  <StatusBar style="dark" />
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: {
+                        backgroundColor: "#ffffff",
+                      },
+                    }}
+                  >
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen
+                      name="productDetails"
+                      options={{
+                        animation: "slide_from_right",
+                        gestureEnabled: true,
+                      }}
+                    />
+                    <Stack.Screen name="auth" />
+                    <Stack.Screen name="messages" />
+                    <Stack.Screen name="notifications" />
+                    <Stack.Screen name="wishlist" />
+                    <Stack.Screen name="search" />
+                    <Stack.Screen name="unbox-search" />
+                    <Stack.Screen
+                      name="watch-live"
+                      options={{
+                        presentation: "fullScreenModal",
+                        animation: "slide_from_bottom",
+                      }}
+                    />
+                    <Stack.Screen name="discover-category" />
+                  </Stack>
+                </WishlistProvider>
+              </KeyboardProvider>
+            </MessageProvider>
+          </BootstrapGate>
+        </UserProfileProvider>
+      </SocketProvider>
+    </AuthProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -29,62 +103,22 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+    if (fontError) {
+      ExpoSplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontError]);
 
   if (!fontsLoaded && !fontError) {
-    return null;
+    return (
+      <SafeAreaProvider>
+        <Splashscreen />
+      </SafeAreaProvider>
+    );
   }
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <SocketProvider>
-        <UserProfileProvider>
-          <MessageProvider>
-            <KeyboardProvider>
-              <WishlistProvider>
-                <AuthGate />
-                <StatusBar style="dark" />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: {
-                      backgroundColor: "#ffffff",
-                    },
-                  }}
-                >
-                  <Stack.Screen
-                    options={{
-                      headerShown: true,
-
-                    }}
-                  />
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="auth" />
-                  <Stack.Screen name="cart" />
-                  <Stack.Screen name="messages" />
-                  <Stack.Screen name="notifications" />
-                  <Stack.Screen name="wishlist" />
-                  <Stack.Screen name="search" />
-                  <Stack.Screen name="unbox-search" />
-                  <Stack.Screen
-                    name="watch-live"
-                    options={{
-                      presentation: "fullScreenModal",
-                      animation: "slide_from_bottom",
-                    }}
-                  />
-                  <Stack.Screen name="discover-category" />
-                </Stack>
-              </WishlistProvider>
-            </KeyboardProvider>
-          </MessageProvider>
-        </UserProfileProvider>
-        </SocketProvider>
-      </AuthProvider>
+      <AppTree />
     </SafeAreaProvider>
   );
 }

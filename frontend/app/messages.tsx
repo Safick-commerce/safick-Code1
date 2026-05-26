@@ -3,7 +3,6 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  Image,
   TextInput,
   FlatList,
   Modal,
@@ -20,6 +19,7 @@ import { primeConversationBootstrap } from "../utils/conversationBootstrapCache"
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { syncConversationRooms, subscribeToMessages } from "../lib/socket";
+import { ProfileAvatar } from "../components/shared/ProfileAvatar";
 
 const STATUS_COLORS: Record<string, string> = {
   online: "#22C55E",
@@ -51,7 +51,7 @@ function MenuActionRow({
 export default function MessageScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, isReady } = useAuth();
+  const { isAuthenticated, isReady, user, profile } = useAuth();
   const { isConnected } = useSocket();
   const [apiConversations, setApiConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,6 +63,22 @@ export default function MessageScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const selectedCount = selectedIds.size;
+
+  /** A constant used for the Reservation filter */
+  const currentUserId = user?.id ?? null;
+
+  const canViewReservations = useMemo(() => {
+    /** Sellers can always view reservations */
+    if (profile?.role === "seller") return true;
+    if (!currentUserId) return false;
+    return apiConversations.some((c) => c.sellerId === currentUserId);
+  }, [apiConversations, currentUserId, profile?.role]);
+
+  useEffect(() => {
+    if (!canViewReservations && filter === "reservation") {
+      setFilter("all");
+    }
+  }, [canViewReservations, filter]);
 
   const loadConversations = useCallback(async () => {
     if (!isReady || !isAuthenticated) {
@@ -126,14 +142,15 @@ export default function MessageScreen() {
   const conversationRows = useMemo((): MessageItemData[] => {
     return apiConversations.map((c) => ({
       id: c.id,
+      isReservation: Boolean(currentUserId && c.sellerId === currentUserId),
       seller: {
         name: c.peer.displayName,
         message: c.lastMessage?.body ?? `About ${c.productTitle}`,
-        avatar: c.peer.avatarUrl ? { uri: c.peer.avatarUrl } : require("../assets/images/seller4.jpeg"),
+        avatarUrl: c.peer.avatarUrl,
         status: "online" as const,
       },
     }));
-  }, [apiConversations]);
+  }, [apiConversations, currentUserId]);
 
   const displayItems = conversationRows;
 
@@ -148,6 +165,14 @@ export default function MessageScreen() {
     }
     return list;
   }, [displayItems, filter, searchQuery]);
+
+  /** The title and subtitle of the empty state */
+  const emptyTitle =
+    filter === "reservation" ? "No reservations yet" : "No messages yet";
+  const emptySubtitle =
+    filter === "reservation"
+      ? "Buyers who reserve your products from live streams will appear here."
+      : "Start a live streams.";
 
   const exitSelectionMode = useCallback(() => {
     setSelectionMode(false);
@@ -178,7 +203,10 @@ export default function MessageScreen() {
       if (summary) {
         primeConversationBootstrap(summary.id, { conversation: summary, messages: [] });
       }
-      router.push({ pathname: "/usermessage", params: { conversationId: conversation.id } });
+      router.push({
+        pathname: "/usermessage",
+        params: { conversationId: conversation.id, origin: "inbox" },
+      });
     },
     [router, selectionMode, toggleRowSelected, apiConversations],
   );
@@ -206,7 +234,7 @@ export default function MessageScreen() {
           ) : null}
 
           <View style={styles.avatarContainer}>
-            <Image source={item.seller.avatar} style={styles.avatar} resizeMode="cover" />
+            <ProfileAvatar uri={item.seller.avatarUrl} size={48} style={styles.avatar} />
             <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[item.seller.status] }]} />
           </View>
 
@@ -279,7 +307,7 @@ export default function MessageScreen() {
         ) : null}
       </View>
 
-      {/* Filter buttons */}
+      {/* Filter buttons — Reservation tab is seller-only */}
       <View style={styles.filterRow}>
         <TouchableOpacity
           style={[styles.filterButton, filter === "all" && styles.filterButtonActive]}
@@ -288,13 +316,17 @@ export default function MessageScreen() {
         >
           <Text style={[styles.filterButtonText, filter === "all" && styles.filterButtonTextActive]}>All</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === "reservation" && styles.filterButtonActive]}
-          onPress={() => setFilter("reservation")}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterButtonText, filter === "reservation" && styles.filterButtonTextActive]}>Reservation</Text>
-        </TouchableOpacity>
+        {canViewReservations ? (
+          <TouchableOpacity
+            style={[styles.filterButton, filter === "reservation" && styles.filterButtonActive]}
+            onPress={() => setFilter("reservation")}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.filterButtonText, filter === "reservation" && styles.filterButtonTextActive]}>
+              Reservation
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Conversation list or empty state */}
@@ -311,13 +343,10 @@ export default function MessageScreen() {
         </View>
       ) : filteredConversations.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No conversations yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Buyers appear here when they message you about a listing.{"\n"}
-            Sellers: tap Message on a product to start a chat.
-          </Text>
-          <TouchableOpacity style={styles.findButton} onPress={() => router.push("/(tabs)")}>
-            <Text style={styles.findButtonText}>Browse listings</Text>
+          <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+          <Text style={styles.emptySubtitle}>{emptySubtitle}</Text>
+          <TouchableOpacity style={styles.findButton} onPress={() => router.push("/golive")}>
+            <Text style={styles.findButtonText}>start a live stream</Text>
           </TouchableOpacity>
         </View>
       ) : (

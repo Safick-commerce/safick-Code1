@@ -1,4 +1,4 @@
-import { FontAwesome6, Ionicons } from "@expo/vector-icons";
+import { FontAwesome6, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -22,49 +22,59 @@ const RED = "#FF2800";
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { redirectTo } = useLocalSearchParams<{ redirectTo?: string }>();
+  const { redirectTo, id: redirectProductId } = useLocalSearchParams<{
+    redirectTo?: string;
+    id?: string;
+  }>();
   const { signIn, signInWithOAuth, resetPassword } = useAuth();
-  const { profile, isLoaded: profileLoaded } = useUserProfile();
+  const { isLoaded: profileLoaded, updateProfile } = useUserProfile();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const navigateAfterLogin = useCallback(() => {
+  const navigateAfterLogin = useCallback(async () => {
+    // Returning users sign in — send them to the app, not onboarding.
+    await updateProfile({
+      isGuestUser: false,
+      onboardingCompleted: true,
+    });
+
     if (redirectTo && typeof redirectTo === "string" && redirectTo.length > 0) {
+      if (redirectTo === "/productDetails" && typeof redirectProductId === "string") {
+        router.replace({ pathname: "/productDetails", params: { id: redirectProductId } });
+        return;
+      }
       router.replace(redirectTo as Href);
       return;
     }
-    if (!profile.onboardingCompleted) {
-      router.replace("/screens/onboarding/OnboardingScreen");
-      return;
-    }
+
     router.replace("/(tabs)");
-  }, [redirectTo, profile.onboardingCompleted, router]);
+  }, [redirectTo, redirectProductId, updateProfile, router]);
 
   const handleSignIn = useCallback(async () => {
-    const trimmed = email.trim();
+    const trimmed = identifier.trim();
     if (!trimmed || !password) {
-      Alert.alert("Sign in", "Please enter your email and password.");
+      Alert.alert("Sign in", "Please enter your email or username and password.");
       return;
     }
     setSubmitting(true);
     try {
       await signIn(trimmed, password);
-      navigateAfterLogin();
+      await navigateAfterLogin();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Could not sign in.";
       Alert.alert("Sign in failed", message);
     } finally {
       setSubmitting(false);
     }
-  }, [email, password, signIn, navigateAfterLogin]);
+  }, [identifier, password, signIn, navigateAfterLogin]);
 
   const handleForgotPassword = useCallback(async () => {
-    const trimmed = email.trim();
+    const trimmed = identifier.trim();
     if (!trimmed) {
-      Alert.alert("Reset password", "Enter your email first, then tap Forgot Password.");
+      Alert.alert("Reset password", "Enter your email or username first, then tap Forgot Password.");
       return;
     }
     try {
@@ -74,14 +84,14 @@ export default function SignInScreen() {
       const message = e instanceof Error ? e.message : "Could not send reset email.";
       Alert.alert("Reset password", message);
     }
-  }, [email, resetPassword]);
+  }, [identifier, resetPassword]);
 
   const handleOAuthSignIn = useCallback(
     async (provider: "google" | "apple") => {
       setSubmitting(true);
       try {
         await signInWithOAuth(provider);
-        navigateAfterLogin();
+        await navigateAfterLogin();
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : "Could not sign in.";
         Alert.alert(`${provider === "google" ? "Google" : "Apple"} sign in failed`, message);
@@ -114,7 +124,7 @@ export default function SignInScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+            <MaterialIcons name="keyboard-arrow-left" size={37} color="#000000" />
           </TouchableOpacity>
         </View>
 
@@ -127,16 +137,17 @@ export default function SignInScreen() {
           <Text style={styles.title}>Login</Text>
           <Text style={styles.subtitle}>Welcome Back!</Text>
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>Email or Username</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter email"
-            placeholderTextColor="#94A3B8"
-            keyboardType="email-address"
+            placeholder="Enter email or username"
+            placeholderTextColor="#828282"
+            keyboardType="default"
             autoCapitalize="none"
             autoCorrect={false}
-            value={email}
-            onChangeText={setEmail}
+            textContentType="username"
+            value={identifier}
+            onChangeText={setIdentifier}
             editable={!submitting}
           />
 
@@ -145,10 +156,10 @@ export default function SignInScreen() {
             <TextInput
               style={styles.passwordInput}
               placeholder="Enter password"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#828282"
               secureTextEntry={!showPassword}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => setPassword(text.trim())}
               editable={!submitting}
             />
             <TouchableOpacity
@@ -259,7 +270,7 @@ const styles = StyleSheet.create({
     fontFamily: "PlayfairDisplay_800ExtraBold",
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     color: "#374151",
     marginBottom: 8,
@@ -323,11 +334,11 @@ const styles = StyleSheet.create({
   orLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#828282",
   },
   orText: {
     fontSize: 14,
-    color: "#94A3B8",
+    color: "#828282",
     fontWeight: "500",
   },
   socialButton: {

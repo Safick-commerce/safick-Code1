@@ -98,18 +98,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="productDetails"
-        options={{
-          href: null, // Hide from tab bar but keep accessible via navigation
-        }}
-      />
-      <Tabs.Screen
-        name="userprofile"
-        options={{
-          href: null, // Hide from tab bar but keep accessible via navigation
-        }}
-      />
-      <Tabs.Screen
         name="edit_profile"
         options={{
           href: null, // Hide from tab bar but keep accessible via navigation

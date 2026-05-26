@@ -202,7 +202,7 @@ export default function NotificationsScreen() {
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyTitle}>No live alerts yet</Text>
           <Text style={styles.emptySub}>
-            Follow sellers and we&apos;ll let you know when they go live, schedule a stream, or post a replay.
+            Follow sellers and we'll let you know when they go live, schedule a stream, or post a replay.
           </Text>
         </View>
       ) : visibleAlerts.length === 0 ? (

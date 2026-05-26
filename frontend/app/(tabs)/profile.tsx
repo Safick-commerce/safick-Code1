@@ -89,7 +89,7 @@ export default function ProfileScreen() {
   const handleSignOut = useCallback(async () => {
     await clearProfile();
     await signOut();
-    router.replace("/");
+    router.replace("/auth/signin");
   }, [router, clearProfile, signOut]);
 
   const handleSellerHubPress = useCallback(() => {
@@ -133,7 +133,7 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!isAuthenticated || profile.isGuestUser) {
+  if (!isAuthenticated) {
     return (
       <GuestSignInPlaceholder subtitle="Sign in to view your profile, orders, and settings." />
     );

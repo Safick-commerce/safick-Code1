@@ -7,19 +7,43 @@ import {
   Image,
   Share,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome6 } from "@expo/vector-icons";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile } from "../../context/UserProfileContext";
 import { fetchProfileById, type ProfileRow } from "../../utils/fetchProfile";
+import { ReportUserModal } from "../../components/shared/ReportUserModal";
+import { PROFILE_REPORT_REASONS } from "../../constants/reportReasons";
+import type { ComponentProps } from "react";
 
 const ROUTES = {
   EDIT_PROFILE: "/edit_profile",
-  SELLER_MESSAGE: "/sellermessage",
 } as const;
+
+const PRIVATE_TABS = ["Posts", "Shop", "Reviews", "Collections", "Likes"] as const;
+const PUBLIC_TABS = ["Clips", "Shop", "Reviews"] as const;
+
+type PrivateTab = (typeof PRIVATE_TABS)[number];
+type PublicTab = (typeof PUBLIC_TABS)[number];
+type ProfileTab = PrivateTab | PublicTab;
+
+/** Placeholder seller trust stats until ratings API is wired. */
+const TRUST_METRICS = {
+  productSatisfaction: 94,
+  replyTime: "10 min",
+  onTimeDelivery: 96,
+} as const;
+
+function formatProfileLocation(city: string | null | undefined): string | null {
+  const trimmed = city?.trim();
+  if (!trimmed) return null;
+  return trimmed.toLowerCase().includes("cameroon") ? trimmed : `${trimmed}, Cameroon`;
+}
 
 function normalizeRouteParam(v: string | string[] | undefined): string | undefined {
   if (v == null) return undefined;
@@ -42,19 +66,49 @@ function formatProfileJoinedAt(iso: string | null | undefined): string | null {
 }
 
 export default function UserTab() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string | string[] }>();
   const userIdFromRoute = normalizeRouteParam(userIdParam);
 
-  const [activeTab, setActiveTab] = useState("Posts");
   const { profile: authProfile, user } = useAuth();
   const { profile: localProfile } = useUserProfile();
 
   const selfId = user?.id ?? authProfile?.id ?? null;
   const isViewingOther = Boolean(userIdFromRoute && userIdFromRoute !== selfId);
+  const profileTabs: readonly ProfileTab[] = isViewingOther ? PUBLIC_TABS : PRIVATE_TABS;
 
+  const [activeTab, setActiveTab] = useState<ProfileTab>("Posts");
+  const [isFollowing, setIsFollowing] = useState(false);
   const [otherProfile, setOtherProfile] = useState<ProfileRow | null>(null);
   const [otherLoading, setOtherLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
+
+  type IoniconName = ComponentProps<typeof Ionicons>["name"];
+
+function MenuActionRow({
+  iconName,
+  label,
+  onPress,
+  destructive,
+}: {
+  iconName: IoniconName;
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+}) {
+  const color = destructive ? "#DC2626" : "#111827";
+  return (
+    <TouchableOpacity style={styles.menuRow} onPress={onPress} accessibilityRole="button">
+      <View style={styles.menuRowLeft}>
+        <Ionicons name={iconName} size={18} color={color} />
+        <Text style={[styles.menuRowLabel, destructive && styles.menuRowLabelDestructive]}>{label}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
   useEffect(() => {
     if (!isViewingOther || !userIdFromRoute) {
@@ -76,6 +130,17 @@ export default function UserTab() {
       cancelled = true;
     };
   }, [isViewingOther, userIdFromRoute]);
+
+  useEffect(() => {
+    const allowed: readonly ProfileTab[] = isViewingOther ? PUBLIC_TABS : PRIVATE_TABS;
+    if (!allowed.includes(activeTab)) {
+      setActiveTab(isViewingOther ? "Clips" : "Posts");
+    }
+  }, [isViewingOther, activeTab]);
+
+  useEffect(() => {
+    setIsFollowing(false);
+  }, [userIdFromRoute]);
 
   // Prefer Supabase as the canonical source; fall back to local onboarding
   // data while the profile row is still loading (own profile only).
@@ -112,6 +177,11 @@ export default function UserTab() {
     return formatProfileJoinedAt(iso);
   }, [isViewingOther, otherProfile?.created_at, authProfile?.created_at]);
 
+  const locationLabel = useMemo(() => {
+    if (!isViewingOther) return null;
+    return formatProfileLocation(otherProfile?.city);
+  }, [isViewingOther, otherProfile?.city]);
+
   const handleBackPress = () => {
     if (isViewingOther) {
       router.back();
@@ -128,14 +198,6 @@ export default function UserTab() {
     }
   }, [router]);
 
-  const handleMessagePress = useCallback(() => {
-    try {
-      router.push(ROUTES.SELLER_MESSAGE);
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  }, [router]);
-
   const handleShareProfile = useCallback(async () => {
     try {
       const handleBit = username.trim() ? `@${username.trim()}` : "";
@@ -147,6 +209,20 @@ export default function UserTab() {
       // Dismissed or failed
     }
   }, [displayName, username]);
+
+  const onReportPress = () => {
+    setMenuOpen(false);
+    setReportModalOpen(true);
+  };
+
+  const handleReportSubmit = useCallback(
+    async (reason: string) => {
+      const targetId = userIdFromRoute ?? selfId;
+      if (!targetId) return;
+      console.info("[report]", { userId: targetId, reason });
+    },
+    [userIdFromRoute, selfId],
+  );
 
   const profileMissing = isViewingOther && !otherLoading && !otherProfile;
 
@@ -168,8 +244,8 @@ export default function UserTab() {
       ) : null}
 
       {!profileMissing ? (
-        <>
-      <View style={styles.header}>
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <View style={[styles.header, isViewingOther && styles.headerPublic]}>
         {coverImageUrl ? (
           <>
             <Image source={{ uri: coverImageUrl }} style={styles.headerCoverImage} resizeMode="cover" />
@@ -190,6 +266,13 @@ export default function UserTab() {
               accessibilityLabel="Share profile"
             >
               <FontAwesome6 name="arrow-up-from-bracket" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton}
+              accessibilityRole="button"
+              accessibilityLabel="More options"
+              onPress={() => setMenuOpen(true)}
+            >
+              <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -215,19 +298,51 @@ export default function UserTab() {
                 {joinedLabel}
               </Text>
             ) : null}
-            {isViewingOther ? (
-              <TouchableOpacity style={styles.editProfileButton} onPress={handleMessagePress}>
-                <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.editProfileText}>Message</Text>
-              </TouchableOpacity>
-            ) : (
+            {isViewingOther && locationLabel ? (
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={16} color="rgba(255, 255, 255, 0.9)" />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {locationLabel}
+                </Text>
+              </View>
+            ) : null}
+            {!isViewingOther ? (
               <TouchableOpacity style={styles.editProfileButton} onPress={handleEditProfilePress}>
                 <FontAwesome6 name="pen" size={14} color="#FFFFFF" />
                 <Text style={styles.editProfileText}>Edit Profile</Text>
               </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.followButton, isFollowing && styles.followButtonActive]}
+                onPress={() => setIsFollowing((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isFollowing ? "Unfollow seller" : "Follow seller"}
+              >
+                <Ionicons name={isFollowing ? "checkmark" : "person-add"} size={16} color="#FFFFFF" />
+                <Text style={styles.followButtonText}>{isFollowing ? "Following" : "Follow"}</Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>
+
+        {isViewingOther ? (
+          <View style={styles.trustContainer}>
+            <View style={styles.trustItem}>
+              <Text style={styles.trustPercent}>{TRUST_METRICS.productSatisfaction}%</Text>
+              <Text style={styles.trustLabel}>Product{"\n"}Satisfaction</Text>
+            </View>
+            <View style={styles.trustDivider} />
+            <View style={styles.trustItem}>
+              <Text style={styles.trustPercent}>{TRUST_METRICS.replyTime}</Text>
+              <Text style={styles.trustLabel}>Response{"\n"}Time</Text>
+            </View>
+            <View style={styles.trustDivider} />
+            <View style={styles.trustItem}>
+              <Text style={styles.trustPercent}>{TRUST_METRICS.onTimeDelivery}%</Text>
+              <Text style={styles.trustLabel}>On-Time{"\n"}Delivery</Text>
+            </View>
+          </View>
+        ) : null}
         </View>
       </View>
 
@@ -235,7 +350,7 @@ export default function UserTab() {
       <View style={styles.statsSection}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>42</Text>
-          <Text style={styles.statLabel}>Posts</Text>
+          <Text style={styles.statLabel}>{isViewingOther ? "Clips" : "Posts"}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>1K</Text>
@@ -243,7 +358,7 @@ export default function UserTab() {
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>340</Text>
-          <Text style={styles.statLabel}>Following</Text>
+          <Text style={styles.statLabel}>{isViewingOther ? "Sold" : "Following"}</Text>
         </View>
       </View>
 
@@ -264,52 +379,67 @@ export default function UserTab() {
         )}
       </View>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs — private vs public */}
       <View style={styles.tabsContainer}>
-        <ScrollView horizontal 
-        showsHorizontalScrollIndicator={false} 
-        contentContainerStyle={styles.tabsScrollContent}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === "Posts" && styles.tabActive]}
-            onPress={() => setActiveTab("Posts")}
-          >
-            <Text style={[styles.tabText, activeTab === "Posts" && styles.tabTextActive]}>Posts</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === "Shop" && styles.tabActive]}
-            onPress={() => setActiveTab("Shop")}
-          >
-            <Text style={[styles.tabText, activeTab === "Shop" && styles.tabTextActive]}>Shop</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === "Reviews" && styles.tabActive]}
-            onPress={() => setActiveTab("Reviews")}
-          >
-            <Text style={[styles.tabText, activeTab === "Reviews" && styles.tabTextActive]}>Reviews</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === "Collections" && styles.tabActive]}
-            onPress={() => setActiveTab("Collections")}
-          >
-            <Text style={[styles.tabText, activeTab === "Collections" && styles.tabTextActive]}>Collections</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === "Likes" && styles.tabActive]}
-            onPress={() => setActiveTab("Likes")}
-          >
-            <Text style={[styles.tabText, activeTab === "Likes" && styles.tabTextActive]}>Likes</Text>
-          </TouchableOpacity>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsScrollContent}
+        >
+          {profileTabs.map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </View>
 
+      <Modal
+          visible={menuOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuOpen(false)}
+        >
+          <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={[styles.menuCard, { top: insets.top + 58 }]}
+            >
+              <Text style={styles.menuSectionLabel}>Actions</Text>
+              {isViewingOther ? (
+                <MenuActionRow
+                  iconName="flag-outline"
+                  label="Report user"
+                  onPress={onReportPress}
+                  destructive
+                />
+              ) : null}
+            </Pressable>
+          </Pressable>
+        </Modal>
+
       {/* Main Content Area */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.content}>
         <Text style={styles.contentText}>
-          Content for {activeTab} will appear here
+          {isViewingOther
+            ? `Public ${activeTab} content will appear here`
+            : `Your ${activeTab} content will appear here`}
         </Text>
-      </ScrollView>
-        </>
+      </View>
+        </ScrollView>
       ) : null}
+
+      <ReportUserModal
+        visible={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        reasons={PROFILE_REPORT_REASONS}
+        subjectLabel={displayName}
+        onSubmit={handleReportSubmit}
+      />
     </SafeAreaView>
   );
 }
@@ -318,7 +448,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-    height: 1000,
+  },
+  scroll: {
+    flex: 1,
   },
   header: {
     position: "relative",
@@ -328,6 +460,10 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 20,
     minHeight: 180,
+  },
+  headerPublic: {
+    minHeight: 280,
+    paddingBottom: 16,
   },
   headerCoverImage: {
     ...StyleSheet.absoluteFillObject,
@@ -411,6 +547,17 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.72)",
     marginTop: 4,
   },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  locationText: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    flexShrink: 1,
+  },
   editProfileButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -426,6 +573,58 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
+  },
+  followButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF2800',
+    paddingHorizontal: 26,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  followButtonActive: {
+    backgroundColor: '#333333',
+  },
+  followButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  trustContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
+  },
+  trustItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  trustPercent: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  trustLabel: {
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.85)",
+    textAlign: "center",
+    lineHeight: 15,
+  },
+  trustDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
+    marginHorizontal: 8,
   },
   settingsButton: {
     padding: 10,
@@ -464,8 +663,9 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666666',
+    fontWeight: '500',
   },
   tabsContainer: {
     backgroundColor: '#FFFFFF',
@@ -494,14 +694,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   content: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  contentContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    minHeight: 320,
     padding: 20,
+    paddingBottom: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   contentText: {
     color: '#000000',
@@ -534,5 +732,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: "#9CA3AF",
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.18)",
+  },
+  menuCard: {
+    position: "absolute",
+    right: 12,
+    width: 260,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#E5E7EB",
+  },
+  menuSectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#94A3B8",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    paddingHorizontal: 10,
+    paddingTop: 6,
+    paddingBottom: 4,
+  },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  menuRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+  },
+  menuRowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  menuRowLabelDestructive: {
+    color: "#DC2626",
   },
 });

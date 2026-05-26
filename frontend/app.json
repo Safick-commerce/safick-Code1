@@ -4,7 +4,7 @@
     "slug": "safick",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/safick-prlogo.png",
+    "icon": "",
     "scheme": "safick",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -12,11 +12,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff",
+        "backgroundColor": "",
         "foregroundImage": "./assets/images/safick-prlogo.png"
       },
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "output": "static",

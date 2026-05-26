@@ -112,7 +112,7 @@ export default function LiveScreen() {
     );
   }
 
-  if (!isAuthenticated || profile.isGuestUser) {
+  if (!isAuthenticated) {
     return (
       <GuestSignInPlaceholder subtitle="Sign in to access live content, create listings, and go live." />
     );

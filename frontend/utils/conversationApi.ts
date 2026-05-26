@@ -11,6 +11,7 @@ export type ConversationSummary = {
   productId: string;
   productTitle: string;
   productImageUrl: string | null;
+  productPrice: number;
   buyerId: string;
   sellerId: string;
   peer: ConversationPeer;

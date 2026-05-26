@@ -289,7 +289,7 @@ export default function CreateNewScreen() {
     );
   }
 
-  if (!isAuthenticated || profile.isGuestUser) {
+  if (!isAuthenticated) {
     return <GuestSignInPlaceholder subtitle="Sign in to create product videos and post items." />;
   }
 

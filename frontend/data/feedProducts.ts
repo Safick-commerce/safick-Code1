@@ -9,5 +9,7 @@ export const FEED_PRODUCTS = {
     name: "Women's workout set",
     price: "15,000 XAF",
     originalPrice: "17,000 XAF",
-  } satisfies ProductCardData,
+    /** Set when feed is backed by API so profile taps open /userTab */
+    sellerId: undefined as string | undefined,
+  } satisfies ProductCardData & { sellerId?: string },
 } as const;

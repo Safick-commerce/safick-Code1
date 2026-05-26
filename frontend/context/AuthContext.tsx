@@ -40,17 +40,51 @@ type AuthContextValue = {
   profile: ProfileRow | null;
   profileLoading: boolean;
   refetchProfile: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (identifier: string, password: string) => Promise<void>;
   signInWithOAuth: (provider: OAuthProvider) => Promise<void>;
   signUp: (email: string, password: string, profileData: SignUpProfileData) => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (identifier: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function sanitizeUsername(input: string) {
   return input.toLowerCase().replace(/[^a-z0-9._]/g, "");
+}
+
+/** Supabase password sign-in requires email — resolve username via public.profiles. */
+async function resolveLoginEmail(identifier: string): Promise<string> {
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    throw new Error("Please enter your email or username.");
+  }
+
+  if (trimmed.includes("@")) {
+    return trimmed.toLowerCase();
+  }
+
+  const normalizedUsername = sanitizeUsername(trimmed);
+  if (normalizedUsername.length < 3) {
+    throw new Error("Invalid login credentials.");
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("username", normalizedUsername)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  const email = data?.email?.trim().toLowerCase();
+  if (!email) {
+    throw new Error("Invalid login credentials.");
+  }
+
+  return email;
 }
 
 function ensureValidUsername(preferred: string, email: string) {
@@ -149,12 +183,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [session?.user?.id]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+  /** Sign in with email or username and password */
+  const signIn = useCallback(async (identifier: string, password: string) => {
+    const email = await resolveLoginEmail(identifier);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
       password,
     });
     if (error) throw error;
+    if (data.session) {
+      setSession(data.session);
+    }
   }, []);
 
   const signInWithOAuth = useCallback(async (provider: OAuthProvider) => {
@@ -242,10 +281,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, []);
 
-  const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim().toLowerCase()
-    );
+  /** Reset password for email or username */
+  const resetPassword = useCallback(async (identifier: string) => {
+    const email = await resolveLoginEmail(identifier);
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) throw error;
   }, []);
 

@@ -129,7 +129,7 @@ export default function WatchLiveScreen() {
     );
   }
 
-  if (!isAuthenticated || profile.isGuestUser) {
+  if (!isAuthenticated) {
     return (
       <>
         <StatusBar style="dark" />

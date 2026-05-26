@@ -96,7 +96,7 @@ export default function GoLiveScreen() {
       </SafeAreaView>
     );
   }
-  if (!isAuthenticated || profile.isGuestUser) {
+  if (!isAuthenticated) {
     return <GuestSignInPlaceholder subtitle="Sign in to start or schedule live sessions." />;
   }
   if (!profile.readyToSharePromptSeen || !profile.readyToShareMode) {

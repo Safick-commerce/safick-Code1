@@ -9,7 +9,7 @@ export interface MessageItemData {
   seller: {
     name: string;
     message: string;
-    avatar: any; // require() image
+    avatarUrl: string | null;
     status: UserStatus;
   };
   /** When true, conversation appears under the Reservation filter */

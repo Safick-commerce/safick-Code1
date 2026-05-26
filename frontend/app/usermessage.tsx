@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ScrollView, Modal, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ScrollView, Modal, Pressable, KeyboardAvoidingView, Platform, Keyboard, Alert, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useKeyboardHandler } from "react-native-keyboard-controller";
-import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import type { ComponentProps } from "react";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import {
@@ -23,10 +23,39 @@ import {
 import { takeConversationBootstrap } from "../utils/conversationBootstrapCache";
 import { apiFetch } from "../lib/apiFetch";
 import { formatPriceXaf } from "../utils/searchApi";
+import { uploadChatImage } from "../utils/uploadChatImage";
 import type { SocketChatMessagePayload, SocketTypingPayload } from "../types/socket";
+import { ProfileAvatar } from "../components/shared/ProfileAvatar";
+import { ReportUserModal } from "../components/shared/ReportUserModal";
+import { CHAT_REPORT_REASONS } from "../constants/reportReasons";
 
-const ROUTES = { USER_PROFILE: "/productDetails" } as const;
+const ROUTES = { USER_TAB: "/userTab" } as const;
+
+type IoniconName = ComponentProps<typeof Ionicons>["name"];
+
+function MenuActionRow({
+  iconName,
+  label,
+  onPress,
+  destructive,
+}: {
+  iconName: IoniconName;
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+}) {
+  const color = destructive ? "#DC2626" : "#111827";
+  return (
+    <TouchableOpacity style={styles.menuRow} onPress={onPress} accessibilityRole="button">
+      <View style={styles.menuRowLeft}>
+        <Ionicons name={iconName} size={18} color={color} />
+        <Text style={[styles.menuRowLabel, destructive && styles.menuRowLabelDestructive]}>{label}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
 const OFFER_PREFIX = "Price offer: ";
+const IMAGE_PREFIX = "IMAGE:";
 
 function formatOfferMessage(amount: number): string {
   return `${OFFER_PREFIX}${formatPriceXaf(amount)}`;
@@ -34,6 +63,14 @@ function formatOfferMessage(amount: number): string {
 
 function isOfferMessage(text: string): boolean {
   return text.startsWith(OFFER_PREFIX);
+}
+
+function isImageMessage(text: string): boolean {
+  return text.startsWith(IMAGE_PREFIX);
+}
+
+function formatImageMessage(imageUrl: string): string {
+  return `${IMAGE_PREFIX}${imageUrl}`;
 }
 
 function parseOfferPriceInput(raw: string): number | null {
@@ -46,8 +83,16 @@ function parseOfferPriceInput(raw: string): number | null {
 
 function wireTextToMessage(
   text: string,
-  base: Omit<Message, "type" | "text" | "dealAmount">,
+  base: Omit<Message, "type" | "text" | "dealAmount" | "imageUrl">,
 ): Message {
+  if (isImageMessage(text)) {
+    return {
+      ...base,
+      type: "image",
+      text: "",
+      imageUrl: text.slice(IMAGE_PREFIX.length),
+    };
+  }
   if (isOfferMessage(text)) {
     return {
       ...base,
@@ -98,8 +143,8 @@ function buildMessageList(
 }
 
 // Message types
-type MessageType = 'text' | 'status_update' | 'system';
-type ReadStatus = 'sent' | 'delivered' | 'read';
+type MessageType = "text" | "status_update" | "system" | "image";
+type ReadStatus = "sent" | "delivered" | "read";
 
 interface Message {
   id: string;
@@ -110,6 +155,7 @@ interface Message {
   readStatus?: ReadStatus;
   dealAmount?: number;
   statusIcon?: string;
+  imageUrl?: string;
 }
 
 // Sample messages removed — loaded from GET /api/conversations/:id/messages
@@ -118,12 +164,19 @@ export default function UserMessage() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isConnected, connectionError } = useSocket();
-  const params = useLocalSearchParams<{ conversationId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    conversationId?: string | string[];
+    origin?: string | string[];
+  }>();
   const conversationId =
     typeof params.conversationId === "string"
       ? params.conversationId
       : params.conversationId?.[0];
-
+  const chatOrigin =
+    typeof params.origin === "string" ? params.origin : params.origin?.[0];
+  const isProfileEntry = chatOrigin === "profile";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -134,11 +187,28 @@ export default function UserMessage() {
   const [offerPriceText, setOfferPriceText] = useState("");
   const [offerError, setOfferError] = useState<string | null>(null);
   const [sendingOffer, setSendingOffer] = useState(false);
+  const [sendingPhoto, setSendingPhoto] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const userId = user?.id;
   const initialLoadDone = useRef(false);
   const typingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+
+  const onReportPress = () => {
+    setMenuOpen(false);
+    setReportModalOpen(true);
+  };
+
+  const handleReportSubmit = useCallback(
+    async (reason: string) => {
+      const peerId = conversation?.peer.id;
+      if (!peerId) return;
+      console.info("[report]", { peerId, conversationId, reason });
+    },
+    [conversation?.peer.id, conversationId],
+  );
 
   const loadConversation = useCallback(async () => {
     if (!conversationId) {
@@ -251,20 +321,36 @@ export default function UserMessage() {
     });
   }, [conversationId, userId]);
 
-  const keyboardHeight = useSharedValue(0);
-  useKeyboardHandler({
-    onMove: (event) => {
-      'worklet';
-      keyboardHeight.value = Math.max(event.height, 0);
-    },
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
-  const animatedKeyboardStyle = useAnimatedStyle(() => ({
-    height: keyboardHeight.value,
-  }));
+  const inputBarPadding = {
+    paddingTop: 10,
+    paddingBottom: keyboardVisible ? 8 : insets.bottom + 10,
+  };
 
   const handleBackPress = () => router.back();
-  const handleViewProfilePress = () => router.push(ROUTES.USER_PROFILE);
+  const handleViewProfilePress = () => {
+    const peerId = conversation?.peer.id;
+    if (peerId) {
+      router.push({ pathname: ROUTES.USER_TAB, params: { userId: peerId } });
+    }
+  };
 
   const sendChatText = useCallback(
     async (text: string) => {
@@ -324,6 +410,37 @@ export default function UserMessage() {
     setInputText("");
     await sendChatText(trimmed);
   }, [inputText, sendChatText]);
+
+  const handlePickPhoto = useCallback(async () => {
+    if (!conversationId || sendingPhoto) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Photo library access is required to send images.");
+      return;
+    }
+
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.85,
+    });
+
+    if (picked.canceled || !picked.assets[0]?.uri) return;
+
+    setSendingPhoto(true);
+    try {
+      const publicUrl = await uploadChatImage(conversationId, picked.assets[0].uri);
+      await sendChatText(formatImageMessage(publicUrl));
+    } catch (error) {
+      Alert.alert(
+        "Could not send photo",
+        error instanceof Error ? error.message : "Try again with a different image.",
+      );
+    } finally {
+      setSendingPhoto(false);
+    }
+  }, [conversationId, sendingPhoto, sendChatText]);
 
   const handleInputChange = useCallback(
     (text: string) => {
@@ -388,11 +505,11 @@ export default function UserMessage() {
   const getReadStatusIcon = (status?: ReadStatus) => {
     switch (status) {
       case 'read':
-        return <Ionicons name="checkmark-done" size={14} color="rgba(255,255,255,0.7)" style={styles.readIcon} />;
+        return <Ionicons name="checkmark-done" size={14} color="rgba(255, 255, 255, 0.75)" style={styles.readIcon} />;
       case 'delivered':
-        return <Ionicons name="checkmark-done" size={14} color="rgba(255,255,255,0.5)" style={styles.readIcon} />;
+        return <Ionicons name="checkmark-done" size={14} color="rgba(255, 255, 255, 0.75)" style={styles.readIcon} />;
       case 'sent':
-        return <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.5)" style={styles.readIcon} />;
+        return <Ionicons name="checkmark" size={14} color="rgba(255, 255, 255, 0.75)" style={styles.readIcon} />;
       default:
         return null;
     }
@@ -439,6 +556,33 @@ export default function UserMessage() {
       );
     }
 
+    if (message.type === "image" && message.imageUrl) {
+      return (
+        <View
+          key={message.id}
+          style={[
+            styles.bubbleWrap,
+            message.isSent ? styles.bubbleWrapSent : styles.bubbleWrapReceived,
+          ]}
+        >
+          <View style={[styles.imageBubble, message.isSent ? styles.imageBubbleSent : styles.imageBubbleReceived]}>
+            <Image source={{ uri: message.imageUrl }} style={styles.imageBubblePhoto} resizeMode="cover" />
+            <View style={styles.bubbleFooter}>
+              <Text
+                style={[
+                  styles.bubbleTimestamp,
+                  message.isSent ? styles.bubbleTimestampSent : styles.bubbleTimestampReceived,
+                ]}
+              >
+                {message.timestamp}
+              </Text>
+              {message.isSent && getReadStatusIcon(message.readStatus)}
+            </View>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View
         key={message.id}
@@ -468,9 +612,10 @@ export default function UserMessage() {
   };
 
   const peerName = conversation?.peer.displayName ?? "Chat";
-  const peerAvatarSource = conversation?.peer.avatarUrl
-    ? { uri: conversation.peer.avatarUrl }
-    : require("../assets/images/seller4.jpeg");
+  const productPriceLabel =
+    conversation?.productPrice != null && Number.isFinite(conversation.productPrice)
+      ? formatPriceXaf(conversation.productPrice)
+      : null;
 
   if ((loadError && !conversation) || !conversationId) {
     return (
@@ -492,18 +637,14 @@ export default function UserMessage() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerProfile} onPress={handleViewProfilePress}>
             <View style={styles.headerAvatarContainer}>
-              <Image
-                source={peerAvatarSource}
-                style={styles.headerAvatar}
-                resizeMode="cover"
-              />
+              <ProfileAvatar uri={conversation?.peer.avatarUrl} size={40} style={styles.headerAvatar} />
               <View style={styles.headerStatusDot} />
             </View>
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{peerName}</Text>
               <Text style={styles.headerStatus}>
                 {isConnected && roomJoined
-                  ? "Connected"
+                  ? ""
                   : connectionError
                     ? "Chat offline"
                     : "Connecting…"}
@@ -511,88 +652,151 @@ export default function UserMessage() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerAction}>
-            <Ionicons name="call-outline" size={22} color="#1a1a1a" />
+            <Ionicons name="call-outline" size={24} color="#000000" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerAction}>
-            <Ionicons name="ellipsis-vertical" size={22} color="#1a1a1a" />
+          <TouchableOpacity style={styles.headerAction}
+          accessibilityRole="button"
+          accessibilityLabel="More options"
+          onPress={() => setMenuOpen(true)}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color="#000000" />
           </TouchableOpacity>
         </View>
 
-        {/* Product card (pinned) */}
+        {!isProfileEntry ? (
         <View style={styles.productCard}>
-          <Image
-            source={
-              conversation?.productImageUrl
-                ? { uri: conversation.productImageUrl }
-                : require('../assets/images/seller4.jpeg')
-            }
-            style={styles.productImage}
-            resizeMode="cover"
-          />
+          {conversation?.productImageUrl ? (
+            <Image
+              source={{ uri: conversation.productImageUrl }}
+              style={styles.productImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.productImage, styles.productImagePlaceholder]}>
+              <Ionicons name="image-outline" size={20} color="#9CA3AF" />
+            </View>
+          )}
           <View style={styles.productInfo}>
             <Text style={styles.productName} numberOfLines={1}>
               {conversation?.productTitle ?? "Listing"}
             </Text>
-            <Text style={styles.productPrice}>15,000 XAF</Text>
+            {productPriceLabel ? (
+              <Text style={styles.productPrice}>{productPriceLabel}</Text>
+            ) : null}
           </View>
           <TouchableOpacity style={styles.productBuyButton}>
             <Text style={styles.productBuyText}>Buy</Text>
           </TouchableOpacity>
         </View>
+        ) : null}
 
-        {/* Message list */}
-        <ScrollView
-          ref={scrollRef}
-          style={styles.messageArea}
-          contentContainerStyle={styles.messageListContent}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+        {/* Message list + input */}
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
         >
-          {messages.map(renderMessage)}
+          <ScrollView
+            ref={scrollRef}
+            style={styles.messageArea}
+            contentContainerStyle={styles.messageListContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+          >
+            {messages.map(renderMessage)}
 
-          {/* Typing indicator */}
-          {isTyping && (
-            <View style={[styles.bubbleWrap, styles.bubbleWrapReceived]}>
-              <View style={[styles.bubble, styles.bubbleReceived, styles.typingBubble]}>
-                <View style={styles.typingDots}>
-                  <View style={[styles.typingDot, styles.typingDot1]} />
-                  <View style={[styles.typingDot, styles.typingDot2]} />
-                  <View style={[styles.typingDot, styles.typingDot3]} />
+            {/* Typing indicator */}
+            {isTyping && (
+              <View style={[styles.bubbleWrap, styles.bubbleWrapReceived]}>
+                <View style={[styles.bubble, styles.bubbleReceived, styles.typingBubble]}>
+                  <View style={styles.typingDots}>
+                    <View style={[styles.typingDot, styles.typingDot1]} />
+                    <View style={[styles.typingDot, styles.typingDot2]} />
+                    <View style={[styles.typingDot, styles.typingDot3]} />
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
 
-        {/* Input bar */}
-        <View style={styles.inputBar}>
-          <TouchableOpacity style={styles.offerButton} onPress={handleMakeOffer} accessibilityRole="button" accessibilityLabel="Make a price offer">
-            <MaterialIcons name="local-offer" size={20} color="#FF2800" />
-          </TouchableOpacity>
-          <TextInput
-            style={styles.messageInput}
-            placeholder="Type a message..."
-            placeholderTextColor="#999999"
-            value={inputText}
-            onChangeText={handleInputChange}
-            multiline
-            maxLength={1000}
-            textAlignVertical="center"
-          />
-          <TouchableOpacity style={styles.inputIconButton}>
-            <MaterialIcons name="photo-library" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.inputIconButton}>
-            <MaterialIcons name="keyboard-voice" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.sendButton, inputText.trim() ? styles.sendButtonActive : null]}
-            onPress={handleSend}
-          >
-            <MaterialIcons name="send" size={22} color={inputText.trim() ? '#FF2800' : '#999999'} />
-          </TouchableOpacity>
-        </View>
-        <Animated.View style={animatedKeyboardStyle} />
+          <View style={[styles.inputBar, inputBarPadding]}>
+            <TouchableOpacity style={styles.offerButton}
+            onPress={handleMakeOffer}
+            accessibilityRole="button"
+            accessibilityLabel="Make a price offer">
+              <MaterialIcons name="local-offer" size={24} color="#FF2800" />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.messageInput}
+              placeholder="Type a message..."
+              placeholderTextColor="#999999"
+              value={inputText}
+              onChangeText={handleInputChange}
+              multiline
+              maxLength={1000}
+              textAlignVertical="center"
+            />
+            <TouchableOpacity
+              style={styles.inputIconButton}
+              onPress={() => void handlePickPhoto()}
+              disabled={sendingPhoto}
+              accessibilityRole="button"
+              accessibilityLabel="Send photo from library"
+            >
+              {sendingPhoto ? (
+                <ActivityIndicator size="small" color="#1a1a1a" />
+              ) : (
+                <MaterialIcons name="photo-library" size={24} color="#000000" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sendButton, inputText.trim() ? styles.sendButtonActive : null]}
+              onPress={handleSend}
+            >
+              <MaterialIcons name="send" size={24} color={inputText.trim() ? '#000000' : '#ffffff'} />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+
+        <Modal
+          visible={menuOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuOpen(false)}
+        >
+          <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={[styles.menuCard, { top: insets.top + 58 }]}
+            >
+              <Text style={styles.menuSectionLabel}>Actions</Text>
+              <MenuActionRow
+                iconName="person-outline"
+                label="View profile"
+                onPress={() => {
+                  setMenuOpen(false);
+                  handleViewProfilePress();
+                }}
+              />
+              <MenuActionRow
+                iconName="flag-outline"
+                label="Report user"
+                onPress={onReportPress}
+                destructive
+              />
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <ReportUserModal
+          visible={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          reasons={CHAT_REPORT_REASONS}
+          subjectLabel={peerName}
+          onSubmit={handleReportSubmit}
+        />
 
         <Modal visible={offerModalOpen} transparent animationType="fade" onRequestClose={handleCloseOfferModal}>
           <Pressable style={styles.offerModalBackdrop} onPress={handleCloseOfferModal}>
@@ -715,7 +919,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f5f5f5',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     gap: 12,
@@ -725,6 +929,10 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 8,
     backgroundColor: '#E5E7EB',
+  },
+  productImagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   productInfo: {
     flex: 1,
@@ -754,12 +962,13 @@ const styles = StyleSheet.create({
   // Messages
   messageArea: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#ffffff',
   },
   messageListContent: {
     paddingHorizontal: 12,
     paddingVertical: 16,
     paddingBottom: 24,
+    flexGrow: 1,
   },
   bubbleWrap: {
     flexDirection: 'row',
@@ -782,7 +991,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   bubbleReceived: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f5f5f5',
     borderBottomLeftRadius: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -800,6 +1009,24 @@ const styles = StyleSheet.create({
   bubbleTextReceived: {
     color: '#1a1a1a',
   },
+  imageBubble: {
+    maxWidth: '80%',
+    borderRadius: 18,
+    overflow: 'hidden',
+    padding: 4,
+  },
+  imageBubbleSent: {
+    backgroundColor: '#FF2800',
+  },
+  imageBubbleReceived: {
+    backgroundColor: '#f5f5f5',
+  },
+  imageBubblePhoto: {
+    width: 220,
+    height: 220,
+    borderRadius: 14,
+    backgroundColor: '#E5E7EB',
+  },
   bubbleFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -811,10 +1038,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   bubbleTimestampSent: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.91)',
   },
   bubbleTimestampReceived: {
-    color: '#9CA3AF',
+    color: 'rgba(0, 0, 0, 0.91)',
   },
   readIcon: {
     marginLeft: 2,
@@ -850,14 +1077,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 14,
-    paddingVertical: 35,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     backgroundColor: '#ffffff',
   },
   offerButton: {
     padding: 8,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#FFE5E5',
@@ -980,8 +1206,18 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     padding: 8,
+    backgroundColor: '#FF2800',
+    borderRadius: 20,
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  sendButtonActive: {},
+  sendButtonActive: {
+    backgroundColor: '#FF2800',
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   centered: {
     flex: 1,
     alignItems: "center",
@@ -992,4 +1228,57 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 15, color: "#B91C1C", textAlign: "center", marginBottom: 12 },
   backLink: { paddingVertical: 8, paddingHorizontal: 16 },
   backLinkText: { fontSize: 15, color: "#FF2800", fontWeight: "600" },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.18)",
+  },
+  menuCard: {
+    position: "absolute",
+    right: 12,
+    width: 260,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#E5E7EB",
+  },
+  menuSectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#94A3B8",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    paddingHorizontal: 10,
+    paddingTop: 6,
+    paddingBottom: 4,
+  },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  menuRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+  },
+  menuRowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  menuRowLabelDestructive: {
+    color: "#DC2626",
+  },
 });

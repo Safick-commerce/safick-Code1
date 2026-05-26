@@ -201,7 +201,7 @@ export default function SearchScreen() {
   const openProduct = useCallback(
     (id: string) => {
       Keyboard.dismiss();
-      router.push({ pathname: "/(tabs)/productDetails", params: { id } });
+      router.push({ pathname: "/productDetails", params: { id } });
     },
     [router]
   );

@@ -1,7 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -9,12 +8,15 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import FeedProductCard from "../../../components/shared/FeedProductCard";
+import { ProductGridSkeleton } from "../../../components/shared/ProductGridSkeleton";
 import { useAuth } from "../../../context/AuthContext";
 import { getMyProducts } from "../../../utils/productApi";
 import type { StoreProduct } from "../../../types/storeProduct";
 
 export default function MyProductsScreen() {
+  const router = useRouter();
   const { isAuthenticated, isReady: authReady } = useAuth();
   const [items, setItems] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,9 +54,9 @@ export default function MyProductsScreen() {
 
   if (!authReady) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF2800" />
-      </View>
+      <SafeAreaView style={styles.safe} edges={["bottom", "left", "right"]}>
+        <ProductGridSkeleton />
+      </SafeAreaView>
     );
   }
 
@@ -71,9 +73,7 @@ export default function MyProductsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["bottom", "left", "right"]}>
       {loading && items.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#FF2800" />
-        </View>
+        <ProductGridSkeleton />
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
@@ -93,7 +93,12 @@ export default function MyProductsScreen() {
           }
           renderItem={({ item }) => (
             <View style={styles.cell}>
-              <FeedProductCard product={item} />
+              <FeedProductCard
+                product={item}
+                onPress={() =>
+                  router.push({ pathname: "/productDetails", params: { id: item.id } })
+                }
+              />
             </View>
           )}
         />

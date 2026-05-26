@@ -13,7 +13,7 @@ type ConversationWithRelations = {
   seller_id: string;
   created_at: Date;
   last_message_at: Date | null;
-  products: { id: string; title: string; image_url: string | null };
+  products: { id: string; title: string; image_url: string | null; price: number | { toNumber(): number } };
   buyer: { id: string; display_name: string | null; full_name: string | null; username: string | null; avatar_url: string | null };
   seller: { id: string; display_name: string | null; full_name: string | null; username: string | null; avatar_url: string | null };
   messages?: { body: string; created_at: Date; sender_id: string }[];
@@ -36,6 +36,10 @@ function toConversationResponse(
     productId: row.product_id,
     productTitle: row.products.title,
     productImageUrl: row.products.image_url,
+    productPrice:
+      typeof row.products.price === "number"
+        ? row.products.price
+        : row.products.price.toNumber(),
     buyerId: row.buyer_id,
     sellerId: row.seller_id,
     peer: {
@@ -89,7 +93,7 @@ export async function openConversation(
   }
 
   const include = {
-    products: { select: { id: true, title: true, image_url: true } },
+    products: { select: { id: true, title: true, image_url: true, price: true } },
     buyer: {
       select: { id: true, display_name: true, full_name: true, username: true, avatar_url: true },
     },
@@ -133,7 +137,7 @@ export async function getConversation(
   const row = await prisma.conversations.findUnique({
     where: { id: conversationId },
     include: {
-      products: { select: { id: true, title: true, image_url: true } },
+      products: { select: { id: true, title: true, image_url: true, price: true } },
       buyer: {
         select: { id: true, display_name: true, full_name: true, username: true, avatar_url: true },
       },
@@ -156,7 +160,7 @@ export async function listConversations(userId: string): Promise<ConversationLis
     },
     orderBy: [{ last_message_at: "desc" }, { created_at: "desc" }],
     include: {
-      products: { select: { id: true, title: true, image_url: true } },
+      products: { select: { id: true, title: true, image_url: true, price: true } },
       buyer: {
         select: { id: true, display_name: true, full_name: true, username: true, avatar_url: true },
       },

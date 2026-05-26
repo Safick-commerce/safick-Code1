@@ -1,5 +1,4 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
 import React, { useState } from 'react';
 import { FontAwesome6, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +14,7 @@ type LoginscreensProps = {
 };
 
 /** App icon (same as app.json expo.icon / adaptiveIcon) — shown beside the "k" in Safick. */
-const APP_ICON = require('../../../assets/images/icons.png');
+const APP_ICON = require('../../../assets/images/safick-prlogo02.png');
 // Brand red used for buttons, active language tab, "CART" text, and "Sign In" link
 const RED = '#FF2800';
 
@@ -23,6 +22,11 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
   const router = useRouter();
   // Selected language for the pill selector; currently UI-only (English / Français)
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
+
+  const handleGetStarted =
+    onSuccess ?? (() => router.replace("/screens/onboarding/OnboardingScreen"));
+  const handleSignIn =
+    onSignInPress ?? (() => router.push("/auth/signin"));
 
   return (
     // Outer full-screen container with plain white background
@@ -68,27 +72,16 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
           {/* Main CTA: marks user as logged in and typically navigates to the main app */}
           <TouchableOpacity
             style={styles.buttonPrimary}
-            onPress={() => onSuccess?.()}
+            onPress={handleGetStarted}
             activeOpacity={0.9}
           >
             <Text style={styles.buttonPrimaryText}>Get Started</Text>
-            <FontAwesome6
-              name="arrow-right"
-              size={20}
-              color="#ffffff"
-            />
           </TouchableOpacity>
 
           {/* "I already have an account" → uses onSignInPress if provided, otherwise onSuccess */}
           <TouchableOpacity
             style={styles.signInRow}
-            onPress={() => {
-              if (onSignInPress) {
-                onSignInPress();
-                return;
-              }
-              router.push("/auth/signin");
-            }}
+            onPress={handleSignIn}
             activeOpacity={0.8}
           >
             <Text style={styles.signInPrompt}>I already have an account </Text>
@@ -173,7 +166,8 @@ const styles = StyleSheet.create({
   },
   brandAppIcon: {
     width: 200,
-    height: 200,
+    height: '23%',
+    aspectRatio: 1,
   },
   brandName: {
     fontSize: 64,

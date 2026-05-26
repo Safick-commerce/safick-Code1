@@ -1,66 +1,53 @@
 import { useEffect } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
-import { type Href, useRouter } from "expo-router";
-import LoginScreen from "./screens/loginscreens/Loginscreens";
+import { useRouter } from "expo-router";
+import Splashscreen from "./screens/Intro/splashscreen";
 import { useUserProfile } from "../context/UserProfileContext";
 import { useAuth } from "../context/AuthContext";
+import { splashDelayRemaining } from "../constants/splash";
 
+/** App entry: splash while auth/profile load, then route to the right screen. */
 export default function Index() {
   const router = useRouter();
   const { profile, isLoaded: profileLoaded } = useUserProfile();
-  const { isAuthenticated, isReady: authReady } = useAuth();
+  const { isAuthenticated, isReady: authReady, profile: authProfile } = useAuth();
 
-  const handleGetStarted = () => {
-    router.replace("/screens/onboarding/OnboardingScreen");
-  };
+  // Don't route until both auth and local profile state are ready.
+  const bootstrapped = authReady && profileLoaded;
 
-  const handleSignInPress = () => {
-    router.push("/auth/signin" as Href);
-  };
-
-  if (!authReady || !profileLoaded) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF2800" />
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <LoginScreen
-        onSuccess={handleGetStarted}
-        onSignInPress={handleSignInPress}
-        logoIconSource={require("../assets/images/safick-prlogo02.png")}
-      />
-    );
-  }
-
-  return <RedirectAfterAuth onboardingDone={profile.onboardingCompleted} />;
-}
-
-function RedirectAfterAuth({ onboardingDone }: { onboardingDone: boolean }) {
-  const router = useRouter();
   useEffect(() => {
-    if (onboardingDone) {
-      router.replace("/(tabs)");
-    } else {
-      router.replace("/screens/onboarding/OnboardingScreen");
-    }
-  }, [router, onboardingDone]);
+    if (!bootstrapped) return;
 
-  return (
-    <View style={styles.centered}>
-      <ActivityIndicator size="large" color="#FF2800" />
-    </View>
-  );
+    // Keep splash visible for at least the configured minimum duration.
+    const delayMs = splashDelayRemaining();
+    const timer = setTimeout(() => {
+      if (isAuthenticated) {
+        // Signed-in users go to tabs or finish onboarding first.
+        const onboardingDone =
+          profile.onboardingCompleted || authProfile?.onboarding_completed === true;
+        router.replace(
+          onboardingDone ? "/(tabs)" : "/screens/onboarding/OnboardingScreen",
+        );
+        return;
+      }
+
+      // Guest who already completed onboarding can browse without signing in.
+      if (profile.isGuestUser && profile.onboardingCompleted) {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      router.replace("/screens/loginscreens/Loginscreens");
+    }, delayMs);
+
+    return () => clearTimeout(timer);
+  }, [
+    bootstrapped,
+    isAuthenticated,
+    profile.isGuestUser,
+    profile.onboardingCompleted,
+    authProfile?.onboarding_completed,
+    router,
+  ]);
+
+  return <Splashscreen />;
 }
-
-const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-  },
-});
