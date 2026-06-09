@@ -1,3 +1,4 @@
+import { registerGlobals } from "@livekit/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as ExpoSplashScreen from "expo-splash-screen";
@@ -14,8 +15,11 @@ import { MessageProvider } from "../context/MessageContext";
 import { UserProfileProvider, useUserProfile } from "../context/UserProfileContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { SocketProvider } from "../context/SocketContext";
+import { LanguageProvider } from "../context/LanguageContext";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 import Splashscreen from "./screens/Intro/splashscreen";
+
+registerGlobals();
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -46,16 +50,17 @@ function BootstrapGate({ children }: { children: ReactNode }) {
 
 function AppTree() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <UserProfileProvider>
-          <BootstrapGate>
-            <MessageProvider>
-              <KeyboardProvider>
-                <WishlistProvider>
-                  <AuthGate />
-                  <StatusBar style="dark" />
-                  <Stack
+    <LanguageProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <UserProfileProvider>
+            <BootstrapGate>
+              <MessageProvider>
+                <KeyboardProvider>
+                  <WishlistProvider>
+                    <AuthGate />
+                    <StatusBar style="dark" />
+                    <Stack
                     screenOptions={{
                       headerShown: false,
                       contentStyle: {
@@ -86,14 +91,16 @@ function AppTree() {
                       }}
                     />
                     <Stack.Screen name="discover-category" />
+                    <Stack.Screen name="language" />
                   </Stack>
-                </WishlistProvider>
-              </KeyboardProvider>
-            </MessageProvider>
-          </BootstrapGate>
-        </UserProfileProvider>
-      </SocketProvider>
-    </AuthProvider>
+                  </WishlistProvider>
+                </KeyboardProvider>
+              </MessageProvider>
+            </BootstrapGate>
+          </UserProfileProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 
@@ -111,7 +118,9 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return (
       <SafeAreaProvider>
-        <Splashscreen />
+        <LanguageProvider>
+          <Splashscreen />
+        </LanguageProvider>
       </SafeAreaProvider>
     );
   }

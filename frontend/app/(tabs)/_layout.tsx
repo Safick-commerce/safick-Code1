@@ -4,6 +4,7 @@ import { Tabs } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useLanguage } from "../../context/LanguageContext";
 
 function HapticTabBarButton(props: BottomTabBarButtonProps) {
   return (
@@ -20,6 +21,8 @@ function HapticTabBarButton(props: BottomTabBarButtonProps) {
 }
 
 export default function TabsLayout() {
+  const { t } = useLanguage();
+
   return (
     <Tabs
       screenOptions={{
@@ -45,7 +48,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: t("tabs_home"),
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons 
             name={focused ? "home" : "home-variant-outline"} 
@@ -56,7 +59,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="categories"
         options={{
-          title: "Categories",
+          title: t("tabs_categories"),
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "text-box-search" : "text-box-search-outline"}
@@ -69,7 +72,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="unbox"
         options={{
-          title: "Unbox",
+          title: t("tabs_unbox"),
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "package-variant" : "package-variant-closed"}
@@ -82,7 +85,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("tabs_profile"),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons 
             name={focused ? "person" : "person-outline"} 

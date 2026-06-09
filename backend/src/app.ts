@@ -23,6 +23,7 @@ import { getCorsOrigins } from "./config/cors";
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import conversationRoutes from "./routes/conversation.routes";
+import liveRoutes from "./routes/live.routes";
 
 // Error handler (must be registered last)
 import { errorHandler } from "./middleware/errorHandler";
@@ -112,6 +113,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/conversations", conversationRoutes);
+app.use("/api/live", liveRoutes);
 
 // =============================================================================
 // 404 Handler — for routes that don't match anything above

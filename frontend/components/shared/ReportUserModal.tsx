@@ -9,11 +9,13 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useLanguage } from "../../context/LanguageContext";
+import type { TranslationKey } from "../../i18n/types";
 
 type ReportUserModalProps = {
   visible: boolean;
   onClose: () => void;
-  reasons: readonly string[];
+  reasons: readonly TranslationKey[];
   subjectLabel?: string;
   onSubmit?: (reason: string) => void | Promise<void>;
 };
@@ -22,24 +24,24 @@ export function ReportUserModal({
   visible,
   onClose,
   reasons,
-  subjectLabel = "this user",
+  subjectLabel,
   onSubmit,
 }: ReportUserModalProps) {
-  const handleSelect = (reason: string) => {
+  const { t } = useLanguage();
+
+  const handleSelect = (reasonKey: TranslationKey) => {
+    const reasonLabel = t(reasonKey);
     void (async () => {
       try {
         if (onSubmit) {
-          await onSubmit(reason);
+          await onSubmit(reasonLabel);
         }
         onClose();
-        Alert.alert(
-          "Report submitted",
-          `Thanks — we received your report about ${subjectLabel}. Our team will review it.`,
-        );
+        Alert.alert(t("report_submitted_title"), t("report_thanks_body"));
       } catch (error) {
         Alert.alert(
-          "Could not submit report",
-          error instanceof Error ? error.message : "Please try again later.",
+          t("report_failed_title"),
+          error instanceof Error ? error.message : t("report_error_body"),
         );
       }
     })();
@@ -49,23 +51,23 @@ export function ReportUserModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.title}>Report user</Text>
-          <Text style={styles.subtitle}>Select a reason for reporting {subjectLabel}</Text>
+          <Text style={styles.title}>{t("report_title")}</Text>
+          <Text style={styles.subtitle}>{t("report_subtitle")}</Text>
           <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
-            {reasons.map((reason) => (
+            {reasons.map((reasonKey) => (
               <TouchableOpacity
-                key={reason}
+                key={reasonKey}
                 style={styles.row}
-                onPress={() => handleSelect(reason)}
+                onPress={() => handleSelect(reasonKey)}
                 accessibilityRole="button"
               >
-                <Text style={styles.rowLabel}>{reason}</Text>
+                <Text style={styles.rowLabel}>{t(reasonKey)}</Text>
                 <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
               </TouchableOpacity>
             ))}
           </ScrollView>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose} accessibilityRole="button">
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{t("common_cancel")}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

@@ -503,9 +503,39 @@ model products {
   image_url     String?
   seller_id     String?         @db.Uuid
   created_at    DateTime?       @default(now()) @db.Timestamp(6)
+  category      String?
+  video_url     String?
+  thumbnail_url String?
+  media_status  String          @default("ready")
   conversations conversations[]
+  live_events   live_events[]
+  order_items   order_items[]
+  product_views product_views[]
   profiles      profiles?       @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@index([category], where: raw("(category IS NOT NULL)"))
+  @@index([created_at(sort: Desc)], map: "products_for_you_feed_idx", where: raw("((video_url IS NOT NULL) AND (media_status = 'ready'::text))"))
+  @@schema("public")
+}
+
+model live_events {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seller_id         String            @db.Uuid
+  product_id        String?           @db.Uuid
+  title             String
+  category          String?
+  audience          String            @default("public")
+  status            live_event_status @default(scheduled)
+  livekit_room_name String            @unique
+  playback_url      String?
+  viewer_count      Int               @default(0)
+  started_at        DateTime?         @db.Timestamptz(6)
+  ended_at          DateTime?         @db.Timestamptz(6)
+  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  products          products?         @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  profiles          profiles          @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([status, started_at(sort: Desc)], map: "live_events_status_started_idx")
   @@schema("public")
 }
 
@@ -520,6 +550,7 @@ model conversations {
   products        products   @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   seller          profiles   @relation("conversation_seller", fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   messages        messages[]
+  orders          orders[]
 
   @@unique([product_id, buyer_id], map: "conversations_product_buyer_unique")
   @@index([buyer_id, last_message_at(sort: Desc)], map: "conversations_buyer_last_message_idx")
@@ -535,10 +566,13 @@ model messages {
   message_type    String        @default("text")
   created_at      DateTime      @default(now()) @db.Timestamptz(6)
   read_at         DateTime?     @db.Timestamptz(6)
+  order_id        String?       @db.Uuid
   conversations   conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  orders          orders?       @relation(fields: [order_id], references: [id], onUpdate: NoAction)
   sender          profiles      @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([conversation_id, created_at(sort: Desc)], map: "messages_conversation_created_idx")
+  @@index([order_id], map: "messages_order_idx")
   @@schema("public")
 }
 
@@ -560,11 +594,160 @@ model profiles {
   bio                     String?
   phone                   String?
   cover_image_url         String?
+  payout_momo_number      String?
+  payout_momo_operator    String?
+  payout_bank_account     Json?
+  addresses               addresses[]
+  checkouts               checkouts[]
   conversations_as_buyer  conversations[] @relation("conversation_buyer")
   conversations_as_seller conversations[] @relation("conversation_seller")
+  live_events             live_events[]
   messages_sent           messages[]
+  orders                  orders[]
+  payouts                 payouts[]
+  product_views           product_views[]
   products                products[]
   users                   users           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model addresses {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buyer_id       String      @db.Uuid
+  recipient_name String
+  phone          String
+  city           String
+  neighborhood   String
+  landmark       String?
+  notes          String?
+  is_default     Boolean     @default(false)
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime    @default(now()) @db.Timestamptz(6)
+  profiles       profiles    @relation(fields: [buyer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  checkouts      checkouts[]
+
+  @@index([buyer_id, is_default], map: "addresses_buyer_default_idx")
+  @@index([buyer_id], map: "addresses_buyer_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model checkouts {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buyer_id             String    @db.Uuid
+  address_id           String    @db.Uuid
+  payment_method       String
+  payer_phone          String?
+  total_xaf            Decimal   @db.Decimal(12, 0)
+  maviance_service_id  String?
+  maviance_ptn         String?   @unique
+  maviance_payment_ref String    @unique
+  status               String    @default("pending_payment")
+  failure_reason       String?
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @db.Timestamptz(6)
+  paid_at              DateTime? @db.Timestamptz(6)
+  addresses            addresses @relation(fields: [address_id], references: [id], onUpdate: NoAction)
+  profiles             profiles  @relation(fields: [buyer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  orders               orders[]
+
+  @@index([buyer_id, status], map: "checkouts_buyer_status_idx")
+  @@index([status, created_at], map: "checkouts_status_created_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model order_items {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id           String   @db.Uuid
+  product_id         String   @db.Uuid
+  quantity           Int      @default(1)
+  unit_price_xaf     Decimal  @db.Decimal(12, 0)
+  title_snapshot     String
+  image_url_snapshot String?
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  orders             orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products           products @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+
+  @@index([order_id], map: "order_items_order_idx")
+  @@index([product_id], map: "order_items_product_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model orders {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checkout_id     String         @db.Uuid
+  seller_id       String         @db.Uuid
+  subtotal_xaf    Decimal        @db.Decimal(12, 0)
+  status          String         @default("pending_payment")
+  conversation_id String?        @db.Uuid
+  auto_release_at DateTime?      @db.Timestamptz(6)
+  completed_at    DateTime?      @db.Timestamptz(6)
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime       @default(now()) @db.Timestamptz(6)
+  messages        messages[]
+  order_items     order_items[]
+  checkouts       checkouts      @relation(fields: [checkout_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conversations   conversations? @relation(fields: [conversation_id], references: [id], onUpdate: NoAction)
+  profiles        profiles       @relation(fields: [seller_id], references: [id], onUpdate: NoAction)
+  payouts         payouts[]
+
+  @@index([checkout_id], map: "orders_checkout_idx")
+  @@index([seller_id, status], map: "orders_seller_status_idx")
+  @@index([status, auto_release_at], map: "orders_status_release_idx")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payouts {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id                  String    @db.Uuid
+  seller_id                 String    @db.Uuid
+  amount_xaf                Decimal   @db.Decimal(12, 0)
+  destination               Json
+  maviance_disbursement_ref String    @unique
+  maviance_ptn              String?
+  maviance_service_id       String?
+  status                    String    @default("queued")
+  failure_reason            String?
+  retry_count               Int       @default(0)
+  created_at                DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime  @default(now()) @db.Timestamptz(6)
+  paid_at                   DateTime? @db.Timestamptz(6)
+  orders                    orders    @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles                  profiles  @relation(fields: [seller_id], references: [id], onUpdate: NoAction)
+
+  @@index([status, retry_count], map: "payouts_failed_retry_idx")
+  @@index([order_id], map: "payouts_order_idx")
+  @@index([seller_id, status], map: "payouts_seller_status_idx")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model product_views {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id String    @db.Uuid
+  viewer_id  String?   @db.Uuid
+  client_id  String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  products   products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles   profiles? @relation(fields: [viewer_id], references: [id], onUpdate: NoAction)
+
+  @@index([client_id, product_id, created_at(sort: Desc)], map: "product_views_client_product_created_at_idx", where: raw("(client_id IS NOT NULL)"))
+  @@index([product_id, created_at(sort: Desc)])
+  @@index([viewer_id, product_id, created_at(sort: Desc)], map: "product_views_viewer_product_created_at_idx", where: raw("(viewer_id IS NOT NULL)"))
+  @@schema("public")
+}
+
+enum live_event_status {
+  scheduled
+  live
+  ended
 
   @@schema("public")
 }

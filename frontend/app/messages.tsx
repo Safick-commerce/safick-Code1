@@ -20,6 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
 import { syncConversationRooms, subscribeToMessages } from "../lib/socket";
 import { ProfileAvatar } from "../components/shared/ProfileAvatar";
+import { useLanguage } from "../context/LanguageContext";
 
 const STATUS_COLORS: Record<string, string> = {
   online: "#22C55E",
@@ -51,6 +52,7 @@ function MenuActionRow({
 export default function MessageScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const { isAuthenticated, isReady, user, profile } = useAuth();
   const { isConnected } = useSocket();
   const [apiConversations, setApiConversations] = useState<ConversationSummary[]>([]);
@@ -94,11 +96,11 @@ export default function MessageScreen() {
         void syncConversationRooms(rows.map((c) => c.id));
       }
     } catch (error) {
-      setFetchError(error instanceof Error ? error.message : "Could not load messages");
+      setFetchError(error instanceof Error ? error.message : t("messages_load_error"));
     } finally {
       setLoading(false);
     }
-  }, [isReady, isAuthenticated, isConnected]);
+  }, [isReady, isAuthenticated, isConnected, t]);
 
   const loadConversationsRef = useRef(loadConversations);
   loadConversationsRef.current = loadConversations;
@@ -145,12 +147,12 @@ export default function MessageScreen() {
       isReservation: Boolean(currentUserId && c.sellerId === currentUserId),
       seller: {
         name: c.peer.displayName,
-        message: c.lastMessage?.body ?? `About ${c.productTitle}`,
+        message: c.lastMessage?.body ?? t("messages_about_listing", { title: c.productTitle }),
         avatarUrl: c.peer.avatarUrl,
         status: "online" as const,
       },
     }));
-  }, [apiConversations, currentUserId]);
+  }, [apiConversations, currentUserId, t]);
 
   const displayItems = conversationRows;
 
@@ -168,11 +170,9 @@ export default function MessageScreen() {
 
   /** The title and subtitle of the empty state */
   const emptyTitle =
-    filter === "reservation" ? "No reservations yet" : "No messages yet";
+    filter === "reservation" ? t("messages_no_reservations") : t("messages_no_messages");
   const emptySubtitle =
-    filter === "reservation"
-      ? "Buyers who reserve your products from live streams will appear here."
-      : "Start a live streams.";
+    filter === "reservation" ? t("messages_reservation_hint") : t("messages_empty_hint");
 
   const exitSelectionMode = useCallback(() => {
     setSelectionMode(false);
@@ -220,8 +220,12 @@ export default function MessageScreen() {
           onPress={() => handleConversationPress(item)}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel={`${item.seller.name}. ${isSelected ? "Selected." : "Not selected."}`}
-          accessibilityHint={selectionMode ? "Double tap to toggle selection" : "Opens conversation"}
+          accessibilityLabel={
+            isSelected
+              ? t("a11y_conversation_selected", { name: item.seller.name })
+              : t("a11y_conversation_not_selected", { name: item.seller.name })
+          }
+          accessibilityHint={selectionMode ? t("a11y_toggle_selection") : t("a11y_opens_conversation")}
         >
           {selectionMode ? (
             <View style={styles.selectIndicator}>
@@ -262,17 +266,21 @@ export default function MessageScreen() {
       <View style={styles.header}>
         <View style={styles.leftSection}>
           {selectionMode ? (
-            <TouchableOpacity onPress={exitSelectionMode} style={styles.cancelHeaderButton} accessibilityRole="button" accessibilityLabel="Cancel selection">
-              <Text style={styles.cancelHeaderText}>Cancel</Text>
+            <TouchableOpacity onPress={exitSelectionMode} style={styles.cancelHeaderButton} accessibilityRole="button" accessibilityLabel={t("a11y_cancel_selection")}>
+              <Text style={styles.cancelHeaderText}>{t("common_cancel")}</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t("common_go_back")}>
               <MaterialIcons name="keyboard-arrow-left" size={37} color="#000000" />
             </TouchableOpacity>
           )}
           <View style={styles.titleBlock}>
             <Text style={styles.title} numberOfLines={1}>
-              {selectionMode ? (selectedCount > 0 ? `${selectedCount} selected` : "Select messages") : "Messages"}
+              {selectionMode
+                ? selectedCount > 0
+                  ? t("messages_selected", { count: selectedCount })
+                  : t("messages_select")
+                : t("messages_title")}
             </Text>
           </View>
         </View>
@@ -280,7 +288,7 @@ export default function MessageScreen() {
           <TouchableOpacity
             style={styles.menuButton}
             accessibilityRole="button"
-            accessibilityLabel="Message options"
+            accessibilityLabel={t("a11y_message_options")}
             onPress={() => setMenuOpen(true)}
           >
             <Ionicons name="ellipsis-vertical" size={24} color="#000000" />
@@ -295,13 +303,13 @@ export default function MessageScreen() {
         <Ionicons name="search" size={20} color="#9CA3AF" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search conversations..."
+          placeholder={t("messages_search")}
           placeholderTextColor="#9CA3AF"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 ? (
-          <TouchableOpacity onPress={() => setSearchQuery("")} accessibilityRole="button" accessibilityLabel="Clear search">
+          <TouchableOpacity onPress={() => setSearchQuery("")} accessibilityRole="button" accessibilityLabel={t("common_clear_search")}>
             <Ionicons name="close-circle" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         ) : null}
@@ -314,7 +322,7 @@ export default function MessageScreen() {
           onPress={() => setFilter("all")}
           activeOpacity={0.7}
         >
-          <Text style={[styles.filterButtonText, filter === "all" && styles.filterButtonTextActive]}>All</Text>
+          <Text style={[styles.filterButtonText, filter === "all" && styles.filterButtonTextActive]}>{t("common_all")}</Text>
         </TouchableOpacity>
         {canViewReservations ? (
           <TouchableOpacity
@@ -323,7 +331,7 @@ export default function MessageScreen() {
             activeOpacity={0.7}
           >
             <Text style={[styles.filterButtonText, filter === "reservation" && styles.filterButtonTextActive]}>
-              Reservation
+              {t("messages_reservation")}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -335,10 +343,10 @@ export default function MessageScreen() {
         </View>
       ) : fetchError && displayItems.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>Could not load messages</Text>
+          <Text style={styles.emptyTitle}>{t("messages_load_error")}</Text>
           <Text style={styles.emptySubtitle}>{fetchError}</Text>
           <TouchableOpacity style={styles.findButton} onPress={() => void loadConversations()}>
-            <Text style={styles.findButtonText}>Try again</Text>
+            <Text style={styles.findButtonText}>{t("common_try_again")}</Text>
           </TouchableOpacity>
         </View>
       ) : filteredConversations.length === 0 ? (
@@ -346,7 +354,7 @@ export default function MessageScreen() {
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
           <Text style={styles.emptySubtitle}>{emptySubtitle}</Text>
           <TouchableOpacity style={styles.findButton} onPress={() => router.push("/golive")}>
-            <Text style={styles.findButtonText}>start a live stream</Text>
+            <Text style={styles.findButtonText}>{t("messages_start_live")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -369,8 +377,8 @@ export default function MessageScreen() {
             onPress={(e) => e.stopPropagation()}
             style={[styles.menuCard, { top: insets.top + 52 }]}
           >
-            <Text style={styles.menuSectionLabel}>Actions</Text>
-            <MenuActionRow iconName="checkbox-outline" label="Select conversations" onPress={onOpenSelectFromMenu} />
+            <Text style={styles.menuSectionLabel}>{t("common_actions")}</Text>
+            <MenuActionRow iconName="checkbox-outline" label={t("messages_select_conversations")} onPress={onOpenSelectFromMenu} />
           </Pressable>
         </Pressable>
       </Modal>

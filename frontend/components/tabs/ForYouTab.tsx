@@ -8,6 +8,7 @@ import { ForYouFeedSkeleton } from "../shared/ForYouFeedSkeleton";
 import { useAuth } from "../../context/AuthContext";
 import { getAllProducts, getProductById, type ProductDetail } from "../../utils/productApi";
 import { formatPriceXaf } from "../../utils/searchApi";
+import { useLanguage } from "../../context/LanguageContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FALLBACK_BG = require("../../assets/images/seller4.jpeg");
@@ -19,15 +20,16 @@ const ROUTES = {
   USER_TAB: "/userTab",
 } as const;
 
-function sellerLabel(detail: ProductDetail): string {
+function sellerLabel(detail: ProductDetail, sellerFallback: string): string {
   return (
     detail.seller?.display_name?.trim() ||
     detail.seller?.full_name?.trim() ||
-    (detail.seller?.username ? `@${detail.seller.username}` : "Seller")
+    (detail.seller?.username ? `@${detail.seller.username}` : sellerFallback)
   );
 }
 
 export default function ForYouTab() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -68,7 +70,7 @@ export default function ForYouTab() {
   const handleBuyPress = useCallback(() => {
     try {
       if (!feedProduct) {
-        Alert.alert("No listings yet", "Check back soon or browse search for products.");
+        Alert.alert(t("home_no_listings_title"), t("home_no_listings_body"));
         return;
       }
       if (isAuthenticated) {
@@ -82,12 +84,12 @@ export default function ForYouTab() {
     } catch (error) {
       console.error("Navigation error:", error);
     }
-  }, [feedProduct, isAuthenticated, openProductDetails, router]);
+  }, [feedProduct, isAuthenticated, openProductDetails, router, t]);
 
   const handleUserProfilePress = useCallback(() => {
     const sellerId = feedProduct?.seller_id ?? feedProduct?.seller?.id;
     if (!sellerId) {
-      Alert.alert("Seller profile", "No seller profile is linked to this listing yet.");
+      Alert.alert(t("alert_seller_profile_title"), t("alert_seller_profile_body"));
       return;
     }
     try {
@@ -95,7 +97,7 @@ export default function ForYouTab() {
     } catch (error) {
       console.error("Navigation error:", error);
     }
-  }, [feedProduct, router]);
+  }, [feedProduct, router, t]);
 
   const heroImage =
     feedProduct?.image_url?.trim()
@@ -112,11 +114,11 @@ export default function ForYouTab() {
         name: feedProduct.title,
         price: formatPriceXaf(feedProduct.price),
       }
-    : { name: "Browse listings", price: "—" };
+    : { name: t("home_browse_listings"), price: "—" };
 
   const locationLabel = feedProduct?.seller?.city?.trim()
     ? feedProduct.seller.city.trim()
-    : "Cameroon";
+    : t("home_country_cameroon");
 
   if (feedLoading) {
     return <ForYouFeedSkeleton />;
@@ -135,7 +137,7 @@ export default function ForYouTab() {
           onPress={handleUserProfilePress}
           activeOpacity={0.8}
         >
-          <Text style={styles.username}>{feedProduct ? sellerLabel(feedProduct) : "Safick Seller"}</Text>
+          <Text style={styles.username}>{feedProduct ? sellerLabel(feedProduct, t("common_seller")) : t("home_safick_seller")}</Text>
           <View style={styles.locationRow}>
             <EvilIcons name="location" size={16} color="#FFFFFF" />
             <Text style={styles.locationText}>{locationLabel}</Text>
@@ -143,7 +145,7 @@ export default function ForYouTab() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.followButton} onPress={() => setIsFollowing(!isFollowing)}>
           <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-            {isFollowing ? "Following" : "Follow"}
+            {isFollowing ? t("common_following") : t("common_follow")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -156,8 +158,7 @@ export default function ForYouTab() {
 
       <View style={styles.userInfoContainer}>
         <Text style={styles.productDescription}>
-          {feedProduct?.description?.trim() ||
-            "Discover trusted sellers and shop with people you can follow on Safick."}
+          {feedProduct?.description?.trim() || t("home_discover_sellers")}
         </Text>
       </View>
 

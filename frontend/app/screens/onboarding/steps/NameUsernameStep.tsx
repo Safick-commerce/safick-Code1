@@ -5,6 +5,7 @@
 import { FontAwesome6, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useLanguage } from "../../../../context/LanguageContext";
 import { supabase } from "../../../../lib/supabase";
 
 const RED = "#FF2800";
@@ -54,6 +55,7 @@ export default function NameUsernameStep({
   onAgreeChange,
   onUsernameAvailable,
 }: NameUsernameStepProps) {
+  const { t } = useLanguage();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [phone, setPhone] = useState("+237");
 
@@ -144,15 +146,15 @@ export default function NameUsernameStep({
       keyboardShouldPersistTaps="handled"
     >
       {/* -------- Header -------- */}
-      <Text style={styles.heading}>Create your account</Text>
-      <Text style={styles.subheading}>{"Let's get you set up on safick"}</Text>
+      <Text style={styles.heading}>{t("account_create_heading")}</Text>
+      <Text style={styles.subheading}>{t("account_create_subheading")}</Text>
 
       {/* -------- Full Name -------- */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Full Name</Text>
+        <Text style={styles.label}>{t("account_full_name")}</Text>
         <TextInput
           style={[styles.input, touched.name && !nameValid && styles.inputError]}
-          placeholder="e.g. Brenda"
+          placeholder={t("account_name_ph")}
           placeholderTextColor="#94A3B8"
           value={name}
           onChangeText={onNameChange}
@@ -161,13 +163,13 @@ export default function NameUsernameStep({
           autoFocus
         />
         {touched.name && !nameValid && (
-          <ValidationHint valid={false} message="Name must be at least 2 characters" />
+          <ValidationHint valid={false} message={t("account_name_min")} />
         )}
       </View>
 
       {/* -------- Username -------- */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Username</Text>
+        <Text style={styles.label}>{t("account_username")}</Text>
         <View style={[
           styles.usernameRow,
           touched.username && usernameAvailable === false && styles.rowError,
@@ -176,7 +178,7 @@ export default function NameUsernameStep({
           <Text style={styles.atSymbol}>@</Text>
           <TextInput
             style={styles.usernameInput}
-            placeholder="brendastyle"
+            placeholder={t("account_username_ph")}
             placeholderTextColor="#94A3B8"
             value={username}
             onChangeText={(text) => {
@@ -203,24 +205,28 @@ export default function NameUsernameStep({
         {touched.username && username.trim().length >= 3 && !usernameChecking && (
           <ValidationHint
             valid={usernameAvailable === true}
-            message={usernameAvailable === true ? "Username is available!" : "This username is already taken"}
+            message={
+              usernameAvailable === true
+                ? t("account_username_available")
+                : t("account_username_taken")
+            }
           />
         )}
         {touched.username && username.trim().length < 3 && (
-          <ValidationHint valid={false} message="Username must be at least 3 characters" />
+          <ValidationHint valid={false} message={t("account_username_min", { min: 3 })} />
         )}
       </View>
 
       {/* -------- Email -------- */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t("account_email")}</Text>
         <TextInput
           style={[
             styles.input,
             touched.email && !emailValid && styles.inputError,
             touched.email && emailValid && styles.inputSuccess,
           ]}
-          placeholder="brenda@example.com"
+          placeholder={t("account_email_ph")}
           placeholderTextColor="#94A3B8"
           value={email}
           onChangeText={onEmailChange}
@@ -229,17 +235,14 @@ export default function NameUsernameStep({
           autoCorrect={false}
           keyboardType="email-address"
         />
-        {touched.email && (
-          <ValidationHint
-            valid={emailValid}
-            message={emailValid ? "Valid email address" : "Enter a valid email (e.g. brenda@example.com)"}
-          />
+        {touched.email && !emailValid && (
+          <ValidationHint valid={false} message={t("account_email_invalid")} />
         )}
       </View>
 
       {/* -------- Phone Number (Cameroon) -------- */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Phone Number</Text>
+        <Text style={styles.label}>{t("account_phone")}</Text>
         <View style={[
           styles.phoneRow,
           touched.phone && !phoneValid && styles.rowError,
@@ -252,7 +255,7 @@ export default function NameUsernameStep({
           <View style={styles.phoneDivider} />
           <TextInput
             style={styles.phoneInput}
-            placeholder="6XXXXXXXX"
+            placeholder={t("account_phone_ph")}
             placeholderTextColor="#94A3B8"
             value={phone.slice(4)}
             onChangeText={(text) => {
@@ -264,21 +267,18 @@ export default function NameUsernameStep({
             maxLength={9}
           />
         </View>
-        {touched.phone && (
-          <ValidationHint
-            valid={phoneValid}
-            message={phoneValid ? "Valid Cameroon number" : "Enter a valid Cameroon number (e.g. 6XXXXXXXX)"}
-          />
+        {touched.phone && !phoneValid && (
+          <ValidationHint valid={false} message={t("account_phone_invalid")} />
         )}
       </View>
 
       {/* -------- Password -------- */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Password</Text>
+        <Text style={styles.label}>{t("account_password")}</Text>
         <View style={[styles.passwordRow, touched.password && !passwordMinLength && styles.rowError]}>
           <TextInput
             style={styles.passwordInput}
-            placeholder="Create a password"
+            placeholder={t("account_password_ph")}
             placeholderTextColor="#94A3B8"
             value={password}
             onChangeText={onPasswordChange}
@@ -296,10 +296,10 @@ export default function NameUsernameStep({
         </View>
         {password.length > 0 && (
           <View style={styles.passwordHints}>
-            <ValidationHint valid={passwordMinLength} message="At least 8 characters" />
-            <ValidationHint valid={passwordHasUpper} message="At least one uppercase letter (A-Z)" />
-            <ValidationHint valid={passwordHasNumber} message="At least one number (0-9)" />
-            <ValidationHint valid={passwordHasSpecial} message="At least one special character (!@#$...)" />
+            <ValidationHint valid={passwordMinLength} message={t("account_password_min")} />
+            <ValidationHint valid={passwordHasUpper} message={t("account_password_upper")} />
+            <ValidationHint valid={passwordHasNumber} message={t("account_password_number")} />
+            <ValidationHint valid={passwordHasSpecial} message={t("account_password_special")} />
           </View>
         )}
       </View>
@@ -314,9 +314,10 @@ export default function NameUsernameStep({
           {agreedToTerms && <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />}
         </View>
         <Text style={styles.terms}>
-          By tapping sign up you agree to our{" "}
-          <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-          <Text style={styles.termsLink}>Privacy Policy</Text>.
+          {t("auth_terms_prefix")}
+          <Text style={styles.termsLink}>{t("common_terms_of_service")}</Text>
+          {t("auth_terms_and")}
+          <Text style={styles.termsLink}>{t("common_privacy_policy")}</Text>.
         </Text>
       </TouchableOpacity>
     </ScrollView>

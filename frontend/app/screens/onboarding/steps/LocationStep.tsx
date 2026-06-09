@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CAMEROON_CITIES } from "../../../../data/cameroonCities";
+import { useLanguage } from "../../../../context/LanguageContext";
 
 const RED = "#FF2800";
 
@@ -14,6 +15,7 @@ interface LocationStepProps {
 }
 
 export default function LocationStep({ city, onCityChange }: LocationStepProps) {
+  const { t } = useLanguage();
   const normalizedQuery = city.trim().toLowerCase();
 
   const filteredCities = useMemo(() => {
@@ -24,9 +26,9 @@ export default function LocationStep({ city, onCityChange }: LocationStepProps) 
   return (
     <View style={styles.container}>
       {/* -------- Header -------- */}
-      <Text style={styles.heading}>Where are you located?</Text>
+      <Text style={styles.heading}>{t("location_heading")}</Text>
       <Text style={styles.subheading}>
-        Enter your exact current location so we can show nearby sellers.
+        {t("location_subheading")}
       </Text>
 
       {/* -------- Search Input -------- */}
@@ -35,7 +37,7 @@ export default function LocationStep({ city, onCityChange }: LocationStepProps) 
         <TextInput
           value={city}
           onChangeText={onCityChange}
-          placeholder="Type your city or area"
+          placeholder={t("location_placeholder")}
           placeholderTextColor="#9CA3AF"
           autoCapitalize="words"
           style={styles.searchInput}

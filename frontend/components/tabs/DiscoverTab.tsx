@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Image
 import { useMemo, useState } from "react";
 
 import { DISCOVER_CATEGORIES, type DiscoverCategoryName } from "../../constants/categories";
+import { useLanguage } from "../../context/LanguageContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -116,6 +117,7 @@ const POPULAR_PRODUCTS: PopularProduct[] = [
 ];
 
 export default function DiscoverTab() {
+  const { t } = useLanguage();
   const [activeDiscoverCategory, setActiveDiscoverCategory] = useState<string | null>(null);
 
   const filteredProducts = useMemo(() => {
@@ -151,12 +153,12 @@ export default function DiscoverTab() {
                 onPress={() => setActiveDiscoverCategory(null)}
                 activeOpacity={0.88}
                 accessibilityRole="button"
-                accessibilityLabel="All categories"
+                accessibilityLabel={t("a11y_all_categories")}
                 accessibilityState={{ selected: activeDiscoverCategory === null }}
               >
                 <MaterialCommunityIcons name="view-grid-outline" size={28} color="#111827" />
               </TouchableOpacity>
-              <Text style={styles.circleText}>All</Text>
+              <Text style={styles.circleText}>{t("common_all")}</Text>
             </View>
             {DISCOVER_CATEGORIES.map((category) => (
               <View key={category.id} style={styles.circleContainer}>
@@ -185,9 +187,9 @@ export default function DiscoverTab() {
         
           <View style={styles.titleRow}>
             <View style={styles.titleContainer}>
-              <Text style={styles.popularText}>Popular Now</Text>
+              <Text style={styles.popularText}>{t("discover_popular_now")}</Text>
               <Text style={styles.recommendedSubText}>
-                {activeDiscoverCategory ? `${activeDiscoverCategory} ` : "Recommended For You"}
+                {activeDiscoverCategory ? `${activeDiscoverCategory} ` : t("discover_recommended")}
               </Text>
             </View>
           </View>
@@ -196,9 +198,9 @@ export default function DiscoverTab() {
         {filteredProducts.length === 0 ? (
           <View style={styles.emptyCategoryWrap}>
             <Text style={styles.emptyCategoryTitle}>
-              No picks in {activeDiscoverCategory} right now
+              {t("home_no_picks", { category: activeDiscoverCategory ?? "" })}
             </Text>
-            <Text style={styles.emptyCategorySub}>Try another category or view All.</Text>
+            <Text style={styles.emptyCategorySub}>{t("home_try_another_category")}</Text>
           </View>
         ) : (
           popularRows.map((row, rowIndex) => (

@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useWishlist } from "../context/WishlistContext";
 import { useMessage } from "../context/MessageContext";
 import { useCallback } from "react";
+import { useLanguage } from "../context/LanguageContext";
 
 function avatarUrlFromImage(image: ImageSourcePropType): string | null {
   if (typeof image === "object" && image !== null && "uri" in image) {
@@ -15,6 +16,7 @@ function avatarUrlFromImage(image: ImageSourcePropType): string | null {
 }
 
 export default function WishlistScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { wishlistItems, removeFromWishlist, clearWishlist, getWishlistCount } = useWishlist();
   const { addToMessage } = useMessage();
@@ -24,8 +26,8 @@ export default function WishlistScreen() {
       addToMessage({
         id: `seller-${item.id}`,
         seller: {
-          name: item.sellerName ?? "Seller",
-          message: "Tap to start chatting",
+          name: item.sellerName ?? t("common_seller"),
+          message: t("wishlist_chat_prefill"),
           avatarUrl: avatarUrlFromImage(item.image),
           status: "online",
         },
@@ -34,7 +36,7 @@ export default function WishlistScreen() {
     } catch (error) {
       console.error("Navigation error:", error);
     }
-  }, [router, addToMessage]);
+  }, [router, addToMessage, t]);
 
   const handleProductPress = useCallback((id: string) => {
     try {
@@ -51,11 +53,11 @@ export default function WishlistScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="keyboard-arrow-left" size={32} color="#000000" />
         </TouchableOpacity>
-        <Text style={styles.title}>Saved ({getWishlistCount()})</Text>
+        <Text style={styles.title}>{t("wishlist_title", { count: getWishlistCount() })}</Text>
         <View style={styles.rightAction}>
           {wishlistItems.length > 0 && (
             <TouchableOpacity onPress={clearWishlist}>
-              <Text style={styles.clearText}>Clear all</Text>
+              <Text style={styles.clearText}>{t("wishlist_clear")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -64,15 +66,15 @@ export default function WishlistScreen() {
       {wishlistItems.length === 0 ? (
         /* Empty State */
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No saved items yet</Text>
+          <Text style={styles.emptyTitle}>{t("wishlist_empty_title")}</Text>
           <Text style={styles.emptySubtitle}>
-            Tap the heart icon on products you like to save them here
+            {t("wishlist_empty_body")}
           </Text>
           <TouchableOpacity
             style={styles.browseButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.browseButtonText}>Browse Products</Text>
+            <Text style={styles.browseButtonText}>{t("wishlist_browse")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -98,7 +100,7 @@ export default function WishlistScreen() {
                   <Text style={styles.itemOriginalPrice}>{item.originalPrice}</Text>
                 )}
                 {item.sellerName && (
-                  <Text style={styles.sellerName}>by {item.sellerName}</Text>
+                  <Text style={styles.sellerName}>{t("wishlist_by_seller", { name: item.sellerName })}</Text>
                 )}
 
                 {/* Action: Message Seller */}
@@ -107,7 +109,7 @@ export default function WishlistScreen() {
                   onPress={() => handleMessageSeller(item)}
                 >
                   <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.messageButtonText}>Message Seller</Text>
+                  <Text style={styles.messageButtonText}>{t("wishlist_message_seller")}</Text>
                 </TouchableOpacity>
               </View>
 

@@ -3,6 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useLanguage } from "../../context/LanguageContext";
 
 // Route constants for security
 const ROUTES = {
@@ -56,6 +57,7 @@ const FEATURED_CATEGORIES = [
 ] as const;
 
 export default function CategoriesScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
@@ -100,16 +102,16 @@ export default function CategoriesScreen() {
               onPress={handleSearchPress}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Search categories"
+              accessibilityLabel={t("a11y_search_categories")}
             >
               <Ionicons name="search" size={26} color="#000000" />
               <Text style={styles.searchPlaceholder} numberOfLines={1}>
-                Search categories...
+                {t("categories_search_placeholder")}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleCameraPress}
-              accessibilityLabel="Camera"
+              accessibilityLabel={t("a11y_camera")}
               accessibilityRole="button"
             >
               <Ionicons name="camera-outline" size={30} color="#000000" />
@@ -120,7 +122,7 @@ export default function CategoriesScreen() {
           <View style={styles.iconcontainer}>
             <TouchableOpacity
               onPress={handleHeartPress}
-              accessibilityLabel="Heart"
+              accessibilityLabel={t("a11y_wishlist")}
               accessibilityRole="button"
             >
               <MaterialCommunityIcons name="heart-box-outline" size={35} color="#000000" />
@@ -135,10 +137,10 @@ export default function CategoriesScreen() {
         {/* Title Row */}
         <View style={styles.titleRow}>
           <Text style={styles.titleText}>
-            Featured
+            {t("categories_featured")}
           </Text>
           <Text style={[styles.titleText, styles.shopByCategoryText]}>
-            Shop by Category
+            {t("categories_shop_by")}
           </Text>
         </View>
       </View>

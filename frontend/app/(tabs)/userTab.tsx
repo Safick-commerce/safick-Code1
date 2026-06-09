@@ -19,18 +19,29 @@ import { useUserProfile } from "../../context/UserProfileContext";
 import { fetchProfileById, type ProfileRow } from "../../utils/fetchProfile";
 import { ReportUserModal } from "../../components/shared/ReportUserModal";
 import { PROFILE_REPORT_REASONS } from "../../constants/reportReasons";
+import { useLanguage } from "../../context/LanguageContext";
+import type { TranslationKey } from "../../i18n/types";
 import type { ComponentProps } from "react";
 
 const ROUTES = {
   EDIT_PROFILE: "/edit_profile",
 } as const;
 
-const PRIVATE_TABS = ["Posts", "Shop", "Reviews", "Collections", "Likes"] as const;
-const PUBLIC_TABS = ["Clips", "Shop", "Reviews"] as const;
+const PRIVATE_TAB_IDS = ["posts", "shop", "reviews", "collections", "likes"] as const;
+const PUBLIC_TAB_IDS = ["clips", "shop", "reviews"] as const;
 
-type PrivateTab = (typeof PRIVATE_TABS)[number];
-type PublicTab = (typeof PUBLIC_TABS)[number];
-type ProfileTab = PrivateTab | PublicTab;
+type PrivateTabId = (typeof PRIVATE_TAB_IDS)[number];
+type PublicTabId = (typeof PUBLIC_TAB_IDS)[number];
+type ProfileTabId = PrivateTabId | PublicTabId;
+
+const TAB_LABEL_KEYS: Record<ProfileTabId, TranslationKey> = {
+  posts: "user_profile_posts",
+  shop: "user_profile_shop",
+  reviews: "user_profile_reviews",
+  collections: "user_profile_collections",
+  likes: "user_profile_likes",
+  clips: "user_profile_clips",
+};
 
 /** Placeholder seller trust stats until ratings API is wired. */
 const TRUST_METRICS = {
@@ -52,20 +63,24 @@ function normalizeRouteParam(v: string | string[] | undefined): string | undefin
   return t || undefined;
 }
 
-/** `profiles.created_at` → "Joined March 2022" */
-function formatProfileJoinedAt(iso: string | null | undefined): string | null {
+/** `profiles.created_at` → localized "Joined March 2022" */
+function formatProfileJoinedAt(
+  iso: string | null | undefined,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   try {
-    const when = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    return `Joined ${when}`;
+    const when = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    return t("user_profile_joined", { date: when });
   } catch {
     return null;
   }
 }
 
 export default function UserTab() {
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string | string[] }>();
@@ -76,9 +91,9 @@ export default function UserTab() {
 
   const selfId = user?.id ?? authProfile?.id ?? null;
   const isViewingOther = Boolean(userIdFromRoute && userIdFromRoute !== selfId);
-  const profileTabs: readonly ProfileTab[] = isViewingOther ? PUBLIC_TABS : PRIVATE_TABS;
+  const profileTabs: readonly ProfileTabId[] = isViewingOther ? PUBLIC_TAB_IDS : PRIVATE_TAB_IDS;
 
-  const [activeTab, setActiveTab] = useState<ProfileTab>("Posts");
+  const [activeTab, setActiveTab] = useState<ProfileTabId>("posts");
   const [isFollowing, setIsFollowing] = useState(false);
   const [otherProfile, setOtherProfile] = useState<ProfileRow | null>(null);
   const [otherLoading, setOtherLoading] = useState(false);
@@ -132,9 +147,9 @@ function MenuActionRow({
   }, [isViewingOther, userIdFromRoute]);
 
   useEffect(() => {
-    const allowed: readonly ProfileTab[] = isViewingOther ? PUBLIC_TABS : PRIVATE_TABS;
+    const allowed: readonly ProfileTabId[] = isViewingOther ? PUBLIC_TAB_IDS : PRIVATE_TAB_IDS;
     if (!allowed.includes(activeTab)) {
-      setActiveTab(isViewingOther ? "Clips" : "Posts");
+      setActiveTab(isViewingOther ? "clips" : "posts");
     }
   }, [isViewingOther, activeTab]);
 
@@ -149,16 +164,16 @@ function MenuActionRow({
       return (
         otherProfile?.display_name ||
         otherProfile?.full_name ||
-        (otherProfile?.username ? `@${otherProfile.username}` : "Seller")
+        (otherProfile?.username ? `@${otherProfile.username}` : t("common_seller"))
       );
     }
     return (
       authProfile?.display_name ||
       authProfile?.full_name ||
       localProfile.displayName ||
-      "Your profile"
+      t("profile_your_profile")
     );
-  }, [isViewingOther, otherProfile, authProfile, localProfile.displayName]);
+  }, [isViewingOther, otherProfile, authProfile, localProfile.displayName, t]);
 
   const username = isViewingOther
     ? otherProfile?.username || ""
@@ -174,8 +189,8 @@ function MenuActionRow({
 
   const joinedLabel = useMemo(() => {
     const iso = isViewingOther ? otherProfile?.created_at : authProfile?.created_at;
-    return formatProfileJoinedAt(iso);
-  }, [isViewingOther, otherProfile?.created_at, authProfile?.created_at]);
+    return formatProfileJoinedAt(iso, t);
+  }, [isViewingOther, otherProfile?.created_at, authProfile?.created_at, t]);
 
   const locationLabel = useMemo(() => {
     if (!isViewingOther) return null;
@@ -203,12 +218,12 @@ function MenuActionRow({
       const handleBit = username.trim() ? `@${username.trim()}` : "";
       const who = handleBit ? `${displayName} (${handleBit})` : displayName;
       await Share.share({
-        message: `Check out ${who} on SAFICK!`,
+        message: t("user_profile_share_message", { name: who }),
       });
     } catch {
       // Dismissed or failed
     }
-  }, [displayName, username]);
+  }, [displayName, username, t]);
 
   const onReportPress = () => {
     setMenuOpen(false);
@@ -230,9 +245,9 @@ function MenuActionRow({
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {profileMissing ? (
         <View style={styles.missingWrap}>
-          <Text style={styles.missingTitle}>Profile not found</Text>
+          <Text style={styles.missingTitle}>{t("user_profile_not_found")}</Text>
           <TouchableOpacity style={styles.missingBack} onPress={handleBackPress} accessibilityRole="button">
-            <Text style={styles.missingBackText}>Go back</Text>
+            <Text style={styles.missingBackText}>{t("chat_go_back")}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -263,13 +278,13 @@ function MenuActionRow({
               style={styles.iconButton}
               onPress={handleShareProfile}
               accessibilityRole="button"
-              accessibilityLabel="Share profile"
+              accessibilityLabel={t("profile_share")}
             >
               <FontAwesome6 name="arrow-up-from-bracket" size={26} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton}
               accessibilityRole="button"
-              accessibilityLabel="More options"
+              accessibilityLabel={t("common_more_options")}
               onPress={() => setMenuOpen(true)}
             >
               <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />
@@ -309,17 +324,19 @@ function MenuActionRow({
             {!isViewingOther ? (
               <TouchableOpacity style={styles.editProfileButton} onPress={handleEditProfilePress}>
                 <FontAwesome6 name="pen" size={14} color="#FFFFFF" />
-                <Text style={styles.editProfileText}>Edit Profile</Text>
+                <Text style={styles.editProfileText}>{t("profile_edit_profile")}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={[styles.followButton, isFollowing && styles.followButtonActive]}
                 onPress={() => setIsFollowing((prev) => !prev)}
                 accessibilityRole="button"
-                accessibilityLabel={isFollowing ? "Unfollow seller" : "Follow seller"}
+                accessibilityLabel={isFollowing ? t("user_profile_unfollow") : t("user_profile_follow_seller")}
               >
                 <Ionicons name={isFollowing ? "checkmark" : "person-add"} size={16} color="#FFFFFF" />
-                <Text style={styles.followButtonText}>{isFollowing ? "Following" : "Follow"}</Text>
+                <Text style={styles.followButtonText}>
+                  {isFollowing ? t("common_following") : t("common_follow")}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -329,17 +346,17 @@ function MenuActionRow({
           <View style={styles.trustContainer}>
             <View style={styles.trustItem}>
               <Text style={styles.trustPercent}>{TRUST_METRICS.productSatisfaction}%</Text>
-              <Text style={styles.trustLabel}>Product{"\n"}Satisfaction</Text>
+              <Text style={styles.trustLabel}>{t("user_profile_trust_satisfaction")}</Text>
             </View>
             <View style={styles.trustDivider} />
             <View style={styles.trustItem}>
               <Text style={styles.trustPercent}>{TRUST_METRICS.replyTime}</Text>
-              <Text style={styles.trustLabel}>Response{"\n"}Time</Text>
+              <Text style={styles.trustLabel}>{t("user_profile_trust_response")}</Text>
             </View>
             <View style={styles.trustDivider} />
             <View style={styles.trustItem}>
               <Text style={styles.trustPercent}>{TRUST_METRICS.onTimeDelivery}%</Text>
-              <Text style={styles.trustLabel}>On-Time{"\n"}Delivery</Text>
+              <Text style={styles.trustLabel}>{t("user_profile_trust_delivery")}</Text>
             </View>
           </View>
         ) : null}
@@ -350,15 +367,19 @@ function MenuActionRow({
       <View style={styles.statsSection}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>42</Text>
-          <Text style={styles.statLabel}>{isViewingOther ? "Clips" : "Posts"}</Text>
+          <Text style={styles.statLabel}>
+            {isViewingOther ? t("user_profile_clips") : t("user_profile_posts")}
+          </Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>1K</Text>
-          <Text style={styles.statLabel}>Followers</Text>
+          <Text style={styles.statLabel}>{t("user_profile_followers")}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>340</Text>
-          <Text style={styles.statLabel}>{isViewingOther ? "Sold" : "Following"}</Text>
+          <Text style={styles.statLabel}>
+            {isViewingOther ? t("user_profile_sold") : t("common_following")}
+          </Text>
         </View>
       </View>
 
@@ -370,12 +391,10 @@ function MenuActionRow({
           </Text>
         ) : !isViewingOther ? (
           <TouchableOpacity onPress={handleEditProfilePress} accessibilityRole="button">
-            <Text style={styles.bioPlaceholder}>
-              Add a bio to tell people about yourself
-            </Text>
+            <Text style={styles.bioPlaceholder}>{t("user_profile_bio_add")}</Text>
           </TouchableOpacity>
         ) : (
-          <Text style={styles.bioPlaceholderMuted}>No bio yet.</Text>
+          <Text style={styles.bioPlaceholderMuted}>{t("user_profile_bio_empty")}</Text>
         )}
       </View>
 
@@ -392,7 +411,9 @@ function MenuActionRow({
               style={[styles.tab, activeTab === tab && styles.tabActive]}
               onPress={() => setActiveTab(tab)}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {t(TAB_LABEL_KEYS[tab])}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -409,11 +430,11 @@ function MenuActionRow({
               onPress={(e) => e.stopPropagation()}
               style={[styles.menuCard, { top: insets.top + 58 }]}
             >
-              <Text style={styles.menuSectionLabel}>Actions</Text>
+              <Text style={styles.menuSectionLabel}>{t("common_actions")}</Text>
               {isViewingOther ? (
                 <MenuActionRow
                   iconName="flag-outline"
-                  label="Report user"
+                  label={t("chat_report_user")}
                   onPress={onReportPress}
                   destructive
                 />
@@ -425,9 +446,10 @@ function MenuActionRow({
       {/* Main Content Area */}
       <View style={styles.content}>
         <Text style={styles.contentText}>
-          {isViewingOther
-            ? `Public ${activeTab} content will appear here`
-            : `Your ${activeTab} content will appear here`}
+          {t("user_profile_content_placeholder", {
+            owner: isViewingOther ? t("user_profile_content_public") : t("user_profile_content_your"),
+            tab: t(TAB_LABEL_KEYS[activeTab]),
+          })}
         </Text>
       </View>
         </ScrollView>

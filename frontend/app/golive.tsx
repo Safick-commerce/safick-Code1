@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,21 +12,55 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
+import { LiveKitRoom, VideoTrack, useTracks } from "@livekit/react-native";
+import { Track } from "livekit-client";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../context/UserProfileContext";
+import { useLanguage } from "../context/LanguageContext";
+import { startLiveSession, endLiveSession } from "../lib/liveApi";
+import type { TranslationKey } from "../i18n/types";
 
-type Audience = "Public" | "Followers";
+type Audience = "public" | "followers";
+
+const AUDIENCE_LABEL_KEYS: Record<Audience, TranslationKey> = {
+  public: "golive_audience_public",
+  followers: "golive_audience_followers",
+};
 type LiveCategory = "Fashion" | "Beauty" | "Electronics" | "Home" | "Lifestyle";
 type SetupTab = "setup" | "checks";
 type LiveOutcome = "idle" | "started" | "scheduled";
 
 const LIVE_CATEGORIES: LiveCategory[] = ["Fashion", "Beauty", "Electronics", "Home", "Lifestyle"];
 
+const LIVE_CATEGORY_LABEL_KEYS: Record<LiveCategory, TranslationKey> = {
+  Fashion: "cat_fashion",
+  Beauty: "cat_beauty",
+  Electronics: "cat_electronics",
+  Home: "cat_home",
+  Lifestyle: "cat_lifestyle",
+};
+
+function PublisherVideo() {
+  const tracks = useTracks([Track.Source.Camera]);
+  const videoTrack = tracks.find((track) => track.source === Track.Source.Camera);
+
+  if (!videoTrack) return null;
+
+  return (
+    <View style={StyleSheet.absoluteFillObject}>
+      <VideoTrack trackRef={videoTrack} style={{ flex: 1 }} objectFit="cover" />
+    </View>
+  );
+}
+
 export default function GoLiveScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
+  const { productId } = useLocalSearchParams<{ productId?: string | string[] }>();
+  const resolvedProductId = typeof productId === "string" ? productId : productId?.[0];
   const { isAuthenticated, isReady } = useAuth();
   const { profile, isLoaded } = useUserProfile();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -41,12 +75,18 @@ export default function GoLiveScreen() {
   const [activeTab, setActiveTab] = useState<SetupTab>("setup");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<LiveCategory | "">("");
-  const [audience, setAudience] = useState<Audience>("Public");
+  const [audience, setAudience] = useState<Audience>("public");
   const [moderateComments, setModerateComments] = useState(true);
   const [saveReplay, setSaveReplay] = useState(true);
   const [scheduledAt, setScheduledAt] = useState("");
   const [showValidation, setShowValidation] = useState(false);
   const [outcome, setOutcome] = useState<LiveOutcome>("idle");
+  const [liveSession, setLiveSession] = useState<{
+    url: string;
+    token: string;
+    liveId: string;
+  } | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const cameraReady = Boolean(cameraPermission?.granted);
   const micReady = Boolean(micPermission?.granted);
@@ -57,11 +97,11 @@ export default function GoLiveScreen() {
 
   const validationMessage = useMemo(() => {
     if (!showValidation) return "";
-    if (!setupOpenedOnce) return "Open setup first before starting or scheduling.";
-    if (!setupValid) return "Title and category are required.";
-    if (!checksReady) return "Camera, microphone, and network must all be ready.";
+    if (!setupOpenedOnce) return t("golive_validation_title");
+    if (!setupValid) return t("golive_validation_category");
+    if (!checksReady) return t("common_camera_mic_required");
     return "";
-  }, [showValidation, setupOpenedOnce, setupValid, checksReady]);
+  }, [showValidation, setupOpenedOnce, setupValid, checksReady, t]);
 
   useEffect(() => {
     if (!isReady || !isAuthenticated || !isLoaded) return;
@@ -83,11 +123,53 @@ export default function GoLiveScreen() {
     const cam = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
     const mic = micPermission?.granted ? micPermission : await requestMicPermission();
     if (!cam.granted || !mic.granted) {
-      Alert.alert("Permission needed", "Camera and microphone permissions are required.");
+      Alert.alert(t("common_permission_needed"), t("common_camera_mic_required"));
       return false;
     }
     return true;
   };
+
+  const handleEndLive = useCallback(async () => {
+    if (liveSession?.liveId) {
+      try {
+        await endLiveSession(liveSession.liveId);
+      } catch {
+        // Session may already be ended if the user disconnected abruptly.
+      }
+    }
+    setLiveSession(null);
+    setOutcome("idle");
+  }, [liveSession?.liveId]);
+
+  const handleGoLive = useCallback(async () => {
+    setShowValidation(true);
+    const ok = await ensurePermissions();
+    if (!ok || !canStartLive) return;
+
+    setStarting(true);
+    try {
+      const res = await startLiveSession({
+        title: title.trim(),
+        category: category || undefined,
+        audience,
+        productId: resolvedProductId,
+      });
+      setLiveSession({ url: res.url, token: res.token, liveId: res.liveId });
+      setOutcome("started");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("common_try_again");
+      Alert.alert(t("golive_go_live"), message || t("common_try_again"));
+    } finally {
+      setStarting(false);
+    }
+  }, [
+    audience,
+    canStartLive,
+    category,
+    resolvedProductId,
+    t,
+    title,
+  ]);
 
   if (!isReady || !isLoaded) {
     return (
@@ -97,7 +179,7 @@ export default function GoLiveScreen() {
     );
   }
   if (!isAuthenticated) {
-    return <GuestSignInPlaceholder subtitle="Sign in to start or schedule live sessions." />;
+    return <GuestSignInPlaceholder subtitle={t("guest_golive_subtitle")} />;
   }
   if (!profile.readyToSharePromptSeen || !profile.readyToShareMode) {
     return (
@@ -109,25 +191,49 @@ export default function GoLiveScreen() {
 
   return (
     <View style={styles.screen}>
-      {cameraReady ? (
+      {liveSession ? (
+        <View style={StyleSheet.absoluteFillObject}>
+          <LiveKitRoom
+            serverUrl={liveSession.url}
+            token={liveSession.token}
+            connect
+            audio
+            video
+            onDisconnected={() => {
+              void handleEndLive();
+            }}
+          >
+            <PublisherVideo />
+          </LiveKitRoom>
+        </View>
+      ) : cameraReady ? (
         <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} mode="video" mute={micMuted} />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.permissionPanel]}>
-          <Text style={styles.permissionText}>Camera and microphone access needed</Text>
+          <Text style={styles.permissionText}>{t("common_camera_mic_required")}</Text>
           <TouchableOpacity style={styles.permissionBtn} onPress={ensurePermissions}>
-            <Text style={styles.permissionBtnText}>Grant Permission</Text>
+            <Text style={styles.permissionBtnText}>{t("common_grant_permission")}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <SafeAreaView style={styles.overlay} edges={["top", "left", "right"]} pointerEvents="box-none">
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              if (liveSession) {
+                void handleEndLive().then(() => router.back());
+              } else {
+                router.back();
+              }
+            }}
+            style={styles.closeBtn}
+          >
             <Ionicons name="close" size={26} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.liveBadge}>
             <View style={styles.liveDot} />
-            <Text style={styles.liveBadgeText}>LIVE</Text>
+            <Text style={styles.liveBadgeText}>{t("common_live")}</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -135,19 +241,19 @@ export default function GoLiveScreen() {
         <View style={styles.sideControls}>
           <TouchableOpacity style={styles.sideBtn} onPress={() => setCameraFacing((p) => (p === "back" ? "front" : "back"))}>
             <Ionicons name="camera-reverse-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.sideBtnLabel}>Flip</Text>
+            <Text style={styles.sideBtnLabel}>{t("golive_flip")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.sideBtn} onPress={() => setMicMuted((v) => !v)}>
             <Ionicons name={micMuted ? "mic-off-outline" : "mic-outline"} size={22} color={micMuted ? "#FF2800" : "#FFFFFF"} />
-            <Text style={styles.sideBtnLabel}>{micMuted ? "Unmute" : "Mute"}</Text>
+            <Text style={styles.sideBtnLabel}>{micMuted ? t("golive_unmute") : t("golive_mute")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.sideBtn}>
             <Ionicons name="flash-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.sideBtnLabel}>Flash</Text>
+            <Text style={styles.sideBtnLabel}>{t("golive_flash")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.sideBtn}>
             <Ionicons name="timer-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.sideBtnLabel}>Timer</Text>
+            <Text style={styles.sideBtnLabel}>{t("golive_timer")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -174,22 +280,22 @@ export default function GoLiveScreen() {
               }}
             >
               <Ionicons name={isSheetExpanded ? "chevron-down" : "settings-outline"} size={18} color="#FFFFFF" />
-              <Text style={styles.setupBtnText}>{isSheetExpanded ? "Hide" : "Setup"}</Text>
+              <Text style={styles.setupBtnText}>{isSheetExpanded ? t("golive_hide") : t("golive_setup")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.startBtn, !canStartLive && styles.disabled]}
-              disabled={!canStartLive}
-              onPress={async () => {
-                setShowValidation(true);
-                const ok = await ensurePermissions();
-                if (!ok || !canStartLive) return;
-                setOutcome("started");
-                Alert.alert("Live started", "You are now live.");
+              style={[styles.startBtn, (!canStartLive || starting) && styles.disabled]}
+              disabled={!canStartLive || starting}
+              onPress={() => {
+                void handleGoLive();
               }}
             >
-              <View style={styles.startDot} />
-              <Text style={styles.startBtnText}>Go Live</Text>
+              {starting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <View style={styles.startDot} />
+              )}
+              <Text style={styles.startBtnText}>{t("golive_go_live")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -199,7 +305,7 @@ export default function GoLiveScreen() {
                 setShowValidation(true);
                 if (!canSchedule) return;
                 setOutcome("scheduled");
-                Alert.alert("Live scheduled", `Your live has been scheduled for ${scheduledAt}.`);
+                Alert.alert(t("golive_alert_scheduled"), scheduledAt);
               }}
             >
               <Ionicons name="calendar-outline" size={16} color="#FFFFFF" />
@@ -212,64 +318,66 @@ export default function GoLiveScreen() {
             <ScrollView style={styles.sheetContent} showsVerticalScrollIndicator={false}>
               <View style={styles.tabs}>
                 <TouchableOpacity style={[styles.tab, activeTab === "setup" && styles.tabActive]} onPress={() => setActiveTab("setup")}>
-                  <Text style={[styles.tabText, activeTab === "setup" && styles.tabTextActive]}>Setup</Text>
+                  <Text style={[styles.tabText, activeTab === "setup" && styles.tabTextActive]}>{t("golive_setup")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.tab, activeTab === "checks" && styles.tabActive]} onPress={() => setActiveTab("checks")}>
-                  <Text style={[styles.tabText, activeTab === "checks" && styles.tabTextActive]}>Checks</Text>
+                  <Text style={[styles.tabText, activeTab === "checks" && styles.tabTextActive]}>{t("golive_check_camera")}</Text>
                 </TouchableOpacity>
               </View>
 
               {activeTab === "setup" ? (
                 <View style={styles.panel}>
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Live Title</Text>
+                    <Text style={styles.fieldLabel}>{t("golive_live_title")}</Text>
                     <TextInput
                       style={styles.input}
                       value={title}
                       onChangeText={setTitle}
-                      placeholder="What's your live about?"
+                      placeholder={t("golive_placeholder_title")}
                       placeholderTextColor="#6B7280"
                     />
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Category</Text>
+                    <Text style={styles.fieldLabel}>{t("golive_category")}</Text>
                     <View style={styles.chips}>
                       {LIVE_CATEGORIES.map((item) => (
                         <TouchableOpacity key={item} style={[styles.chip, category === item && styles.chipActive]} onPress={() => setCategory(item)}>
-                          <Text style={[styles.chipText, category === item && styles.chipTextActive]}>{item}</Text>
+                          <Text style={[styles.chipText, category === item && styles.chipTextActive]}>
+                            {t(LIVE_CATEGORY_LABEL_KEYS[item])}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Audience</Text>
+                    <Text style={styles.fieldLabel}>{t("golive_audience")}</Text>
                     <View style={styles.row}>
-                      {(["Public", "Followers"] as Audience[]).map((item) => (
+                      {(["public", "followers"] as Audience[]).map((item) => (
                         <TouchableOpacity key={item} style={[styles.audience, audience === item && styles.audienceActive]} onPress={() => setAudience(item)}>
-                          <Text style={[styles.audienceText, audience === item && styles.audienceTextActive]}>{item}</Text>
+                          <Text style={[styles.audienceText, audience === item && styles.audienceTextActive]}>{t(AUDIENCE_LABEL_KEYS[item])}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
                   </View>
 
                   <View style={styles.toggleRow}>
-                    <Text style={styles.toggleLabel}>Moderate comments</Text>
+                    <Text style={styles.toggleLabel}>{t("golive_moderate_comments")}</Text>
                     <Switch value={moderateComments} onValueChange={setModerateComments} trackColor={{ true: "#FF2800" }} />
                   </View>
                   <View style={styles.toggleRow}>
-                    <Text style={styles.toggleLabel}>Save replay</Text>
+                    <Text style={styles.toggleLabel}>{t("golive_save_replay")}</Text>
                     <Switch value={saveReplay} onValueChange={setSaveReplay} trackColor={{ true: "#FF2800" }} />
                   </View>
 
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Schedule (optional)</Text>
+                    <Text style={styles.fieldLabel}>{t("golive_schedule_optional")}</Text>
                     <TextInput
                       style={styles.input}
                       value={scheduledAt}
                       onChangeText={setScheduledAt}
-                      placeholder="e.g. Tomorrow 3:00 PM"
+                      placeholder={t("golive_schedule_ph")}
                       placeholderTextColor="#6B7280"
                     />
                   </View>
@@ -279,33 +387,33 @@ export default function GoLiveScreen() {
                   <TouchableOpacity style={styles.check} onPress={requestCameraPermission}>
                     <View style={styles.checkLeft}>
                       <Ionicons name="videocam-outline" size={18} color={cameraReady ? "#15803D" : "#B91C1C"} />
-                      <Text style={styles.checkText}>Camera</Text>
+                      <Text style={styles.checkText}>{t("golive_check_camera")}</Text>
                     </View>
                     <View style={[styles.checkBadge, cameraReady ? styles.checkOk : styles.checkFail]}>
                       <Text style={[styles.checkBadgeText, cameraReady ? styles.checkOkText : styles.checkFailText]}>
-                        {cameraReady ? "Ready" : "Fix"}
+                        {cameraReady ? t("golive_ready") : t("golive_fix")}
                       </Text>
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.check} onPress={requestMicPermission}>
                     <View style={styles.checkLeft}>
                       <Ionicons name="mic-outline" size={18} color={micReady ? "#15803D" : "#B91C1C"} />
-                      <Text style={styles.checkText}>Microphone</Text>
+                      <Text style={styles.checkText}>{t("golive_check_microphone")}</Text>
                     </View>
                     <View style={[styles.checkBadge, micReady ? styles.checkOk : styles.checkFail]}>
                       <Text style={[styles.checkBadgeText, micReady ? styles.checkOkText : styles.checkFailText]}>
-                        {micReady ? "Ready" : "Fix"}
+                        {micReady ? t("golive_ready") : t("golive_fix")}
                       </Text>
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.check} onPress={() => setNetworkReady((v) => !v)}>
                     <View style={styles.checkLeft}>
                       <Ionicons name="wifi-outline" size={18} color={networkReady ? "#15803D" : "#B91C1C"} />
-                      <Text style={styles.checkText}>Network</Text>
+                      <Text style={styles.checkText}>{t("golive_check_network")}</Text>
                     </View>
                     <View style={[styles.checkBadge, networkReady ? styles.checkOk : styles.checkFail]}>
                       <Text style={[styles.checkBadgeText, networkReady ? styles.checkOkText : styles.checkFailText]}>
-                        {networkReady ? "Ready" : "Fix"}
+                        {networkReady ? t("golive_ready") : t("golive_fix")}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -315,7 +423,9 @@ export default function GoLiveScreen() {
               {outcome !== "idle" ? (
                 <View style={styles.outcome}>
                   <Ionicons name="checkmark-circle" size={18} color="#15803D" />
-                  <Text style={styles.outcomeTitle}>{outcome === "started" ? "Live session started" : "Live session scheduled"}</Text>
+                  <Text style={styles.outcomeTitle}>
+                    {outcome === "started" ? t("golive_alert_started") : t("golive_outcome_scheduled")}
+                  </Text>
                 </View>
               ) : null}
             </ScrollView>

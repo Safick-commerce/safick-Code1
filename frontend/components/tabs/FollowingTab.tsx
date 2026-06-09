@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { useLanguage } from "../../context/LanguageContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -8,13 +8,15 @@ interface FollowingTabProps {
 }
 
 export default function FollowingTab({ onDiscoverPress }: FollowingTabProps) {
+  const { t } = useLanguage();
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
 
-        <Text style={styles.title}>No posts yet</Text>
+        <Text style={styles.title}>{t("home_following_empty_title")}</Text>
         <Text style={styles.subtitle}>
-          Follow sellers to see their latest{"\n"}products and deals here
+          {t("home_following_empty_body")}
         </Text>
 
         <TouchableOpacity
@@ -22,7 +24,7 @@ export default function FollowingTab({ onDiscoverPress }: FollowingTabProps) {
           onPress={onDiscoverPress}
           activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>Discover Sellers</Text>
+          <Text style={styles.buttonText}>{t("home_discover_sellers_btn")}</Text>
         </TouchableOpacity>
       </View>
     </View>

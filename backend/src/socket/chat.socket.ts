@@ -11,6 +11,7 @@ import {
   persistConversationMessage,
   listConversationMessages,
 } from "../services/message.service";
+import { prisma } from "../config/database";
 import { parseUuid } from "../utils/uuid";
 import { conversationRoom, liveRoom } from "../utils/socketRooms";
 import type { SocketChatMessagePayload, SocketTypingPayload } from "../types/socketEvents";
@@ -149,7 +150,13 @@ export function registerChatHandlers(socket: Socket): void {
     }
 
     const { liveId } = parsed.data;
-    // TODO: verify live session exists and is active.
+    const event = await prisma.live_events.findFirst({
+      where: { id: liveId, status: "live" },
+    });
+    if (!event) {
+      ack?.({ ok: false, error: "live_not_active" });
+      return;
+    }
     await socket.join(liveRoom(liveId));
     ack?.({ ok: true, liveId });
   });

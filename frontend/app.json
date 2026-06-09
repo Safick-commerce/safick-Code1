@@ -8,7 +8,12 @@
     "scheme": "safick",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Safick uses the camera for live selling.",
+        "NSMicrophoneUsageDescription": "Safick uses the microphone for live selling."
+      },
+      "bitcode": false
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +22,26 @@
       },
       "predictiveBackGestureEnabled": false,
       "usesCleartextTraffic": true,
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.BLUETOOTH",
+        "android.permission.WAKE_LOCK",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.BLUETOOTH",
+        "android.permission.WAKE_LOCK",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "package": "com.anonymous.safick"
     },
     "web": {
       "output": "static",
@@ -44,7 +68,17 @@
         {
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos for your profile picture."
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Safick to use your camera for live selling.",
+          "microphonePermission": "Allow Safick to use your microphone for live selling.",
+          "recordAudioAndroid": true
+        }
+      ],
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc"
     ],
     "experiments": {
       "typedRoutes": true,

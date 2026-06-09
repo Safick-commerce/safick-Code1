@@ -24,6 +24,7 @@ import {
 import type { StoreProduct } from "../types/storeProduct";
 import type { LivePost } from "../types";
 import { MOCK_LIVE_POSTS } from "../data/mockLivePosts";
+import { useLanguage } from "../context/LanguageContext";
 
 const RED = "#FF2800";
 const DEBOUNCE_MS = 350;
@@ -47,15 +48,15 @@ const TRENDING_SEARCHES = [
 
 type ScopeFilter = "all" | "products" | "sellers" | "live";
 
-function sellerLabel(s: SellerPreview): string {
-  return s.display_name?.trim() || s.full_name?.trim() || (s.username ? `@${s.username}` : "Seller");
+function sellerLabel(s: SellerPreview, sellerFallback: string): string {
+  return s.display_name?.trim() || s.full_name?.trim() || (s.username ? `@${s.username}` : sellerFallback);
 }
 
 /** Location line for seller cards (Popular / search results). */
-function sellerLocationLine(s: SellerPreview): string {
+function sellerLocationLine(s: SellerPreview, locationNotSet: string): string {
   const c = s.city?.trim();
   if (c) return c;
-  return "Location not set";
+  return locationNotSet;
 }
 
 function formatViewerCount(n: number): string {
@@ -64,6 +65,7 @@ function formatViewerCount(n: number): string {
 }
 
 function LiveSearchCard({ post, onPress }: { post: LivePost; onPress: () => void }) {
+  const { t } = useLanguage();
   return (
     <Pressable
       style={styles.liveTile}
@@ -78,7 +80,7 @@ function LiveSearchCard({ post, onPress }: { post: LivePost; onPress: () => void
       />
       <View style={styles.liveBadgeRow}>
         <View style={styles.liveDot} />
-        <Text style={styles.liveBadgeText}>LIVE</Text>
+        <Text style={styles.liveBadgeText}>{t("common_live")}</Text>
       </View>
       <Text style={styles.liveSellerName} numberOfLines={1}>
         {post.sellerName}
@@ -87,7 +89,7 @@ function LiveSearchCard({ post, onPress }: { post: LivePost; onPress: () => void
         {post.description}
       </Text>
       {post.viewerCount != null ? (
-        <Text style={styles.liveViewers}>{formatViewerCount(post.viewerCount)} watching</Text>
+        <Text style={styles.liveViewers}>{t("search_watching", { count: formatViewerCount(post.viewerCount ?? 0) })}</Text>
       ) : null}
     </Pressable>
   );
@@ -101,7 +103,10 @@ function SellerAvatar({ url }: { url: string | null }) {
 }
 
 export default function SearchScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
+  const sellerFallback = t("common_seller");
+  const locationNotSet = t("search_location_not_set");
   const inputRef = useRef<TextInput>(null);
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -253,14 +258,14 @@ export default function SearchScreen() {
           <TextInput
             ref={inputRef}
             style={styles.input}
-            placeholder="Search Safick..."
+            placeholder={t("search_placeholder")}
             placeholderTextColor="rgba(0, 0, 0, 0.62)"
             value={query}
             onChangeText={setQuery}
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
-            accessibilityLabel="Search"
+            accessibilityLabel={t("common_search")}
             accessibilityRole="search"
           />
           {query.length > 0 ? (
@@ -268,7 +273,7 @@ export default function SearchScreen() {
               onPress={() => setQuery("")}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Clear search"
+              accessibilityLabel={t("common_clear_search")}
             >
               <Ionicons name="close-circle" size={22} color="#9CA3AF" />
             </Pressable>
@@ -277,14 +282,14 @@ export default function SearchScreen() {
       </View>
 
       <View style={styles.chipsRow}>
-        <Text style={styles.chipsLabel}>Show</Text>
+        <Text style={styles.chipsLabel}>{t("search_show")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
           {(
             [
-              { key: "all" as const, label: "All" },
-              { key: "products" as const, label: "Products" },
-              { key: "sellers" as const, label: "Sellers" },
-              { key: "live" as const, label: "Live" },
+              { key: "all" as const, label: t("search_scope_all") },
+              { key: "products" as const, label: t("search_scope_products") },
+              { key: "sellers" as const, label: t("search_scope_sellers") },
+              { key: "live" as const, label: t("search_scope_live") },
             ] as const
           ).map(({ key, label }) => (
             <Pressable
@@ -302,13 +307,13 @@ export default function SearchScreen() {
 
       {scope !== "sellers" && scope !== "live" && debounced.length >= MIN_QUERY_LEN ? (
         <View style={styles.sortRow}>
-          <Text style={styles.chipsLabel}>Sort (products)</Text>
+          <Text style={styles.chipsLabel}>{t("search_sort_products")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
             {(
               [
-                { key: "newest" as const, label: "Newest" },
-                { key: "price_asc" as const, label: "Price ↑" },
-                { key: "price_desc" as const, label: "Price ↓" },
+                { key: "newest" as const, label: t("search_sort_newest") },
+                { key: "price_asc" as const, label: t("search_sort_price_asc") },
+                { key: "price_desc" as const, label: t("search_sort_price_desc") },
               ] as const
             ).map(({ key, label }) => (
               <Pressable
@@ -333,8 +338,8 @@ export default function SearchScreen() {
         {showExplore ? (
           scope === "live" ? (
             <>
-              <Text style={styles.sectionTitle}>Live now</Text>
-              <Text style={styles.muted}>Preview feed (API later). Tap a card to open Unbox.</Text>
+              <Text style={styles.sectionTitle}>{t("search_live_now")}</Text>
+              <Text style={styles.muted}>{t("search_live_preview")}</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -347,7 +352,7 @@ export default function SearchScreen() {
             </>
           ) : (
           <>
-            <Text style={styles.sectionTitle}>Trending searches</Text>
+            <Text style={styles.sectionTitle}>{t("search_trending")}</Text>
             <View style={styles.trendGrid}>
               {TRENDING_SEARCHES.map((term) => (
                 <Pressable
@@ -362,11 +367,11 @@ export default function SearchScreen() {
               ))}
             </View>
 
-            <Text style={styles.sectionTitle}>Popular sellers</Text>
+            <Text style={styles.sectionTitle}>{t("search_popular_sellers")}</Text>
             {loadingDiscover ? (
               <ActivityIndicator color={RED} style={styles.blockPad} />
             ) : popular.length === 0 ? (
-              <Text style={styles.muted}>No sellers to show yet.</Text>
+              <Text style={styles.muted}>{t("search_no_sellers")}</Text>
             ) : (
               <ScrollView
                 horizontal
@@ -379,16 +384,16 @@ export default function SearchScreen() {
                     style={styles.popularSellerTile}
                     onPress={() => openSeller(s.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={`${sellerLabel(s)}, ${sellerLocationLine(s)}`}
+                    accessibilityLabel={`${sellerLabel(s, sellerFallback)}, ${sellerLocationLine(s, locationNotSet)}`}
                   >
                     <View style={styles.popularSellerAvatar}>
                       <SellerAvatar url={s.avatar_url} />
                     </View>
                     <Text style={styles.popularSellerLocation} numberOfLines={1}>
-                      {sellerLocationLine(s)}
+                      {sellerLocationLine(s, locationNotSet)}
                     </Text>
                     <Text style={styles.popularSellerName} numberOfLines={1}>
-                      {sellerLabel(s)}
+                      {sellerLabel(s, sellerFallback)}
                     </Text>
                   </Pressable>
                 ))}
@@ -404,7 +409,7 @@ export default function SearchScreen() {
 
         {scope !== "sellers" && scope !== "live" && products.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>Products ({products.length})</Text>
+            <Text style={styles.sectionTitle}>{t("search_products_count", { count: products.length })}</Text>
             {products.map((p) => (
               <Pressable
                 key={p.id}
@@ -434,7 +439,7 @@ export default function SearchScreen() {
 
         {scope !== "products" && scope !== "live" && sellers.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>Sellers ({sellers.length})</Text>
+            <Text style={styles.sectionTitle}>{t("search_sellers_count", { count: sellers.length })}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -446,16 +451,16 @@ export default function SearchScreen() {
                   style={styles.popularSellerTile}
                   onPress={() => openSeller(s.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${sellerLabel(s)}, ${sellerLocationLine(s)}`}
+                  accessibilityLabel={`${sellerLabel(s, sellerFallback)}, ${sellerLocationLine(s, locationNotSet)}`}
                 >
                   <View style={styles.popularSellerAvatar}>
                     <SellerAvatar url={s.avatar_url} />
                   </View>
                   <Text style={styles.popularSellerLocation} numberOfLines={1}>
-                    {sellerLocationLine(s)}
+                    {sellerLocationLine(s, locationNotSet)}
                   </Text>
                   <Text style={styles.popularSellerName} numberOfLines={1}>
-                    {sellerLabel(s)}
+                    {sellerLabel(s, sellerFallback)}
                   </Text>
                 </Pressable>
               ))}
@@ -465,7 +470,7 @@ export default function SearchScreen() {
 
         {scope === "live" && debounced.length >= MIN_QUERY_LEN && liveFiltered.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>Live ({liveFiltered.length})</Text>
+            <Text style={styles.sectionTitle}>{t("search_live_count", { count: liveFiltered.length })}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -479,13 +484,11 @@ export default function SearchScreen() {
         ) : null}
 
         {showEmptySearch ? (
-          <Text style={styles.emptyText}>
-            No results for &quot;{debounced}&quot;. Try a different keyword.
-          </Text>
+          <Text style={styles.emptyText}>{t("search_no_results", { query: debounced })}</Text>
         ) : null}
 
         {debounced.length === 1 ? (
-          <Text style={styles.hint}>Type at least {MIN_QUERY_LEN} characters to search.</Text>
+          <Text style={styles.hint}>{t("search_min_chars", { count: MIN_QUERY_LEN })}</Text>
         ) : null}
       </ScrollView>
     </SafeAreaView>

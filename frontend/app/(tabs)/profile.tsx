@@ -7,6 +7,8 @@ import { useUserProfile } from "../../context/UserProfileContext";
 import { ReadyToShareBannerDecoration } from "../../components/shared/ReadyToShareBannerDecoration";
 import { GuestSignInPlaceholder } from "../../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
+import type { TranslationKey } from "../../i18n/types";
 
 // Route constants for security
 const ROUTES = {
@@ -18,6 +20,7 @@ const ROUTES = {
 } as const;
 
 export default function ProfileScreen() {
+  const { t } = useLanguage();
   const { isAuthenticated, isReady: authReady, signOut, profile: authProfile, profileLoading } = useAuth();
   const router = useRouter();
   const { clearProfile, profile, isLoaded: profileLoaded } = useUserProfile();
@@ -29,7 +32,7 @@ export default function ProfileScreen() {
     authProfile?.display_name ||
     authProfile?.full_name ||
     profile.displayName ||
-    "Your profile";
+    t("profile_your_profile");
   const handle =
     authProfile?.username ||
     profile.username ||
@@ -79,12 +82,12 @@ export default function ProfileScreen() {
   const handleShareProfile = useCallback(async () => {
     try {
       await Share.share({
-        message: "Check out my profile on SAFICK!",
+        message: t("profile_share_message"),
       });
     } catch {
       // Dismissed or failed
     }
-  }, []);
+  }, [t]);
 
   const handleSignOut = useCallback(async () => {
     await clearProfile();
@@ -94,35 +97,56 @@ export default function ProfileScreen() {
 
   const handleSellerHubPress = useCallback(() => {
     router.push(ROUTES.SELLER_ANALYTICS as any);
-  }, [router]);
+  }, []);
 
-  const actionCards = [
-    // Account Section
-    { id: 1, icon: "pulse-outline", label: "Account Health", section: "account", badge: null },
-    { id: 3, icon: "notifications-outline", label: "Notification", section: "account", badge: null},
-    { id: 4, icon: "mail-outline", label: "Change Email", section: "account", badge: null },
-    { id: 5, icon: "check-decagram-outline", label: "Verified Seller", section: "account", badge: null, iconLibrary: "MaterialCommunityIcons" },
-    { id: 6, icon: "share-outline", label: "Share profile", section: "account", badge: null, shareProfile: true },
-    
-    // Shopping Section
-    { id: 7, icon: "heart-outline", label: "Wishlist", section: "shopping", badge: null },
-    { id: 8, icon: "language-outline", label: "Language", section: "shopping", badge: null },
-    { id: 9, icon: "card-outline", label: "Payment", section: "shopping", badge: null },
-    { id: 10, icon: "location-outline", label: "Addresses", section: "shopping", badge: null },
-    
-    // Support & Legal Section
-    { id: 11, icon: "mail-outline", label: "Contact Us", section: "support", badge: null },
-    { id: 12, icon: "flag-outline", label: "User Report", section: "support", badge: null },
-    { id: 13, icon: "shield-checkmark-outline", label: "Privacy Policy", section: "legal", badge: null },
-    { id: 14, icon: "document-text-outline", label: "Terms & Conditions", section: "legal", badge: null },
-    { id: 15, icon: "help-circle-outline", label: "Help & Support", section: "support", badge: null },
+  const handleCardPress = useCallback(
+    (card: { id: number; shareProfile?: boolean }) => {
+      if (card.shareProfile) {
+        void handleShareProfile();
+        return;
+      }
+      if (card.id === 7) {
+        router.push("/wishlist");
+        return;
+      }
+      if (card.id === 8) {
+        router.push("/language");
+        return;
+      }
+    },
+    [handleShareProfile, router]
+  );
+
+  const actionCards: {
+    id: number;
+    icon: string;
+    labelKey: TranslationKey;
+    section: "account" | "shopping" | "support" | "legal";
+    badge: string | null;
+    shareProfile?: boolean;
+    iconLibrary?: "MaterialCommunityIcons";
+  }[] = [
+    { id: 1, icon: "pulse-outline", labelKey: "profile_account_health", section: "account", badge: null },
+    { id: 3, icon: "notifications-outline", labelKey: "profile_notifications", section: "account", badge: null },
+    { id: 4, icon: "mail-outline", labelKey: "profile_change_email", section: "account", badge: null },
+    { id: 5, icon: "check-decagram-outline", labelKey: "profile_verified_seller", section: "account", badge: null, iconLibrary: "MaterialCommunityIcons" },
+    { id: 6, icon: "share-outline", labelKey: "profile_share", section: "account", badge: null, shareProfile: true },
+    { id: 7, icon: "heart-outline", labelKey: "profile_wishlist", section: "shopping", badge: null },
+    { id: 8, icon: "language-outline", labelKey: "profile_language", section: "shopping", badge: null },
+    { id: 9, icon: "card-outline", labelKey: "profile_payment", section: "shopping", badge: null },
+    { id: 10, icon: "location-outline", labelKey: "profile_addresses", section: "shopping", badge: null },
+    { id: 11, icon: "mail-outline", labelKey: "profile_contact", section: "support", badge: null },
+    { id: 12, icon: "flag-outline", labelKey: "profile_user_report", section: "support", badge: null },
+    { id: 13, icon: "shield-checkmark-outline", labelKey: "profile_privacy", section: "legal", badge: null },
+    { id: 14, icon: "document-text-outline", labelKey: "profile_terms", section: "legal", badge: null },
+    { id: 15, icon: "help-circle-outline", labelKey: "profile_help", section: "support", badge: null },
   ];
 
-  const sectionTitles: Record<string, string> = {
-    account: "Account",
-    shopping: "Shopping",
-    support: "Support",
-    legal: "Legal",
+  const sectionTitleKeys: Record<string, TranslationKey> = {
+    account: "profile_section_account",
+    shopping: "profile_section_shopping",
+    support: "profile_section_support",
+    legal: "profile_section_legal",
   };
 
   if (!authReady || !profileLoaded) {
@@ -135,7 +159,7 @@ export default function ProfileScreen() {
 
   if (!isAuthenticated) {
     return (
-      <GuestSignInPlaceholder subtitle="Sign in to view your profile, orders, and settings." />
+      <GuestSignInPlaceholder subtitle={t("guest_profile_subtitle")} />
     );
   }
 
@@ -151,7 +175,7 @@ export default function ProfileScreen() {
                   source={{ uri: avatarUrl }}
                   style={styles.profilePictureImage}
                   resizeMode="cover"
-                  accessibilityLabel="Profile picture"
+                  accessibilityLabel={t("a11y_profile_picture")}
                 />
               ) : profileLoading ? (
                 <ActivityIndicator size="small" color="#FF2800" />
@@ -170,10 +194,10 @@ export default function ProfileScreen() {
             <TouchableOpacity 
               style={styles.viewProfileButton}
               onPress={handleProfilePress}
-              accessibilityLabel="View Profile"
+              accessibilityLabel={t("profile_view_profile")}
               accessibilityRole="button"
             >
-              <Text style={styles.viewProfileText}>View Profile</Text>
+              <Text style={styles.viewProfileText}>{t("profile_view_profile")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -184,9 +208,9 @@ export default function ProfileScreen() {
         {profile.readyToShareMode !== "buyer" ? (
           <View style={styles.bannerContainer}>
             <ReadyToShareBannerDecoration variant="dark" />
-            <Text style={styles.bannerTitle}>Ready to share?</Text>
+            <Text style={styles.bannerTitle}>{t("profile_ready_title")}</Text>
             <Text style={styles.bannerSubtitle}>
-              Start a stream or upload new products
+              {t("profile_ready_subtitle")}
             </Text>
             <View style={styles.bannerButtons}>
               <TouchableOpacity
@@ -194,20 +218,20 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
                 onPress={handleCreateNew}
                 accessibilityRole="button"
-                accessibilityLabel="Create new product"
+                accessibilityLabel={t("profile_create_new")}
               >
                 <Ionicons name="add-circle-outline" size={20} color="#000000" />
-                <Text style={styles.createNewText}>Create New</Text>
+                <Text style={styles.createNewText}>{t("profile_create_new")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.goLiveButton}
                 activeOpacity={0.8}
                 onPress={handleGoLive}
                 accessibilityRole="button"
-                accessibilityLabel="Go live"
+                accessibilityLabel={t("profile_go_live")}
               >
                 <MaterialCommunityIcons name="television-classic" size={18} color="#FFFFFF" />
-                <Text style={styles.goLiveText}>Go Live</Text>
+                <Text style={styles.goLiveText}>{t("profile_go_live")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -219,12 +243,12 @@ export default function ProfileScreen() {
             activeOpacity={0.85}
             onPress={handleSellerHubPress}
             accessibilityRole="button"
-            accessibilityLabel="Open seller hub analytics"
+            accessibilityLabel={t("profile_seller_hub")}
           >
             <View style={styles.sellerHubTopRow}>
               <View>
-                <Text style={styles.sellerHubTitle}>Seller Hub</Text>
-                <Text style={styles.sellerHubSubtitle}>Track listing performance and lead conversion.</Text>
+                <Text style={styles.sellerHubTitle}>{t("profile_seller_hub")}</Text>
+                <Text style={styles.sellerHubSubtitle}>{t("profile_seller_hub_sub")}</Text>
               </View>
               <View style={styles.sellerHubIconWrap}>
                 <MaterialCommunityIcons name="chart-line" size={22} color="#FF2800" />
@@ -234,24 +258,24 @@ export default function ProfileScreen() {
             <View style={styles.kpiRow}>
               <View style={styles.kpiItem}>
                 <Text style={styles.kpiValue}>2.4K</Text>
-                <Text style={styles.kpiLabel}>Views</Text>
+                <Text style={styles.kpiLabel}>{t("profile_views")}</Text>
               </View>
               <View style={styles.kpiItem}>
                 <Text style={styles.kpiValue}>128</Text>
-                <Text style={styles.kpiLabel}>Leads</Text>
+                <Text style={styles.kpiLabel}>{t("profile_leads")}</Text>
               </View>
               <View style={styles.kpiItem}>
                 <Text style={styles.kpiValue}>6.7%</Text>
-                <Text style={styles.kpiLabel}>Conversion</Text>
+                <Text style={styles.kpiLabel}>{t("profile_conversion")}</Text>
               </View>
               <View style={styles.kpiItem}>
                 <Text style={styles.kpiValue}>24</Text>
-                <Text style={styles.kpiLabel}>Sold</Text>
+                <Text style={styles.kpiLabel}>{t("profile_sold")}</Text>
               </View>
             </View>
 
             <View style={styles.sellerHubFooter}>
-              <Text style={styles.sellerHubFooterText}>View Full Analytics</Text>
+              <Text style={styles.sellerHubFooterText}>{t("profile_view_analytics")}</Text>
               <Ionicons name="arrow-forward" size={16} color="#FF2800" />
             </View>
           </TouchableOpacity>
@@ -265,13 +289,13 @@ export default function ProfileScreen() {
           return (
             <View key={card.id}>
               {showSectionHeader && (
-                <Text style={styles.sectionHeader}>{sectionTitles[card.section]}</Text>
+                <Text style={styles.sectionHeader}>{t(sectionTitleKeys[card.section])}</Text>
               )}
               {showDivider && <View style={styles.sectionDivider} />}
               <TouchableOpacity 
                 style={styles.cardItem}
                 activeOpacity={0.2}
-                onPress={"shareProfile" in card && card.shareProfile ? handleShareProfile : undefined}
+                onPress={() => handleCardPress(card)}
               >
                 <View style={styles.cardLeftSection}>
                   <View style={styles.cardIconContainer}>
@@ -289,7 +313,7 @@ export default function ProfileScreen() {
                       />
                     )}
                   </View>
-                  <Text style={styles.cardText}>{card.label}</Text>
+                  <Text style={styles.cardText}>{t(card.labelKey)}</Text>
                   {card.badge && (
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>{card.badge}</Text>
@@ -312,7 +336,7 @@ export default function ProfileScreen() {
           >
             <View style={styles.signOutContent}>
               <FontAwesome6 name="arrow-right-from-bracket" size={20} color="#FF2800" />
-              <Text style={styles.signOutText}>Sign Out</Text>
+              <Text style={styles.signOutText}>{t("profile_sign_out")}</Text>
             </View>
           </TouchableOpacity>
         </View>

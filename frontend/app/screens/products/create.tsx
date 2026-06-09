@@ -16,12 +16,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { useLanguage } from "../../../context/LanguageContext";
 import { createProduct } from "../../../utils/productApi";
 
 const RED = "#FF2800";
 
 export default function CreateProductScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [title, setTitle] = useState("");
   const [priceText, setPriceText] = useState("");
   const [description, setDescription] = useState("");
@@ -31,7 +33,7 @@ export default function CreateProductScreen() {
   const pickImage = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("Photos", "Permission is required to choose a product image.");
+      Alert.alert(t("product_create_alert_photos_title"), t("product_create_alert_photos_body"));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -42,40 +44,40 @@ export default function CreateProductScreen() {
     if (!result.canceled && result.assets[0]?.uri) {
       setImageUri(result.assets[0].uri);
     }
-  }, []);
+  }, [t]);
 
   const handleSubmit = useCallback(async () => {
-    const t = title.trim();
+    const trimmedTitle = title.trim();
     const price = parseFloat(priceText.replace(/,/g, "."));
-    if (t.length < 2) {
-      Alert.alert("Product", "Please enter a title.");
+    if (trimmedTitle.length < 2) {
+      Alert.alert(t("product_create_alert_title_required"), t("product_create_alert_title_body"));
       return;
     }
     if (!Number.isFinite(price) || price < 0) {
-      Alert.alert("Product", "Please enter a valid price.");
+      Alert.alert(t("product_create_alert_price_required"), t("product_create_alert_price_body"));
       return;
     }
     if (!imageUri) {
-      Alert.alert("Product", "Please choose a product image.");
+      Alert.alert(t("product_create_alert_failed"), t("product_create_pick_image"));
       return;
     }
 
     setSubmitting(true);
     try {
       await createProduct({
-        title: t,
+        title: trimmedTitle,
         description: description.trim() || null,
         price,
         imageUri,
       });
       router.back();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not create product.";
-      Alert.alert("Product", msg);
+      const msg = e instanceof Error ? e.message : t("product_create_alert_failed");
+      Alert.alert(t("product_create_alert_failed"), msg);
     } finally {
       setSubmitting(false);
     }
-  }, [title, priceText, description, imageUri, router]);
+  }, [title, priceText, description, imageUri, router, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom", "left", "right"]}>
@@ -89,20 +91,20 @@ export default function CreateProductScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.label}>Title</Text>
+          <Text style={styles.label}>{t("product_create_title")}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Product name"
+            placeholder={t("product_create_name_ph")}
             placeholderTextColor="#9CA3AF"
             value={title}
             onChangeText={setTitle}
             editable={!submitting}
           />
 
-          <Text style={styles.label}>Price</Text>
+          <Text style={styles.label}>{t("product_create_price")}</Text>
           <TextInput
             style={styles.input}
-            placeholder="0.00"
+            placeholder={t("product_create_price_ph")}
             placeholderTextColor="#9CA3AF"
             keyboardType="decimal-pad"
             value={priceText}
@@ -110,10 +112,10 @@ export default function CreateProductScreen() {
             editable={!submitting}
           />
 
-          <Text style={styles.label}>Description</Text>
+          <Text style={styles.label}>{t("product_create_description")}</Text>
           <TextInput
             style={[styles.input, styles.multiline]}
-            placeholder="Optional details"
+            placeholder={t("product_create_desc_ph")}
             placeholderTextColor="#9CA3AF"
             value={description}
             onChangeText={setDescription}
@@ -121,7 +123,7 @@ export default function CreateProductScreen() {
             editable={!submitting}
           />
 
-          <Text style={styles.label}>Image</Text>
+          <Text style={styles.label}>{t("product_create_image")}</Text>
           <TouchableOpacity
             style={styles.imagePicker}
             onPress={pickImage}
@@ -133,7 +135,7 @@ export default function CreateProductScreen() {
             ) : (
               <View style={styles.previewPlaceholder}>
                 <Ionicons name="image-outline" size={40} color="#9CA3AF" />
-                <Text style={styles.previewHint}>Tap to choose image</Text>
+                <Text style={styles.previewHint}>{t("product_create_pick_image")}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -147,7 +149,7 @@ export default function CreateProductScreen() {
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.submitText}>Create product</Text>
+              <Text style={styles.submitText}>{t("product_create_submit")}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>

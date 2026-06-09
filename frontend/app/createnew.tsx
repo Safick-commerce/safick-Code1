@@ -24,6 +24,8 @@ import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholde
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../context/UserProfileContext";
 import { createProduct } from "../utils/productApi";
+import { useLanguage } from "../context/LanguageContext";
+import type { TranslationKey } from "../i18n/types";
 
 /** Wizard: record/select video → trim/edit → listing fields → photos → review/post. */
 type CreateStep = "capture" | "playback" | "edit" | "details" | "photos" | "review";
@@ -33,7 +35,31 @@ type ProductCondition = "New" | "Like New" | "Used";
 const CATEGORY_OPTIONS: ProductCategory[] = ["Fashion", "Beauty", "Electronics", "Home", "Accessories"];
 const CONDITION_OPTIONS: ProductCondition[] = ["New", "Like New", "Used"];
 
+const STEP_LABEL_KEYS: Record<CreateStep, TranslationKey> = {
+  capture: "createnew_step_capture",
+  playback: "createnew_step_playback",
+  edit: "createnew_step_edit",
+  details: "createnew_step_details",
+  photos: "createnew_step_photos",
+  review: "createnew_step_review",
+};
+
+const CONDITION_LABEL_KEYS: Record<ProductCondition, TranslationKey> = {
+  New: "createnew_condition_new",
+  "Like New": "createnew_condition_like_new",
+  Used: "createnew_condition_good",
+};
+
+const CATEGORY_LABEL_KEYS: Record<ProductCategory, TranslationKey> = {
+  Fashion: "cat_fashion",
+  Beauty: "cat_beauty",
+  Electronics: "cat_electronics",
+  Home: "cat_home",
+  Accessories: "cat_accessories",
+};
+
 export default function CreateNewScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { isAuthenticated, isReady } = useAuth();
   const { profile, isLoaded } = useUserProfile();
@@ -72,27 +98,19 @@ export default function CreateNewScreen() {
 
   // Header stepper (capture is full-screen, not shown in bars)
   const stepOrder: CreateStep[] = ["capture", "playback", "edit", "details", "photos", "review"];
-  const stepLabels: Record<CreateStep, string> = {
-    capture: "Capture",
-    playback: "Playback",
-    edit: "Edit",
-    details: "Details",
-    photos: "Photos",
-    review: "Review",
-  };
 
   // Inline validation for details step (shown after Next with showValidation)
   const detailsErrors = useMemo(() => {
     const parsedPrice = Number(price.replace(/,/g, ""));
     const parsedStock = Number(stock);
     return {
-      title: title.trim().length >= 4 ? "" : "Title must be at least 4 characters.",
-      category: category ? "" : "Select a category.",
-      price: parsedPrice > 0 ? "" : "Add a valid price.",
-      stock: Number.isInteger(parsedStock) && parsedStock > 0 ? "" : "Add valid stock.",
-      description: description.trim().length >= 12 ? "" : "Description must be at least 12 characters.",
+      title: title.trim().length >= 4 ? "" : t("product_create_alert_title_body"),
+      category: category ? "" : t("golive_validation_category"),
+      price: parsedPrice > 0 ? "" : t("product_create_alert_price_body"),
+      stock: Number.isInteger(parsedStock) && parsedStock > 0 ? "" : t("product_create_alert_price_body"),
+      description: description.trim().length >= 12 ? "" : t("product_create_desc_ph"),
     };
-  }, [title, category, price, stock, description]);
+  }, [title, category, price, stock, description, t]);
 
   const detailsValid = useMemo(() => Object.values(detailsErrors).every((err) => !err), [detailsErrors]);
   const canPost = Boolean(recordedVideoUri) && detailsValid && photos.length > 0;
@@ -102,7 +120,7 @@ export default function CreateNewScreen() {
 
     const parsedPrice = Number(price.replace(/,/g, ""));
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert("Product", "Please enter a valid price.");
+      Alert.alert(t("product_create_alert_price_required"), t("product_create_alert_price_body"));
       return;
     }
 
@@ -114,16 +132,16 @@ export default function CreateNewScreen() {
         price: parsedPrice,
         imageUri: photos[0],
       });
-      Alert.alert("Posted successfully", "Your listing is live.", [
-        { text: "OK", onPress: () => router.back() },
+      Alert.alert(t("createnew_alert_post_success"), t("createnew_alert_post_success"), [
+        { text: t("common_ok"), onPress: () => router.back() },
       ]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not post your listing.";
-      Alert.alert("Post failed", message);
+      const message = error instanceof Error ? error.message : t("createnew_alert_post_failed");
+      Alert.alert(t("createnew_alert_post_failed"), message);
     } finally {
       setPostState("idle");
     }
-  }, [canPost, postState, price, title, description, photos, router]);
+  }, [canPost, postState, price, title, description, photos, router, t]);
 
   useEffect(() => {
     if (!isReady || !isAuthenticated || !isLoaded) return;
@@ -190,7 +208,7 @@ export default function CreateNewScreen() {
     const cam = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
     const mic = micPermission?.granted ? micPermission : await requestMicPermission();
     if (!cam.granted || !mic.granted) {
-      Alert.alert("Permission needed", "Camera and microphone permissions are required.");
+      Alert.alert(t("common_permission_needed"), t("createnew_alert_permission_body"));
       return false;
     }
     return true;
@@ -214,14 +232,14 @@ export default function CreateNewScreen() {
       }
     } catch {
       setIsRecording(false);
-      Alert.alert("Recording failed", "Could not record video. Try again.");
+      Alert.alert(t("createnew_alert_post_failed"), t("common_try_again"));
     }
   };
 
   const handleUseGalleryClip = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Media library permission is required.");
+      Alert.alert(t("common_permission_needed"), t("common_media_library_required"));
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
@@ -237,12 +255,12 @@ export default function CreateNewScreen() {
 
   const handleAddPhoto = async () => {
     if (photos.length >= 5) {
-      Alert.alert("Photo limit reached", "You can add up to 5 photos.");
+      Alert.alert(t("product_create_alert_photos_title"), t("product_create_alert_photos_body"));
       return;
     }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Media library permission is required.");
+      Alert.alert(t("common_permission_needed"), t("common_media_library_required"));
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
@@ -257,17 +275,13 @@ export default function CreateNewScreen() {
   };
 
   const handleAddSound = () => {
-    Alert.alert(
-      "Add Sound",
-      "Sound library integration coming soon. For now, a placeholder track will be added.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Add Placeholder",
-          onPress: () => setAddedSound({ name: "Upbeat Vibe", uri: "placeholder://sound" }),
-        },
-      ],
-    );
+    Alert.alert(t("createnew_step_edit"), t("createnew_alert_permission_body"), [
+      { text: t("common_cancel"), style: "cancel" },
+      {
+        text: t("common_ok"),
+        onPress: () => setAddedSound({ name: t("createnew_sound_upbeat"), uri: "placeholder://sound" }),
+      },
+    ]);
   };
 
   // Back: leave screen from capture, else previous wizard step
@@ -290,7 +304,7 @@ export default function CreateNewScreen() {
   }
 
   if (!isAuthenticated) {
-    return <GuestSignInPlaceholder subtitle="Sign in to create product videos and post items." />;
+    return <GuestSignInPlaceholder subtitle={t("guest_createnew_subtitle")} />;
   }
 
   if (!profile.readyToSharePromptSeen || !profile.readyToShareMode) {
@@ -309,9 +323,9 @@ export default function CreateNewScreen() {
           <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={cameraFacing} mode="video" />
         ) : (
           <View style={[StyleSheet.absoluteFill, styles.permissionPanel]}>
-            <Text style={styles.permissionText}>Camera and microphone access needed</Text>
+            <Text style={styles.permissionText}>{t("common_camera_mic_required")}</Text>
             <TouchableOpacity style={styles.permissionBtn} onPress={ensureCapturePermissions}>
-              <Text style={styles.permissionBtnText}>Grant Permission</Text>
+              <Text style={styles.permissionBtnText}>{t("common_grant_permission")}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -323,10 +337,12 @@ export default function CreateNewScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.addSoundPill} onPress={handleAddSound}>
               <Ionicons name="musical-note" size={14} color="#FFFFFF" />
-              <Text style={styles.addSoundPillText}>{addedSound ? addedSound.name : "Add Sound"}</Text>
+              <Text style={styles.addSoundPillText}>
+                {addedSound ? addedSound.name : t("createnew_step_edit")}
+              </Text>
             </TouchableOpacity>
             {isRecording ? (
-              <View style={styles.recIndicator}><View style={styles.recDot} /><Text style={styles.recText}>REC</Text></View>
+              <View style={styles.recIndicator}><View style={styles.recDot} /><Text style={styles.recText}>{t("common_live")}</Text></View>
             ) : (
               <View style={{ width: 40 }} />
             )}
@@ -335,23 +351,23 @@ export default function CreateNewScreen() {
           <View style={styles.captureSideControls}>
             <TouchableOpacity style={styles.sideBtn} onPress={() => setCameraFacing((p) => (p === "back" ? "front" : "back"))}>
               <Ionicons name="camera-reverse-outline" size={22} color="#FFFFFF" />
-              <Text style={styles.sideBtnLabel}>Flip</Text>
+              <Text style={styles.sideBtnLabel}>{t("golive_flip")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sideBtn}>
               <Text style={styles.sideBtnIcon}>1x</Text>
-              <Text style={styles.sideBtnLabel}>Speed</Text>
+              <Text style={styles.sideBtnLabel}>{t("createnew_speed")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sideBtn}>
               <MaterialCommunityIcons name="auto-fix" size={22} color="#FFFFFF" />
-              <Text style={styles.sideBtnLabel}>Beauty</Text>
+              <Text style={styles.sideBtnLabel}>{t("createnew_beauty")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sideBtn}>
               <Ionicons name="timer-outline" size={22} color="#FFFFFF" />
-              <Text style={styles.sideBtnLabel}>Timer</Text>
+              <Text style={styles.sideBtnLabel}>{t("golive_timer")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sideBtn}>
               <Ionicons name="flash-outline" size={22} color="#FFFFFF" />
-              <Text style={styles.sideBtnLabel}>Flash</Text>
+              <Text style={styles.sideBtnLabel}>{t("golive_flash")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -360,7 +376,7 @@ export default function CreateNewScreen() {
               <View style={styles.galleryThumb}>
                 <Ionicons name="images-outline" size={22} color="#FFFFFF" />
               </View>
-              <Text style={styles.galleryLabel}>Gallery</Text>
+              <Text style={styles.galleryLabel}>{t("createnew_gallery")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.recordBtn} onPress={handleRecordVideo} activeOpacity={0.7}>
@@ -373,7 +389,7 @@ export default function CreateNewScreen() {
               <View style={styles.galleryThumb}>
                 <Ionicons name="color-wand-outline" size={22} color="#FFFFFF" />
               </View>
-              <Text style={styles.galleryLabel}>Effects</Text>
+              <Text style={styles.galleryLabel}>{t("createnew_effects")}</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -394,7 +410,7 @@ export default function CreateNewScreen() {
               <View style={[styles.stepDot, stepOrder.indexOf(step) >= stepOrder.indexOf(item) && styles.stepDotActive]}>
                 <Text style={[styles.stepNum, stepOrder.indexOf(step) >= stepOrder.indexOf(item) && styles.stepNumActive]}>{idx + 1}</Text>
               </View>
-              <Text style={styles.stepTxt}>{stepLabels[item]}</Text>
+              <Text style={styles.stepTxt}>{t(STEP_LABEL_KEYS[item])}</Text>
             </View>
           ))}
         </View>
@@ -405,7 +421,7 @@ export default function CreateNewScreen() {
         {/* Preview clip; jump to edit or skip to details */}
         {step === "playback" && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Step 2: Playback</Text>
+            <Text style={styles.cardTitle}>{t("createnew_step_playback")}</Text>
             {recordedVideoUri ? (
               <Video
                 source={{ uri: recordedVideoUri }}
@@ -419,13 +435,13 @@ export default function CreateNewScreen() {
             ) : null}
             <View style={styles.row}>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("capture")}>
-                <Text style={styles.secondaryBtnText}>Retake</Text>
+                <Text style={styles.secondaryBtnText}>{t("createnew_retake")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("edit")}>
-                <Text style={styles.secondaryBtnText}>Edit</Text>
+                <Text style={styles.secondaryBtnText}>{t("createnew_step_edit")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep("details")}>
-                <Text style={styles.primaryBtnText}>Next</Text>
+                <Text style={styles.primaryBtnText}>{t("common_next")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -434,7 +450,7 @@ export default function CreateNewScreen() {
         {/* Trim UI (visual only), mute, sound placeholder, cover timestamp */}
         {step === "edit" && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Edit Video</Text>
+            <Text style={styles.cardTitle}>{t("createnew_step_edit")}</Text>
 
             {recordedVideoUri ? (
               <Video
@@ -451,7 +467,7 @@ export default function CreateNewScreen() {
             <View style={styles.editSection}>
               <View style={styles.editSectionHeader}>
                 <Ionicons name="cut-outline" size={18} color="#111827" />
-                <Text style={styles.editSectionTitle}>Trim Video</Text>
+                <Text style={styles.editSectionTitle}>{t("createnew_step_edit")}</Text>
               </View>
 
               <View style={styles.trimTimestamps}>
@@ -509,17 +525,17 @@ export default function CreateNewScreen() {
             <View style={styles.editSection}>
               <View style={styles.editSectionHeader}>
                 <Ionicons name="musical-notes-outline" size={18} color="#111827" />
-                <Text style={styles.editSectionTitle}>Sound</Text>
+                <Text style={styles.editSectionTitle}>{t("createnew_step_edit")}</Text>
               </View>
 
               <TouchableOpacity style={styles.toggleRow} onPress={() => setVideoMuted((v) => !v)}>
                 <View style={styles.toggleLeft}>
                   <Ionicons name={videoMuted ? "volume-mute" : "volume-high"} size={18} color={videoMuted ? "#DC2626" : "#111827"} />
-                  <Text style={styles.toggleText}>Original audio</Text>
+                  <Text style={styles.toggleText}>{t("golive_check_microphone")}</Text>
                 </View>
                 <View style={[styles.muteChip, videoMuted && styles.muteChipActive]}>
                   <Text style={[styles.muteChipText, videoMuted && styles.muteChipTextActive]}>
-                    {videoMuted ? "Muted" : "On"}
+                    {videoMuted ? t("golive_mute") : t("golive_unmute")}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -531,10 +547,10 @@ export default function CreateNewScreen() {
                   </View>
                   <View>
                     <Text style={styles.addSoundTitle}>
-                      {addedSound ? addedSound.name : "Add Sound"}
+                      {addedSound ? addedSound.name : t("createnew_step_edit")}
                     </Text>
                     <Text style={styles.addSoundSub}>
-                      {addedSound ? "Tap to change" : "Browse music and effects"}
+                      {addedSound ? t("common_save") : t("createnew_alert_permission_body")}
                     </Text>
                   </View>
                 </View>
@@ -547,7 +563,7 @@ export default function CreateNewScreen() {
                   onPress={() => setAddedSound(null)}
                 >
                   <Ionicons name="close-circle" size={16} color="#DC2626" />
-                  <Text style={styles.removeSoundText}>Remove sound</Text>
+                  <Text style={styles.removeSoundText}>{t("common_cancel")}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -555,23 +571,23 @@ export default function CreateNewScreen() {
             <View style={styles.editSection}>
               <View style={styles.editSectionHeader}>
                 <Ionicons name="image-outline" size={18} color="#111827" />
-                <Text style={styles.editSectionTitle}>Cover Frame</Text>
+                <Text style={styles.editSectionTitle}>{t("product_create_image")}</Text>
               </View>
               <TextInput
                 style={styles.detailInput}
                 value={coverFrameSecond}
                 onChangeText={setCoverFrameSecond}
-                placeholder="Timestamp (e.g. 00:02)"
+                placeholder={t("createnew_timestamp_ph")}
                 placeholderTextColor="#9CA3AF"
               />
             </View>
 
             <View style={styles.row}>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("playback")}>
-                <Text style={styles.secondaryBtnText}>Cancel</Text>
+                <Text style={styles.secondaryBtnText}>{t("common_cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep("playback")}>
-                <Text style={styles.primaryBtnText}>Save Edits</Text>
+                <Text style={styles.primaryBtnText}>{t("createnew_save")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -580,19 +596,19 @@ export default function CreateNewScreen() {
         {/* Title, category, condition, price/stock, description */}
         {step === "details" && (
           <View style={styles.detailsCard}>
-            <Text style={styles.detailsTitle}>Product Details</Text>
-            <Text style={styles.detailsSubtitle}>Tell buyers about your product</Text>
+            <Text style={styles.detailsTitle}>{t("createnew_product_details")}</Text>
+            <Text style={styles.detailsSubtitle}>{t("product_create_desc_ph")}</Text>
 
             <View style={styles.fieldGroup}>
               <View style={styles.fieldLabelRow}>
                 <Ionicons name="pricetag-outline" size={16} color="#6B7280" />
-                <Text style={styles.fieldLabel}>Title</Text>
+                <Text style={styles.fieldLabel}>{t("createnew_field_title")}</Text>
               </View>
               <TextInput
                 style={[styles.detailInput, showValidation && detailsErrors.title ? styles.detailInputError : null]}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="What are you selling?"
+                placeholder={t("product_create_name_ph")}
                 placeholderTextColor="#9CA3AF"
               />
               {showValidation && detailsErrors.title ? <Text style={styles.error}>{detailsErrors.title}</Text> : null}
@@ -601,12 +617,14 @@ export default function CreateNewScreen() {
             <View style={styles.fieldGroup}>
               <View style={styles.fieldLabelRow}>
                 <Ionicons name="grid-outline" size={16} color="#6B7280" />
-                <Text style={styles.fieldLabel}>Category</Text>
+                <Text style={styles.fieldLabel}>{t("createnew_field_category")}</Text>
               </View>
               <View style={styles.chips}>
                 {CATEGORY_OPTIONS.map((item) => (
                   <TouchableOpacity key={item} style={[styles.chip, category === item && styles.chipActive]} onPress={() => setCategory(item)}>
-                    <Text style={[styles.chipText, category === item && styles.chipTextActive]}>{item}</Text>
+                    <Text style={[styles.chipText, category === item && styles.chipTextActive]}>
+                      {t(CATEGORY_LABEL_KEYS[item])}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -616,12 +634,14 @@ export default function CreateNewScreen() {
             <View style={styles.fieldGroup}>
               <View style={styles.fieldLabelRow}>
                 <Ionicons name="sparkles-outline" size={16} color="#6B7280" />
-                <Text style={styles.fieldLabel}>Condition</Text>
+                <Text style={styles.fieldLabel}>{t("createnew_field_condition")}</Text>
               </View>
               <View style={styles.conditionRow}>
                 {CONDITION_OPTIONS.map((item) => (
                   <TouchableOpacity key={item} style={[styles.conditionPill, condition === item && styles.conditionPillActive]} onPress={() => setCondition(item)}>
-                    <Text style={[styles.conditionPillText, condition === item && styles.conditionPillTextActive]}>{item}</Text>
+                    <Text style={[styles.conditionPillText, condition === item && styles.conditionPillTextActive]}>
+                      {t(CONDITION_LABEL_KEYS[item])}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -631,7 +651,7 @@ export default function CreateNewScreen() {
               <View style={[styles.fieldGroup, { flex: 1 }]}>
                 <View style={styles.fieldLabelRow}>
                   <Ionicons name="cash-outline" size={16} color="#6B7280" />
-                  <Text style={styles.fieldLabel}>Price</Text>
+                  <Text style={styles.fieldLabel}>{t("createnew_field_price")}</Text>
                 </View>
                 <View style={styles.priceInputWrap}>
                   <Text style={styles.currencyTag}>XAF</Text>
@@ -639,7 +659,7 @@ export default function CreateNewScreen() {
                     style={[styles.detailInput, styles.priceInput, showValidation && detailsErrors.price ? styles.detailInputError : null]}
                     value={price}
                     onChangeText={(t) => setPrice(t.replace(/[^\d,]/g, ""))}
-                    placeholder="0"
+                    placeholder={t("product_create_price_ph")}
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
                   />
@@ -650,13 +670,13 @@ export default function CreateNewScreen() {
               <View style={[styles.fieldGroup, { flex: 1 }]}>
                 <View style={styles.fieldLabelRow}>
                   <Ionicons name="cube-outline" size={16} color="#6B7280" />
-                  <Text style={styles.fieldLabel}>Stock</Text>
+                  <Text style={styles.fieldLabel}>{t("createnew_field_stock")}</Text>
                 </View>
                 <TextInput
                   style={[styles.detailInput, showValidation && detailsErrors.stock ? styles.detailInputError : null]}
                   value={stock}
                   onChangeText={(t) => setStock(t.replace(/[^\d]/g, ""))}
-                  placeholder="Qty"
+                  placeholder={t("createnew_qty_ph")}
                   placeholderTextColor="#9CA3AF"
                   keyboardType="number-pad"
                 />
@@ -667,13 +687,13 @@ export default function CreateNewScreen() {
             <View style={styles.fieldGroup}>
               <View style={styles.fieldLabelRow}>
                 <Ionicons name="document-text-outline" size={16} color="#6B7280" />
-                <Text style={styles.fieldLabel}>Description</Text>
+                <Text style={styles.fieldLabel}>{t("createnew_field_description")}</Text>
               </View>
               <TextInput
                 style={[styles.detailInput, styles.textArea, showValidation && detailsErrors.description ? styles.detailInputError : null]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Describe your product — material, size, features..."
+                placeholder={t("product_create_desc_ph")}
                 placeholderTextColor="#9CA3AF"
                 multiline
               />
@@ -687,7 +707,9 @@ export default function CreateNewScreen() {
                 if (detailsValid) setStep("photos");
               }}
             >
-              <Text style={styles.primaryBtnText}>Next: Add Photos</Text>
+              <Text style={styles.primaryBtnText}>
+                {t("common_next")}: {t("createnew_step_photos")}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -695,8 +717,10 @@ export default function CreateNewScreen() {
         {/* Up to 5 gallery images for the listing */}
         {step === "photos" && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Step 5: Add Product Photos</Text>
-            <Text style={styles.photoSubtitle}>Add up to 5 photos of your product ({photos.length}/5)</Text>
+            <Text style={styles.cardTitle}>{t("createnew_step_photos")}</Text>
+            <Text style={styles.photoSubtitle}>
+              {t("product_create_alert_photos_body")} ({photos.length}/5)
+            </Text>
 
             <View style={styles.photos}>
               {photos.map((photo, idx) => (
@@ -718,7 +742,7 @@ export default function CreateNewScreen() {
                   <View style={styles.addPhotoIconWrap}>
                     <Ionicons name="add" size={28} color="#FF2800" />
                   </View>
-                  <Text style={styles.addPhotoTxt}>Add Photo</Text>
+                  <Text style={styles.addPhotoTxt}>{t("product_create_image")}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -727,11 +751,15 @@ export default function CreateNewScreen() {
               style={[styles.primaryBtn, !photos.length && styles.disabled]}
               disabled={!photos.length}
               onPress={() => {
-                if (!photos.length) return Alert.alert("Add photos", "Please add at least one product photo.");
+                if (!photos.length) {
+                  return Alert.alert(t("product_create_alert_photos_title"), t("product_create_alert_photos_body"));
+                }
                 setStep("review");
               }}
             >
-              <Text style={styles.primaryBtnText}>Next: Review</Text>
+              <Text style={styles.primaryBtnText}>
+                {t("common_next")}: {t("createnew_step_review")}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -739,7 +767,7 @@ export default function CreateNewScreen() {
         {/* Summary + post to Supabase (video upload: Phase 2 — first photo is listing image) */}
         {step === "review" && (
           <View style={{ gap: 14 }}>
-            <Text style={styles.reviewHeading}>Review and Post</Text>
+            <Text style={styles.reviewHeading}>{t("createnew_review_post")}</Text>
 
             {recordedVideoUri ? (
               <Video
@@ -762,15 +790,15 @@ export default function CreateNewScreen() {
             )}
 
             <View style={styles.reviewCard}>
-              <Text style={styles.reviewCardHeader}>Product Info</Text>
+              <Text style={styles.reviewCardHeader}>{t("createnew_product_details")}</Text>
 
               <TouchableOpacity style={styles.rvRow} onPress={() => setStep("details")} activeOpacity={0.6}>
                 <View style={styles.rvIconWrap}>
                   <Ionicons name="pricetag-outline" size={16} color="#6B7280" />
                 </View>
                 <View style={styles.rvContent}>
-                  <Text style={styles.rvLabel}>Title</Text>
-                  <Text style={styles.rvValue} numberOfLines={1}>{title || "Not set"}</Text>
+                  <Text style={styles.rvLabel}>{t("createnew_field_title")}</Text>
+                  <Text style={styles.rvValue} numberOfLines={1}>{title || "—"}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
               </TouchableOpacity>
@@ -782,11 +810,11 @@ export default function CreateNewScreen() {
                   <Ionicons name="grid-outline" size={16} color="#6B7280" />
                 </View>
                 <View style={styles.rvContent}>
-                  <Text style={styles.rvLabel}>Category</Text>
+                  <Text style={styles.rvLabel}>{t("createnew_field_category")}</Text>
                   {category ? (
                     <View style={styles.rvChip}><Text style={styles.rvChipText}>{category}</Text></View>
                   ) : (
-                    <Text style={styles.rvValueMissing}>Not set</Text>
+                    <Text style={styles.rvValueMissing}>—</Text>
                   )}
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
@@ -799,9 +827,9 @@ export default function CreateNewScreen() {
                   <Ionicons name="sparkles-outline" size={16} color="#6B7280" />
                 </View>
                 <View style={styles.rvContent}>
-                  <Text style={styles.rvLabel}>Condition</Text>
+                  <Text style={styles.rvLabel}>{t("createnew_field_condition")}</Text>
                   <View style={styles.rvConditionChip}>
-                    <Text style={styles.rvConditionText}>{condition}</Text>
+                    <Text style={styles.rvConditionText}>{t(CONDITION_LABEL_KEYS[condition])}</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
@@ -809,17 +837,17 @@ export default function CreateNewScreen() {
             </View>
 
             <View style={styles.reviewCard}>
-              <Text style={styles.reviewCardHeader}>Pricing & Stock</Text>
+              <Text style={styles.reviewCardHeader}>{t("createnew_field_price")} & {t("createnew_field_stock")}</Text>
 
               <View style={styles.rvPriceRow}>
                 <View style={styles.rvPriceBlock}>
-                  <Text style={styles.rvPriceLabel}>Price</Text>
+                  <Text style={styles.rvPriceLabel}>{t("createnew_field_price")}</Text>
                   <Text style={styles.rvPriceAmount}>{price ? `${price}` : "—"}</Text>
                   <Text style={styles.rvPriceCurrency}>XAF</Text>
                 </View>
                 <View style={styles.rvPriceDivider} />
                 <View style={styles.rvPriceBlock}>
-                  <Text style={styles.rvPriceLabel}>Stock</Text>
+                  <Text style={styles.rvPriceLabel}>{t("createnew_field_stock")}</Text>
                   <Text style={styles.rvStockAmount}>{stock || "—"}</Text>
                   <Text style={styles.rvPriceCurrency}>units</Text>
                 </View>
@@ -828,21 +856,23 @@ export default function CreateNewScreen() {
 
             {description ? (
               <View style={styles.reviewCard}>
-                <Text style={styles.reviewCardHeader}>Description</Text>
+                <Text style={styles.reviewCardHeader}>{t("createnew_field_description")}</Text>
                 <Text style={styles.rvDescription} numberOfLines={4}>{description}</Text>
               </View>
             ) : null}
 
             <View style={styles.reviewCard}>
-              <Text style={styles.reviewCardHeader}>Media</Text>
+              <Text style={styles.reviewCardHeader}>{t("product_create_image")}</Text>
 
               <View style={styles.rvRow}>
                 <View style={styles.rvIconWrap}>
                   <Ionicons name="musical-note" size={16} color={addedSound ? "#FF2800" : "#6B7280"} />
                 </View>
                 <View style={styles.rvContent}>
-                  <Text style={styles.rvLabel}>Sound</Text>
-                  <Text style={[styles.rvValue, addedSound && { color: "#FF2800" }]}>{addedSound ? addedSound.name : "None"}</Text>
+                  <Text style={styles.rvLabel}>{t("createnew_step_edit")}</Text>
+                  <Text style={[styles.rvValue, addedSound && { color: "#FF2800" }]}>
+                    {addedSound ? addedSound.name : "—"}
+                  </Text>
                 </View>
               </View>
 
@@ -853,7 +883,7 @@ export default function CreateNewScreen() {
                   <Ionicons name="images-outline" size={16} color="#6B7280" />
                 </View>
                 <View style={styles.rvContent}>
-                  <Text style={styles.rvLabel}>Photos</Text>
+                  <Text style={styles.rvLabel}>{t("createnew_step_photos")}</Text>
                   <Text style={styles.rvValue}>{photos.length} added</Text>
                 </View>
               </View>
@@ -861,14 +891,16 @@ export default function CreateNewScreen() {
 
             <View style={styles.row}>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("photos")}>
-                <Text style={styles.secondaryBtnText}>Back</Text>
+                <Text style={styles.secondaryBtnText}>{t("common_back")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryBtn, !canPost && styles.disabled]}
                 disabled={!canPost || postState === "posting"}
                 onPress={handlePost}
               >
-                <Text style={styles.primaryBtnText}>{postState === "posting" ? "Posting..." : "Post"}</Text>
+                <Text style={styles.primaryBtnText}>
+                  {postState === "posting" ? t("common_posting") : t("common_post")}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

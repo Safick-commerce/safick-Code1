@@ -22,6 +22,7 @@ import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholde
 import { useAuth } from "../context/AuthContext";
 import LivePostsGrid from "../components/live/LivePostsGrid";
 import { DISCOVER_CATEGORIES } from "../constants/categories";
+import { useLanguage } from "../context/LanguageContext";
 
 const DEBOUNCE_MS = 300;
 const RED = "#FF2800";
@@ -37,8 +38,8 @@ const LIVE_SUGGESTION_CHIPS = [
   "Live deals",
 ] as const;
 
-function sellerLabel(s: SellerPreview): string {
-  return s.display_name?.trim() || s.full_name?.trim() || (s.username ? `@${s.username}` : "Seller");
+function sellerLabel(s: SellerPreview, sellerFallback: string): string {
+  return s.display_name?.trim() || s.full_name?.trim() || (s.username ? `@${s.username}` : sellerFallback);
 }
 
 function findCategoryByText(q: string) {
@@ -71,10 +72,12 @@ function TopSellerTile({
   seller,
   isLive,
   onPress,
+  sellerFallback,
 }: {
   seller: SellerPreview;
   isLive: boolean;
   onPress: () => void;
+  sellerFallback: string;
 }) {
   const ringOpacity = useRef(new Animated.Value(1)).current;
 
@@ -103,7 +106,7 @@ function TopSellerTile({
     return () => anim.stop();
   }, [isLive, ringOpacity]);
 
-  const label = sellerLabel(seller);
+  const label = sellerLabel(seller, sellerFallback);
   const city = seller.city?.trim() || "";
   const a11y = [label, city || undefined, isLive ? "live now" : undefined].filter(Boolean).join(", ");
   return (
@@ -145,7 +148,9 @@ function TopSellerTile({
 export default function UnboxSearchScreen() {
   const router = useRouter();
   const inputRef = useRef<TextInput>(null);
+  const { t } = useLanguage();
   const { isAuthenticated, isReady } = useAuth();
+  const sellerFallback = t("common_seller");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [posts, setPosts] = useState<LivePost[]>([]);
@@ -176,7 +181,7 @@ export default function UnboxSearchScreen() {
         }
       } catch {
         if (!cancelled) {
-          setLoadError("Could not load live feed.");
+          setLoadError("error");
           setPosts([]);
         }
       }
@@ -254,53 +259,53 @@ export default function UnboxSearchScreen() {
   const listHeader = useMemo(
     () => (
       <>
-        {loadError ? <Text style={styles.errorBanner}>{loadError}</Text> : null}
+        {loadError ? <Text style={styles.errorBanner}>{t("unbox_search_load_error")}</Text> : null}
         {!showExplore && matchedCategory ? (
           <Pressable
             style={styles.categoryHubBanner}
             onPress={() => openCategoryHub(matchedCategory.name)}
             accessibilityRole="button"
-            accessibilityLabel={`Open ${matchedCategory.name} hub`}
+            accessibilityLabel={t("unbox_search_open_hub", { category: matchedCategory.name })}
           >
             <Ionicons name="grid" size={22} color={RED} />
             <View style={styles.categoryHubBannerText}>
-              <Text style={styles.categoryHubTitle}>Open {matchedCategory.name} hub</Text>
-              <Text style={styles.categoryHubSub}>Filters · deals · trending (preview)</Text>
+              <Text style={styles.categoryHubTitle}>
+                {t("unbox_search_open_hub", { category: matchedCategory.name })}
+              </Text>
+              <Text style={styles.categoryHubSub}>{t("unbox_search_hub_sub")}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
           </Pressable>
         ) : null}
         <Text style={styles.hint}>
-          {showExplore
-            ? ""
-            : `${filtered.length} live result${filtered.length === 1 ? "" : "s"}`}
+          {showExplore ? "" : t("unbox_search_results_count", { count: filtered.length })}
         </Text>
       </>
     ),
-    [loadError, showExplore, matchedCategory, filtered.length, openCategoryHub]
+    [loadError, showExplore, matchedCategory, filtered.length, openCategoryHub, t]
   );
 
   const listEmpty = useMemo(() => {
     if (loadError) {
       return (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Check the banner above, then try again.</Text>
+          <Text style={styles.emptyText}>{t("unbox_search_empty_retry")}</Text>
         </View>
       );
     }
     if (posts.length === 0) {
       return (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Nothing in the feed yet.</Text>
+          <Text style={styles.emptyText}>{t("unbox_search_empty_feed")}</Text>
         </View>
       );
     }
     return (
       <View style={styles.emptyWrap}>
-        <Text style={styles.emptyText}>No lives or replays match &quot;{debounced}&quot;.</Text>
+        <Text style={styles.emptyText}>{t("unbox_search_empty_no_match")}</Text>
       </View>
     );
-  }, [loadError, posts.length, debounced]);
+  }, [loadError, posts.length, debounced, t]);
 
   const onScrollBeginDrag = useCallback(() => {
     Keyboard.dismiss();
@@ -310,7 +315,7 @@ export default function UnboxSearchScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View style={styles.centered}>
-          <Text style={styles.muted}>Loading…</Text>
+          <Text style={styles.muted}>{t("common_loading")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -318,7 +323,7 @@ export default function UnboxSearchScreen() {
 
   if (!isAuthenticated) {
     return (
-      <GuestSignInPlaceholder subtitle="Sign in to search live and replays on Unbox." />
+      <GuestSignInPlaceholder subtitle={t("guest_unbox_search_subtitle")} />
     );
   }
 
@@ -333,7 +338,7 @@ export default function UnboxSearchScreen() {
           <TextInput
             ref={inputRef}
             style={styles.input}
-            placeholder="Search lives, sellers, or a category…"
+            placeholder={t("unbox_search_input")}
             placeholderTextColor="rgba(0, 0, 0, 0.62)"
             value={query}
             onChangeText={setQuery}
@@ -341,7 +346,7 @@ export default function UnboxSearchScreen() {
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
-            accessibilityLabel="Search live"
+            accessibilityLabel={t("a11y_search_live")}
             accessibilityRole="search"
           />
           {query.length > 0 ? (
@@ -349,7 +354,7 @@ export default function UnboxSearchScreen() {
               onPress={() => setQuery("")}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Clear search"
+              accessibilityLabel={t("common_clear_search")}
             >
               <Ionicons name="close-circle" size={22} color="#9CA3AF" />
             </Pressable>
@@ -365,9 +370,9 @@ export default function UnboxSearchScreen() {
           showsVerticalScrollIndicator={false}
           onScrollBeginDrag={Keyboard.dismiss}
         >
-          {loadError ? <Text style={styles.errorBanner}>{loadError}</Text> : null}
+          {loadError ? <Text style={styles.errorBanner}>{t("unbox_search_load_error")}</Text> : null}
 
-          <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Suggestions</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{t("unbox_search_suggestions")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
             {LIVE_SUGGESTION_CHIPS.map((label) => (
               <Pressable
@@ -381,11 +386,11 @@ export default function UnboxSearchScreen() {
             ))}
           </ScrollView>
 
-          <Text style={styles.sectionTitle}>Top live sellers</Text>
+          <Text style={styles.sectionTitle}>{t("unbox_search_top_sellers")}</Text>
           {sellersLoading ? (
             <ActivityIndicator color={RED} style={styles.sellersSpinner} />
           ) : sellers.length === 0 ? (
-            <Text style={styles.mutedSmall}>No sellers to highlight yet.</Text>
+            <Text style={styles.mutedSmall}>{t("unbox_search_no_sellers")}</Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sellerRow}>
               {sellers.map((s) => (
@@ -394,6 +399,7 @@ export default function UnboxSearchScreen() {
                   seller={s}
                   isLive={sellerIsCurrentlyLive(s, posts)}
                   onPress={() => openSeller(s.id)}
+                  sellerFallback={sellerFallback}
                 />
               ))}
             </ScrollView>

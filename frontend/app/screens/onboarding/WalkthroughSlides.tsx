@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image, ImageSourcePropType, ScrollView } from "react-native";
 import { useRef, useState, useCallback } from "react";
 import { Feather } from "@expo/vector-icons";
+import { useLanguage } from "../../../context/LanguageContext";
+import type { TranslationKey } from "../../../i18n/types";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const RED = "#FF2800";
@@ -8,26 +10,25 @@ const IMAGE_HEIGHT = Math.round(SCREEN_HEIGHT * 0.50);
 
 interface SlideData {
   image: ImageSourcePropType;
-  title: string;
-  subtitle: string;
+  titleKey: TranslationKey;
+  subtitleKey: TranslationKey;
 }
 
 const SLIDES: SlideData[] = [
   {
     image: require("../../../assets/images/walkthroughframe1.png"),
-    title: "Discover Products",
-    subtitle: "Scroll through the latest fashion, beauty,\nelectronics, and more from sellers near you",
+    titleKey: "walkthrough_slide1_title",
+    subtitleKey: "walkthrough_slide1_subtitle",
   },
   {
     image: require("../../../assets/images/seller3.jpeg"),
-    title: "Connect with Sellers",
-    subtitle: "Chat directly, negotiate deals,\nand build trust before you buy",
-
+    titleKey: "walkthrough_slide2_title",
+    subtitleKey: "walkthrough_slide2_subtitle",
   },
   {
     image: require("../../../assets/images/shopper-looking-clothing-indoors-store.jpg"),
-    title: "Shop Your Way",
-    subtitle: "Pay with Mobile Money, cash on delivery,\nor however works best for you",
+    titleKey: "walkthrough_slide3_title",
+    subtitleKey: "walkthrough_slide3_subtitle",
   },
 ];
 
@@ -39,6 +40,7 @@ interface WalkthroughSlidesProps {
 }
 
 export default function WalkthroughSlides({ onComplete }: WalkthroughSlidesProps) {
+  const { t } = useLanguage();
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -69,15 +71,15 @@ export default function WalkthroughSlides({ onComplete }: WalkthroughSlidesProps
       >
         {SLIDES.map((slide, slideIndex) => (
           <View key={slideIndex} style={styles.slide}>
-            <Text style={styles.sectionTitle}>How does it work?</Text>
+            <Text style={styles.sectionTitle}>{t("walkthrough_section_title")}</Text>
             <View style={styles.imageContainer}>
               <Image source={slide.image} style={styles.image} resizeMode="cover" />
               <View style={styles.imageOverlay} />
             </View>
 
             <View style={styles.textArea}>
-              <Text style={styles.title}>{slide.title}</Text>
-              <Text style={styles.subtitle}>{slide.subtitle}</Text>
+              <Text style={styles.title}>{t(slide.titleKey)}</Text>
+              <Text style={styles.subtitle}>{t(slide.subtitleKey)}</Text>
             </View>
           </View>
         ))}
@@ -92,7 +94,7 @@ export default function WalkthroughSlides({ onComplete }: WalkthroughSlidesProps
 
         <TouchableOpacity style={styles.button} onPress={handleNext} activeOpacity={0.85}>
           <Text style={styles.buttonText}>
-            {activeIndex === SLIDES.length - 1 ? "Let's go" : "Next"}
+            {activeIndex === SLIDES.length - 1 ? t("walkthrough_lets_go") : t("walkthrough_next")}
           </Text>
           <Feather name="arrow-right" size={20} color="#fff" />
         </TouchableOpacity>
