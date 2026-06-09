@@ -1,0 +1,158 @@
+# LiveKit Implementation Notes
+
+## What we did from the first prompt
+
+1. Asked Cursor to review the Safick app and identify what was missing for a LiveKit live-selling feature.
+2. Confirmed the app stack: React Native + Expo frontend, Node/Express backend, Supabase auth/database, TypeScript, and LiveKit Cloud.
+3. Identified the missing pieces for LiveKit:
+   - No live_events table in Supabase.
+   - Empty or unmounted live.routes.ts.
+   - golive.tsx still using an Alert instead of a real live stream.
+   - watch-live.tsx still showing a static image.
+   - LiveKit packages not yet installed.
+4. Decided to keep the existing UI and structure and only wire LiveKit into the current screens.
+5. Prepared a Cursor Agent prompt to implement the backend and frontend LiveKit wiring.
+6. Added LiveKit environment variables and database migration instructions.
+7. Ran the Supabase SQL migration for live_events.
+8. Fixed a Prisma database authentication issue by resetting the Supabase database password and updating backend/.env.
+9. Successfully ran:
+   - npx prisma db pull
+   - npm run db:generate
+10. Restarted the backend.
+11. Tried to build the Expo Android dev client.
+12. Hit multiple Windows/Android build issues and fixed them step by step:
+   - Java not installed or not found.
+   - JAVA_HOME not set.
+   - Android device showing offline.
+   - Expo Go not supported for LiveKit native modules.
+   - Java version mismatch.
+   - Android SDK path not set.
+   - colors.xml missing iconBackground color.
+   - Windows path length limit.
+   - Old build cache and stale .cxx folders from the old project path.
+
+## LiveKit implementation summary
+
+### Backend changes
+- Installed livekit-server-sdk.
+- Added LiveKit config and service files.
+- Added live routes for:
+  - start live session
+  - get viewer token
+  - optionally end live session
+- Mounted /api/live in the backend app.
+- Updated socket logic to validate active live sessions.
+
+### Frontend changes
+- Installed LiveKit React Native packages.
+- Added registerGlobals() in frontend/app/_layout.tsx.
+- Created frontend/lib/liveApi.ts.
+- Replaced the Alert in golive.tsx with a real LiveKitRoom publish flow.
+- Replaced the static Image in watch-live.tsx with a real LiveKitRoom viewer flow.
+- Updated app.json with LiveKit and WebRTC plugins and camera/mic permissions.
+
+### Database changes
+- Added the live_events table in Supabase.
+- Pulled the schema into Prisma.
+
+## How to run the project
+
+### 1. Backend setup
+In backend/.env, make sure these exist:
+- LIVEKIT_URL
+- LIVEKIT_API_KEY
+- LIVEKIT_API_SECRET
+- DATABASE_URL
+
+Then run:
+```bash
+cd backend
+npm install
+npx prisma db pull
+npm run db:generate
+npm run dev
+```
+
+### 2. Frontend setup
+In frontend/.env, make sure this exists:
+- EXPO_PUBLIC_LIVEKIT_URL
+
+Then run:
+```bash
+cd frontend
+npm install
+npx expo prebuild
+npx expo run:android
+```
+
+Important: use a real Android phone, not Expo Go.
+
+## How to fix common errors
+
+### Prisma authentication error
+If you see P1000 authentication failed:
+- Go to Supabase project settings.
+- Reset the database password if needed.
+- Update the password inside backend/.env DATABASE_URL.
+- Run npx prisma db pull again.
+
+### Java not found
+If Java is not recognized:
+- Install Java 17 Temurin.
+- Set JAVA_HOME.
+- Restart the terminal.
+- Run java -version to confirm.
+
+### Android device offline
+If adb says device offline:
+- Unplug the phone.
+- Replug it.
+- Allow USB debugging on the phone.
+- Run adb kill-server and then adb devices.
+
+### Expo Go does not work
+LiveKit uses native WebRTC modules, so Expo Go will not work.
+You must build and install a dev client with:
+```bash
+npx expo prebuild
+npx expo run:android
+```
+
+### Android SDK not found
+If the build says Android SDK location not found:
+- Set ANDROID_HOME to the SDK path.
+- Confirm the SDK exists in your Windows user AppData folder.
+
+### colors.xml error
+If iconBackground is missing:
+- Open frontend/android/app/src/main/res/values/colors.xml
+- Add:
+```xml
+<color name="iconBackground">#FFFFFF</color>
+```
+
+### Path length error
+If Windows path length is too long:
+- Move the project to a shorter folder path like C:\dev\safick.
+- Reinstall node_modules there.
+- Clear stale build caches.
+
+### Stale .cxx / Gradle cache
+If the build keeps referencing the old project path:
+- Stop the Gradle daemon.
+- Delete stale .cxx folders.
+- Delete old react-native-reanimated and react-native-worklets build caches.
+- Run the Android build again.
+
+## What to do if the build still fails
+
+1. Stop Gradle.
+2. Delete stale caches.
+3. Verify Java 17 is set.
+4. Verify Android SDK path is set.
+5. Make sure the project is in a short path.
+6. Reinstall node_modules.
+7. Run npx expo run:android again.
+
+## Final note very important Emma
+The goal was to keep the app structure unchanged and only connect LiveKit to the existing live screens. Most problems came from Windows Android build setup, not the LiveKit code itself.
