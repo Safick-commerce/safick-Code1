@@ -49,6 +49,34 @@ export async function requireAuth(
   next();
 }
 
+/**
+ * Admin-only header check. The MVP does not have a separate admin login —
+ * ops calls the endpoint with `x-admin-token: <ADMIN_API_KEY>`. This is the
+ * minimum bar for an MVP refund / moderation API and lets us ship without
+ * a separate admin auth surface. Replace with a proper role-based check
+ * when an admin UI lands post-launch.
+ */
+export function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const expected = process.env.ADMIN_API_KEY;
+  if (!expected) {
+    res.status(503).json({
+      error: "Admin endpoint disabled",
+      message: "Set ADMIN_API_KEY in the backend environment to enable admin actions.",
+    });
+    return;
+  }
+  const provided = req.headers["x-admin-token"];
+  if (typeof provided !== "string" || provided !== expected) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  next();
+}
+
 export async function optionalAuth(
   req: Request,
   _res: Response,

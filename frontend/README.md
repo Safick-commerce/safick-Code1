@@ -21,17 +21,18 @@
 
 ### Trust Model (the SAFICK Promise)
 
-SAFICK doesn't sell anything, real Cameroonians do. The platform's role is to make those people findable, accountable, and easy to trust. The promise is deliberately bounded: we do not guarantee individual transactions (no escrow, no in-app payment at launch), but we do guarantee the visibility of trust signals and the speed of our response when something goes wrong.
+SAFICK doesn't sell anything, real Cameroonians do. The platform's role is to make those people findable, accountable, and easy to trust. At launch, SAFICK actively protects each individual transaction through **in-app escrow on top of Maviance (Smobilpay S3P)** — buyers pay SAFICK by MTN Mobile Money, Orange Money, Express Union, or card, the funds are held until the buyer confirms delivery (or auto-released after 7 days), and only then disbursed to the seller's MoMo or bank account.
 
 - **Verified profiles** — phone mandatory at signup; ID verification unlocks the "Verified" badge after a number of completed sales (Phase 2).
 - **Reviews tied to confirmed deals** — no anonymous reviews; both buyer and seller must confirm completion.
 - **Visible trust cards on every profile** — completed deals, response rate, average review, join date, verified status. Buyers see this before sending the first message; sellers see the same on the buyer side.
-- **Cash-on-delivery surfaced as the default** suggested payment in the deal flow; pre-payment requires explicit warning tap-through.
-- **Agreed-price lock** in chat before status moves to Agreed; locked record is the source of truth in any dispute.
+- **On-platform payment with escrow** — buyer pays through the SAFICK checkout (MTN MoMo, Orange Money, Express Union, card); funds sit in escrow until delivery is confirmed or the 7-day auto-release timer expires; sellers are paid out to their stored MoMo or bank destination on release.
+- **Agreed-price lock** at checkout — the order total is fixed at the moment the buyer confirms; price changes after that require buyer + seller agreement in chat and a manual order revision. The locked checkout record is the source of truth in any dispute (eliminates "transport gouge" scenarios at handoff).
+- **Buyer confirms delivery in-app** — completion triggers seller payout. Disputes opened before completion freeze the funds and route to the on-call moderator.
 - **Real consequences for bad actors** — consequence ladder of warning → 7-day suspension → permanent ban, with monthly public transparency reports.
 - **A human at the other end** — visible customer-service channel (email + WhatsApp + number) and a named team responding by name in the help thread.
 
-Disputes follow a published SLA: 4h triage, 24h investigation, 48h resolution. See the Trust & Safety feature list under [Features](#features) and the Pre-Launch Checklist for the operations commitments.
+What SAFICK still does NOT cover: in-stream live-shopping checkout (Phase 2), multi-currency, international transactions, and buyer protection beyond the escrow window itself (we hold and release; we are not an insurer). Disputes follow a published SLA: 4h triage, 24h investigation, 48h resolution. See the Trust & Safety feature list under [Features](#features) and the Pre-Launch Checklist for the operations commitments.
 
 ### Business Model: Social Commerce Marketplace
 
@@ -40,21 +41,22 @@ safick operates as a **social commerce marketplace** — a hybrid of TikTok-styl
 **How it works:**
 1. Sellers create content or upload product videos/images and create listings
 2. Buyers discover products through the feed (Discover, For You, Following)
-3. When a buyer is interested, they message the seller directly via in-app chat
-4. Buyer and seller negotiate, arrange payment (mobile money, cash on delivery), and   delivery privately
-5. After delivery, buyer confirms receipt and leaves a review
+3. Buyers either tap **Buy Now / Add to Cart** to check out on-platform (escrow), or **Message Seller** for questions, negotiation, or off-platform arrangement
+4. For on-platform checkout: buyer pays SAFICK via MTN MoMo / Orange Money / Express Union / card; funds are escrowed; an order card is auto-posted into the buyer-seller chat
+5. Seller marks the item delivered; buyer confirms receipt (or 7-day auto-release triggers); SAFICK pays out to the seller's MoMo / bank
+6. After completion, both parties can leave a review tied to the confirmed deal
 
-**Why no in-app payments (for now):**
-- Lower barrier to entry for both sellers and buyers
-- Avoids payment integration complexity at launch
-- Works naturally with how people already transact in Cameroon (mobile money transfers, cash on delivery)
-- Payments can be added later once the platform has traction
+**Why on-platform escrow at launch:**
+- Eliminates the trust gap that kills WhatsApp commerce: buyers no longer have to send money to strangers up front
+- Pricing is locked at checkout — no transport-gouge or last-minute price changes at handoff
+- Maviance S3P provides the licensed rail (MTN MoMo, Orange Money, Express Union, card collection + disbursement) so SAFICK does not have to integrate with each telco directly
+- Chat-based negotiation still exists for questions and edge cases — buyers can message the seller before or instead of buying
 
-**Revenue model (future):**
-- Featured/promoted listings
-- Sellers verification subscription tiers
-- Optional in-app payments with commission (Phase 3)
-- Ads revenue from sponsors or partners.
+**Revenue model:**
+- Commission on each completed on-platform transaction (primary, from launch)
+- Featured/promoted listings (Phase 2)
+- Seller verification subscription tiers (Phase 2)
+- Ads revenue from sponsors or partners (Phase 2+)
 
 ### Target Market: Cameroon 🇨🇲
 - **Primary Payment Methods**: Orange Money, Mobile Money
@@ -125,16 +127,23 @@ safick serves two distinct user types:
 - Push notifications
 - Douala, Cameroon as the initial market
 
+**In Scope (Promoted to MVP)**
+- **On-platform checkout with cart** -- single combined checkout across multiple sellers, items grouped by seller in the cart
+- **In-app payments via Maviance S3P** -- MTN Mobile Money, Orange Money, Express Union, card; XAF only
+- **SAFICK-held escrow** -- funds held by SAFICK between payment and delivery confirmation; 7-day auto-release timer per order
+- **Seller payouts** -- automatic cashin to seller's stored MoMo / Orange / bank destination on order completion
+- **Order cards in chat** -- each order auto-posts a structured card into the buyer-seller chat; deal status visible from there
+- **Structured dispute form** -- buyer can dispute an order during the escrow window; routes to on-call moderator; funds frozen until resolution
+
 **Out of Scope (NOT included at launch)**
-- No in-app payments -- buyers and sellers arrange payment privately (Orange Money, cash on delivery)
-- No delivery or logistics system -- sellers handle their own delivery
+- No delivery or logistics system -- sellers handle their own delivery; delivery cost is negotiated in chat for MVP (a flat-fee or zone-based field is a Phase 2 addition)
 - No web version -- mobile only at launch (web planned for future based on market demand)
 - No admin dashboard -- moderation handled manually at launch (named human on-call, daily triage); structured admin tool ships in Phase 2
-- No automated dispute resolution -- disputes are handled by the on-call moderator via the 4h / 24h / 48h SLA described in the Trust Model; a structured in-app dispute flow ships in Phase 2
-- No escrow or buyer-protection guarantee -- payments are arranged off-platform (cash on delivery, mobile money); SAFICK surfaces trust signals and enforces consequences but does not insure individual transactions
-- No in-stream checkout or shop-from-live cart -- buyers message sellers about products (Phase 2)
+- No automated dispute resolution -- disputes are handled by the on-call moderator via the 4h / 24h / 48h SLA described in the Trust Model; a structured in-app admin tool for triage ships in Phase 2
+- No user wallet / balance / top-up -- SAFICK does not hold customer funds outside the per-transaction escrow window (deferred to Phase 2 once we have transaction volume justifying e-money licensing)
+- No in-stream checkout or shop-from-live cart -- buyers leave the live stream to complete a purchase via the normal cart flow (Phase 2)
 - No AI features -- deferred to Phase 3 (see the "AI that speaks Cameroon" roadmap maintained by the team)
-- No multi-country support -- Cameroon only at launch
+- No multi-country support -- Cameroon only at launch (XAF only)
 
 ## Features
 
@@ -191,11 +200,13 @@ safick serves two distinct user types:
 - **Consequence Ladder**: warning → 7-day suspension → permanent ban; visible on the public trust page after due process
 - **Monthly Transparency Report**: anonymized totals (accounts banned, disputes resolved, average response time) — published in-app and on SAFICK social channels (Phase 2)
 
-### Transactions (Current Model)
-- **No in-app payments at launch** — buyers and sellers arrange payment directly (mobile money, cash on delivery)
-- **Chat-based transaction tracking** — every inquiry is logged with deal status (future phase)
-- **Transaction history via chat** — conversations serve as the purchase record (future phase)
-- **Future**: Optional in-app Orange Money / Mobile Money payments with commission (future phase)
+### Transactions (Launch Model)
+- **On-platform checkout via Maviance S3P** — MTN Mobile Money, Orange Money, Express Union, card; XAF only
+- **SAFICK-held escrow** — funds collected at checkout, released to seller on delivery confirmation or 7-day auto-release
+- **Order cards in chat** — every paid order auto-posts a structured card into the buyer-seller conversation with current deal status
+- **Order history** — buyer and seller each see a dedicated Orders list grouped by status (`pending_payment`, `funds_held`, `seller_accepted`, `in_transit`, `delivered`, `completed`, `disputed`, `refunded`, `cancelled`)
+- **Payouts** — automatic cashin to seller's stored MoMo / Orange / bank destination on order completion; 3x retry on failure, manual moderator handoff if all retries fail
+- **Commission** — taken on each completed on-platform transaction (the primary revenue stream from launch)
 
 ### AI-Powered Features (fuure phase)
 - **Smart Recommendations**: Personalized "For You" feed powered by ML
@@ -800,7 +811,7 @@ When built, the Python/FastAPI stack will live in **`ai-backend/`** at the **rep
 | Seller onboarding (recruit 50-100 sellers) | June 2026 | Not Started |
 | **MVP Launch (Douala, Cameroon)** | **July 2026** | Not Started |
 | Phase 2 features (live enhancements, seller tools) | Q4 2026 | Planned |
-| Phase 3 features (payments, AI, growth) | Q1-Q2 2027 | Planned |
+| Phase 3 features (AI, advanced growth, wallet) | Q1-Q2 2027 | Planned |
 
 ### Phase 1: MVP Core Features -- Target: July 2026
 
@@ -850,13 +861,46 @@ When built, the Python/FastAPI stack will live in **`ai-backend/`** at the **rep
 - [ ] Seller ratings & reviews (tied to confirmed deals; mandatory review prompt after deal completion)
 - [ ] Structured fraud-report categories (Item not received / Wrong item / Seller unresponsive / Impersonation / Off-platform / Other) — not a free-text-only report
 - [ ] Block functionality
-- [ ] Cash-on-delivery surfaced as default suggested payment; pre-payment requires explicit warning tap-through
+- [ ] Escrow window surfaced as the default trust mechanism in the checkout flow ("Held safely by SAFICK until you confirm delivery"); off-platform arrangement remains available via the Message Seller path with an explicit risk-warning tap-through
 - [ ] Visible customer-service channel in app menu (email + WhatsApp number, real human)
 - [ ] In-app SAFICK Promise page (FR + EN) explaining what SAFICK protects and what it does not
 - [ ] Seller onboarding scam-awareness flow (4 screens) covering fake MoMo receipts, fake buyers, impersonation
 - [ ] Seller profiles with follower count and join date
 - [ ] Response time indicators on seller profiles
 - [ ] Consequence ladder published internally (warning → 7-day suspension → permanent ban)
+
+### Seller Tools 
+ [ ] Analytics dashboard (views, inquiries, completed deals)
+
+#### Checkout, Payments & Escrow (promoted from Phase 3 to MVP)
+Plan: **[`.cursor/plans/checkout-cart-escrow-mvp_351f6332.plan.md`](../.cursor/plans/checkout-cart-escrow-mvp_351f6332.plan.md)**. Operational risk note: **[`docs/launch-readiness/maviance-escrow-risk-note.md`](./docs/launch-readiness/maviance-escrow-risk-note.md)**.
+
+- [ ] Maviance S3P merchant onboarding (commercial register, tax ID, SAFICK bank account for settlement) — *external paperwork, separate workstream*
+- [ ] PSP / e-money licensing answer captured (whether SAFICK needs own license or sits on Maviance rail) — *external legal, separate workstream*
+- [x] Cart store (Zustand + AsyncStorage persist, grouped by seller)
+- [x] Home tab header cart icon with item-count badge (replaces wishlist heart on home)
+- [x] Product details footer with Message Seller / Add-to-Cart (icon) / Buy Now layout
+- [x] Cart screen with quantity stepper and per-seller grouping
+- [x] 3-step checkout flow (delivery address → payment method → review)
+- [x] Awaiting-PIN screen with status polling for mobile money flows
+- [x] Order success screen with deep-links to per-seller chats
+- [x] Saved delivery addresses (Cameroon-shaped: city + neighbourhood + landmark; no zip)
+- [x] Backend Prisma models: `addresses`, `checkouts`, `orders`, `order_items`, `payouts`
+- [x] Seller payout details (MoMo number + operator) captured via dedicated payout settings screen
+- [x] Maviance S3P collect flow (quoteStandard → collectStandard → verify)
+- [x] Signed Maviance webhook handler (idempotent on `(ptn, status)`; rejects unsigned)
+- [x] Reconciliation cron (every 5 min) self-heals missed webhooks via `verifyTx`
+- [x] Order state machine (`pending_payment` → `funds_held` → `seller_accepted` → `in_transit` → `delivered` → `completed`; plus `disputed`, `refunded`, `cancelled`)
+- [x] Auto-release cron (hourly) flips `delivered` → `completed` after 7-day window
+- [x] Maviance cashin disbursement to seller MoMo on completion (3x retry on failure)
+- [x] Order-card chat messages auto-posted into per-seller conversations on `funds_held`
+- [x] Buyer order history list + order detail screen with timeline + Confirm Delivery + Open Dispute
+- [x] Seller orders screen with Accept / Reject / Mark Shipped / Mark Delivered actions
+- [x] Structured dispute form (reuses `reportReasons.ts` categories)
+- [x] Admin refund endpoint (cashin-back-to-buyer pattern for already-collected MoMo)
+- [x] In-app "How escrow works" page (FR + EN) before launch
+- [x] Unit smoke tests: order state machine transitions + Maviance webhook signature verification (`backend/tests/*`)
+- [ ] E2E smoke tests: happy path + sad path (PIN denied / collect timeout / bad signature) via Maestro + supertest *(requires Maviance sandbox credentials — blocked on merchant onboarding)*
 
 #### Live streaming & Unbox (core vision — ships in MVP)
 See **[docs/PHASE1_LIVE.md](./docs/PHASE1_LIVE.md)** for provider choice (**LiveKit Cloud** recommended), architecture, and out-of-scope items.
@@ -888,18 +932,20 @@ See **[docs/PHASE1_LIVE.md](./docs/PHASE1_LIVE.md)** for provider choice (**Live
 - [ ] Seller activity indicators ("Last active 2h ago")
 
 #### Seller Tools
-- [ ] Analytics dashboard (views, inquiries, completed deals)
 - [ ] Inquiry management interface
 - [ ] Earnings tracking (self-reported)
 - [ ] Inventory management
 
 ### Phase 3: Growth Features (Scale) -- Target: Q1-Q2 2027
 
+> In-app payments, commission, and per-transaction escrow shipped in MVP (Phase 1). The items below build on top of that foundation.
+
 #### Monetization
 - [ ] Optional in-app payments (Orange Money / Mobile Money)
 - [ ] Commission on in-app transactions
 - [ ] Featured / promoted listings
 - [ ] Seller subscription tiers
+- [ ] User wallet / balance / top-up (deferred from MVP — requires e-money licensing or partner-hosted setup)
 
 #### AI Features
 - [ ] Personalized recommendations
@@ -910,8 +956,8 @@ See **[docs/PHASE1_LIVE.md](./docs/PHASE1_LIVE.md)** for provider choice (**Live
 #### Advanced Features
 - [ ] Price alerts
 - [ ] Group buying
-- [ ] Escrow system for high-value items
-- [ ] Dispute resolution system
+- [ ] Multi-currency / cross-border support
+- [ ] In-app structured dispute admin tool (replaces manual moderator triage)
 
 ### 📋 Pre-Launch Checklist
 

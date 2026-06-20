@@ -318,7 +318,10 @@ export default function UnboxSearchScreen() {
 
   if (!isAuthenticated) {
     return (
-      <GuestSignInPlaceholder subtitle="Sign in to search live and replays on Unbox." />
+      <GuestSignInPlaceholder
+        subtitle="Sign in to search live and replays on Unbox."
+        redirectTo="/unbox-search"
+      />
     );
   }
 

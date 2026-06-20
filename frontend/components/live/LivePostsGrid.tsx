@@ -12,6 +12,9 @@ interface LivePostsGridProps {
   ListFooterComponent?: ReactElement;
   ListEmptyComponent?: ReactElement | null;
   onScrollBeginDrag?: () => void;
+  onPostImageLoad?: () => void;
+  /** When true, live rows stay mounted but hidden so images can load underneath a skeleton. */
+  gridLoading?: boolean;
 }
 
 function LivePostsGrid({
@@ -21,6 +24,8 @@ function LivePostsGrid({
   ListFooterComponent,
   ListEmptyComponent,
   onScrollBeginDrag,
+  onPostImageLoad,
+  gridLoading = false,
 }: LivePostsGridProps) {
   // Calculate card width based on screen size
   // Account for: horizontal padding (10), gaps between cards (12), and margins (6 * 2 per card)
@@ -41,13 +46,16 @@ function LivePostsGrid({
     groupedPosts.push(posts.slice(i, i + postsPerRow));
   }
 
-  const renderRow: ListRenderItem<LivePost[]> = useCallback(({ item: rowPosts }) => (
-    <View style={styles.row}>
-      {rowPosts.map((post) => (
-        <LivePostCard key={post.id} post={post} cardWidth={cardWidth} />
-      ))}
-    </View>
-  ), [cardWidth]);
+  const renderRow: ListRenderItem<LivePost[]> = useCallback(
+    ({ item: rowPosts }) => (
+      <View style={[styles.row, gridLoading && styles.rowHidden]}>
+        {rowPosts.map((post) => (
+          <LivePostCard key={post.id} post={post} cardWidth={cardWidth} onImageLoad={onPostImageLoad} />
+        ))}
+      </View>
+    ),
+    [cardWidth, gridLoading, onPostImageLoad],
+  );
 
   const keyExtractor = useCallback((item: LivePost[], index: number) => 
     `row-${index}`, []);
@@ -81,6 +89,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
     alignItems: 'flex-start',
     justifyContent: 'center',
+  },
+  rowHidden: {
+    opacity: 0,
   },
 });
 

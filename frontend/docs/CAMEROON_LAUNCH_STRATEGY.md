@@ -46,14 +46,14 @@ safick solves the WhatsApp video sharing problem for sellers in Cameroon by prov
 - **Reach more buyers** through discovery features
 - **Host live events** to showcase products
 - **Track analytics** (views, engagement, sales)
-- **Secure payments** via Orange Money escrow
-- **No logistics burden** - handle own delivery
+- **Guaranteed on-platform payouts** to seller MoMo / bank on delivery confirmation, via Maviance S3P
+- **No logistics burden** - handle own delivery (delivery cost negotiated in chat at MVP)
 
 ### For Buyers
 - **Discover products** in one place (not scattered WhatsApp stories)
 - **Follow favorite sellers** for updates
-- **Secure payments** with escrow protection
-- **Direct communication** with sellers
+- **Escrow-backed checkout** - pay SAFICK via MTN MoMo / Orange Money / Express Union / card; funds held until you confirm delivery (or 7-day auto-release)
+- **Direct communication** with sellers via product-linked chat
 - **Video-first shopping** - see products before buying
 
 ---
@@ -95,30 +95,39 @@ safick solves the WhatsApp video sharing problem for sellers in Cameroon by prov
    - Help with first product listings
 
 #### Payment Integration
-**Orange Money API Integration** (Critical)
+**Maviance S3P (Smobilpay) Integration** (Critical — on the launch critical path)
 
-1. **Contact Orange Money Cameroon**
-   - Apply for merchant account
-   - Get API credentials
-   - Understand fee structure
-   - Test integration thoroughly
+1. **Maviance S3P Merchant Onboarding**
+   - Submit Cameroon business documents (commercial register, tax ID)
+   - Provide SAFICK-owned bank account for settlement
+   - Receive sandbox + production API credentials and per-telco service IDs
+   - Typical timeline: 2-4 weeks; must start immediately, not late
+   - Detailed risk note: [`docs/launch-readiness/maviance-escrow-risk-note.md`](./launch-readiness/maviance-escrow-risk-note.md)
 
-2. **Alternative Payment Methods**
-   - MTN Mobile Money (backup)
-   - Bank transfers (for larger transactions)
-   - Cash on delivery option (consider for trust building)
+2. **Covered Payment Methods (single integration, four rails)**
+   - MTN Mobile Money — `collectstd` + `cashin`
+   - Orange Money — `collectstd` + `cashin`
+   - Express Union mobile wallet — `collectstd`
+   - Card (Visa / Mastercard) — hosted checkout
+   - Cash on delivery remains available as an off-platform option via Message Seller (with risk-warning tap-through), but is NOT a checkout method
 
-3. **Escrow System**
-   - Hold payment until delivery confirmation
-   - Release to seller after buyer confirms receipt
-   - Dispute resolution process
+3. **Escrow System** (built on top of Maviance, not a separate provider)
+   - Buyer pays SAFICK at checkout; funds collected via Maviance into the SAFICK settlement account
+   - Order moves to `funds_held` state in our backend
+   - Funds released to seller via Maviance `cashin` on buyer-confirmed delivery, or 7-day auto-release cron
+   - Dispute window freezes the funds; on-call moderator triages within the published SLA (4h triage / 24h investigation / 48h resolution)
+
+4. **Regulatory open question** (to confirm before going live)
+   - Does SAFICK need its own e-money / PSP license to hold customer funds, or does sitting on Maviance's licensed rail provide sufficient cover?
+   - Answer captured in the risk note linked above; legal sign-off required before flipping from sandbox to production.
 
 #### Technical Preparation
 - [ ] Backend API development
 - [ ] Video upload/storage infrastructure
-- [ ] Orange Money payment integration
-- [ ] Database setup
-- [ ] Push notifications
+- [ ] Maviance S3P sandbox integration + signed webhook handler
+- [ ] Order state machine + auto-release cron + cashin payout
+- [ ] Database setup (including `addresses`, `checkouts`, `orders`, `order_items`, `payouts` tables)
+- [ ] Push notifications (new order, dispute opened, payout sent)
 - [ ] Analytics setup
 - [ ] Error tracking
 

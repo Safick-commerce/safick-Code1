@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageSourcePropType } from 'react-native';
 import React, { useState } from 'react';
 import { FontAwesome6, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 
 type LoginscreensProps = {
   /** Called when user taps "Get Started" or "Continue with Google". */
@@ -14,7 +15,7 @@ type LoginscreensProps = {
 };
 
 /** App icon (same as app.json expo.icon / adaptiveIcon) — shown beside the "k" in Safick. */
-const APP_ICON = require('../../../assets/images/safick-prlogo02.png');
+const APP_ICON = require('../../../assets/images/saficklogo03.svg');
 // Brand red used for buttons, active language tab, "CART" text, and "Sign In" link
 const RED = '#FF2800';
 
@@ -26,7 +27,12 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
   const handleGetStarted =
     onSuccess ?? (() => router.replace("/screens/onboarding/OnboardingScreen"));
   const handleSignIn =
-    onSignInPress ?? (() => router.push("/auth/signin"));
+    onSignInPress ??
+    (() =>
+      router.push({
+        pathname: "/auth/signin",
+        params: { redirectTo: "/screens/loginscreens/Loginscreens" },
+      }));
 
   return (
     // Outer full-screen container with plain white background
@@ -60,7 +66,8 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
               <Image
                 source={logoIconSource ?? APP_ICON}
                 style={styles.brandAppIcon}
-                resizeMode="contain"
+                contentFit="contain"
+                accessibilityLabel="Safick Logo"
               />
             </View>
           </View>

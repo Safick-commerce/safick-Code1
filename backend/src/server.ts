@@ -15,12 +15,14 @@ import { createServer } from "http";
 import app from "./app";
 import { prisma } from "./config/database";
 import { initSocket, closeSocket } from "./socket";
+import { startBackgroundJobs, stopBackgroundJobs } from "./jobs";
 
 const PORT = process.env.PORT || 4000;
 
 async function main() {
   const httpServer = createServer(app);
   initSocket(httpServer);
+  startBackgroundJobs();
 
   httpServer.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`\n🚀 Safick backend running on http://localhost:${PORT}`);
@@ -33,6 +35,7 @@ async function main() {
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received. Shutting down gracefully...`);
 
+    stopBackgroundJobs();
     await closeSocket();
 
     await new Promise<void>((resolve) => {

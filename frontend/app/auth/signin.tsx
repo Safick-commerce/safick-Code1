@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { useUserProfile } from "../../context/UserProfileContext";
+import { useUserProfile } from "../../stores/userProfileStore";
 
 const RED = "#FF2800";
 
@@ -34,6 +34,18 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const navigateToRedirect = useCallback((): boolean => {
+    if (redirectTo && typeof redirectTo === "string" && redirectTo.length > 0) {
+      if (redirectTo === "/productDetails" && typeof redirectProductId === "string") {
+        router.replace({ pathname: "/productDetails", params: { id: redirectProductId } });
+        return true;
+      }
+      router.replace(redirectTo as Href);
+      return true;
+    }
+    return false;
+  }, [redirectTo, redirectProductId, router]);
+
   const navigateAfterLogin = useCallback(async () => {
     // Returning users sign in — send them to the app, not onboarding.
     await updateProfile({
@@ -41,17 +53,23 @@ export default function SignInScreen() {
       onboardingCompleted: true,
     });
 
-    if (redirectTo && typeof redirectTo === "string" && redirectTo.length > 0) {
-      if (redirectTo === "/productDetails" && typeof redirectProductId === "string") {
-        router.replace({ pathname: "/productDetails", params: { id: redirectProductId } });
-        return;
-      }
-      router.replace(redirectTo as Href);
+    if (navigateToRedirect()) {
       return;
     }
 
     router.replace("/(tabs)");
-  }, [redirectTo, redirectProductId, updateProfile, router]);
+  }, [navigateToRedirect, updateProfile, router]);
+
+  const handleBack = useCallback(() => {
+    if (navigateToRedirect()) {
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(tabs)");
+  }, [navigateToRedirect, router]);
 
   const handleSignIn = useCallback(async () => {
     const trimmed = identifier.trim();
@@ -119,7 +137,7 @@ export default function SignInScreen() {
       >
         <View style={styles.headerRow}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={handleBack}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Go back"

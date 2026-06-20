@@ -7,4 +7,7 @@ export type StoreProduct = {
   image_url: string | null;
   seller_id: string;
   created_at: string;
+  video_url?: string | null;
+  thumbnail_url?: string | null;
+  media_status?: string | null;
 };

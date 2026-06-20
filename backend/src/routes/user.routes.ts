@@ -28,6 +28,10 @@ router.put("/me", requireAuth, userController.updateMe);
 // Onboarding completion — sets username, gender, city, interests in one call
 router.put("/me/onboarding", requireAuth, userController.completeOnboarding);
 
+// Seller payout destination — capturable from onboarding or settings.
+router.get("/me/payout", requireAuth, userController.getPayout);
+router.put("/me/payout", requireAuth, userController.updatePayout);
+
 // Public profile — used on seller profile pages (no auth required)
 router.get("/:id", userController.getPublicProfile);
 

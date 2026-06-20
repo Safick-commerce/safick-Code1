@@ -16,7 +16,13 @@
 import type { ProfileRow } from "../types/prisma";
 import { prisma } from "../config/database";
 import { AppError } from "../middleware/errorHandler";
-import type { PublicUserResponse, UserResponse } from "../types";
+import type {
+  PublicUserResponse,
+  SellerPayoutInput,
+  SellerPayoutResponse,
+  UserResponse,
+} from "../types";
+import { Prisma } from "../generated/prisma";
 import { validateUsernameFormat } from "../utils/username";
 
 // =============================================================================
@@ -157,6 +163,48 @@ export function toPublicUserResponse(profile: ProfileRow): PublicUserResponse {
 // =============================================================================
 // Helpers
 // =============================================================================
+
+// =============================================================================
+// Seller payout destination (PUT /api/users/me/payout)
+// =============================================================================
+// =============================================================================
+// Seller payout settings — MoMo only (Maviance S3P cashin).
+// =============================================================================
+
+function toSellerPayoutResponse(profile: ProfileRow): SellerPayoutResponse {
+  return {
+    payoutMomoNumber: profile.payout_momo_number ?? null,
+    payoutMomoOperator:
+      profile.payout_momo_operator === "mtn" || profile.payout_momo_operator === "orange"
+        ? profile.payout_momo_operator
+        : null,
+  };
+}
+
+export async function getSellerPayout(userId: string): Promise<SellerPayoutResponse> {
+  const profile = await findProfileById(userId);
+  assertProfileExists(profile);
+  return toSellerPayoutResponse(profile);
+}
+
+export async function updateSellerPayout(
+  userId: string,
+  input: SellerPayoutInput,
+): Promise<SellerPayoutResponse> {
+  const profile = await findProfileById(userId);
+  assertProfileExists(profile);
+
+  const updated = await prisma.profiles.update({
+    where: { id: userId },
+    data: {
+      payout_momo_number: input.payoutMomoNumber,
+      payout_momo_operator: input.payoutMomoOperator,
+      // Clear any legacy bank destination — MVP pays out via MoMo only.
+      payout_bank_account: Prisma.JsonNull,
+    },
+  });
+  return toSellerPayoutResponse(updated);
+}
 
 /** Throw AppError(404) when a profile lookup returned null — use in protected routes. */
 export function assertProfileExists(

@@ -1,17 +1,30 @@
-import { View, Text, StyleSheet, Dimensions, Image, ImageBackground, TouchableOpacity, Alert } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  AppState,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type ViewToken,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { EvilIcons } from "@expo/vector-icons";
-import ProductCard from "../shared/ProductCard";
-import VideoSideIcons from "../shared/VideoSideIcons";
+import ForYouVideoPage from "../forYou/ForYouVideoPage";
 import { ForYouFeedSkeleton } from "../shared/ForYouFeedSkeleton";
 import { useAuth } from "../../context/AuthContext";
-import { getAllProducts, getProductById, type ProductDetail } from "../../utils/productApi";
-import { formatPriceXaf } from "../../utils/searchApi";
+import {
+  fetchForYouFeed,
+  recordProductView,
+  type ForYouFeedItem,
+  type ForYouFeedMode,
+} from "../../utils/forYouFeed";
+import { ApiError } from "../../lib/apiFetch";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const FALLBACK_BG = require("../../assets/images/seller4.jpeg");
-
+const FEED_PAGE_SIZE = 10;
 
 const ROUTES = {
   PRODUCT_DETAILS: "/productDetails",
@@ -19,43 +32,103 @@ const ROUTES = {
   USER_TAB: "/userTab",
 } as const;
 
-function sellerLabel(detail: ProductDetail): string {
-  return (
-    detail.seller?.display_name?.trim() ||
-    detail.seller?.full_name?.trim() ||
-    (detail.seller?.username ? `@${detail.seller.username}` : "Seller")
-  );
-}
+export type ForYouTabProps = {
+  /** False when user swiped to Discover / Following — pauses all videos. */
+  isTabActive?: boolean;
+};
 
-export default function ForYouTab() {
+export default function ForYouTab({ isTabActive = true }: ForYouTabProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [feedProduct, setFeedProduct] = useState<ProductDetail | null>(null);
-  const [feedLoading, setFeedLoading] = useState(true);
+
+  const [pageHeight, setPageHeight] = useState(0);
+  const [items, setItems] = useState<ForYouFeedItem[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [firstVideoReady, setFirstVideoReady] = useState(false);
+  const [followingBySeller, setFollowingBySeller] = useState<Record<string, boolean>>({});
+
+  const viewedIds = useRef(new Set<string>());
+  const loadMoreLock = useRef(false);
+
+  const loadFeed = useCallback(async (cursor?: string) => {
+    const isMore = Boolean(cursor);
+    if (isMore) {
+      if (loadMoreLock.current) return;
+      loadMoreLock.current = true;
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setError(null);
+    }
+
+    try {
+      const res = await fetchForYouFeed({ cursor, limit: FEED_PAGE_SIZE });
+      setNextCursor(res.nextCursor);
+      setItems((prev) => (isMore ? [...prev, ...res.items] : res.items));
+      if (!isMore) {
+        setActiveIndex(0);
+        setFirstVideoReady(false);
+        viewedIds.current.clear();
+      }
+    } catch (e) {
+      const message =
+        e instanceof ApiError ? e.message : "Could not load your feed. Try again.";
+      if (!isMore) {
+        setItems([]);
+        setError(message);
+      }
+    } finally {
+      if (isMore) {
+        setLoadingMore(false);
+        loadMoreLock.current = false;
+      } else {
+        setLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setFeedLoading(true);
-      try {
-        const products = await getAllProducts();
-        const first = products[0];
-        if (!first) {
-          if (!cancelled) setFeedProduct(null);
-          return;
-        }
-        const detail = await getProductById(first.id);
-        if (!cancelled) setFeedProduct(detail);
-      } catch {
-        if (!cancelled) setFeedProduct(null);
-      } finally {
-        if (!cancelled) setFeedLoading(false);
+    void loadFeed();
+  }, [loadFeed]);
+
+  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      setAppActive(state === "active");
+    });
+    return () => sub.remove();
+  }, []);
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length === 0) return;
+      const first = viewableItems[0];
+      if (first?.index != null) {
+        setActiveIndex(first.index);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    },
+    [],
+  );
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 75,
+  }).current;
+
+  const handleLoadMore = useCallback(() => {
+    if (!nextCursor || loadingMore || loading) return;
+    void loadFeed(nextCursor);
+  }, [nextCursor, loadingMore, loading, loadFeed]);
+
+  const trackView = useCallback((productId: string) => {
+    if (viewedIds.current.has(productId)) return;
+    viewedIds.current.add(productId);
+    void recordProductView(productId).catch(() => {
+      viewedIds.current.delete(productId);
+    });
   }, []);
 
   const openProductDetails = useCallback(
@@ -65,104 +138,150 @@ export default function ForYouTab() {
     [router],
   );
 
-  const handleBuyPress = useCallback(() => {
-    try {
-      if (!feedProduct) {
-        Alert.alert("No listings yet", "Check back soon or browse search for products.");
-        return;
-      }
+  const handleBuyPress = useCallback(
+    (item: ForYouFeedItem) => {
       if (isAuthenticated) {
-        openProductDetails(feedProduct.id);
+        openProductDetails(item.id);
         return;
       }
       router.push({
-        pathname: ROUTES.SIGN_IN as any,
-        params: { redirectTo: ROUTES.PRODUCT_DETAILS, id: feedProduct.id },
+        pathname: ROUTES.SIGN_IN as "/auth/signin",
+        params: { redirectTo: ROUTES.PRODUCT_DETAILS, id: item.id },
       });
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  }, [feedProduct, isAuthenticated, openProductDetails, router]);
+    },
+    [isAuthenticated, openProductDetails, router],
+  );
 
-  const handleUserProfilePress = useCallback(() => {
-    const sellerId = feedProduct?.seller_id ?? feedProduct?.seller?.id;
-    if (!sellerId) {
-      Alert.alert("Seller profile", "No seller profile is linked to this listing yet.");
-      return;
-    }
-    try {
-      router.push({ pathname: ROUTES.USER_TAB, params: { userId: sellerId } });
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  }, [feedProduct, router]);
-
-  const heroImage =
-    feedProduct?.image_url?.trim()
-      ? { uri: feedProduct.image_url.trim() }
-      : FALLBACK_BG;
-
-  const sellerAvatar =
-    feedProduct?.seller?.avatar_url?.trim()
-      ? { uri: feedProduct.seller.avatar_url.trim() }
-      : FALLBACK_BG;
-
-  const cardProduct = feedProduct
-    ? {
-        name: feedProduct.title,
-        price: formatPriceXaf(feedProduct.price),
+  const handleSellerPress = useCallback(
+    (item: ForYouFeedItem) => {
+      try {
+        router.push({ pathname: ROUTES.USER_TAB, params: { userId: item.seller.id } });
+      } catch (err) {
+        console.error("Navigation error:", err);
+        Alert.alert("Seller profile", "Could not open this seller's profile.");
       }
-    : { name: "Browse listings", price: "—" };
+    },
+    [router],
+  );
 
-  const locationLabel = feedProduct?.seller?.city?.trim()
-    ? feedProduct.seller.city.trim()
-    : "Cameroon";
+  const toggleFollow = useCallback((sellerId: string) => {
+    setFollowingBySeller((prev) => ({
+      ...prev,
+      [sellerId]: !prev[sellerId],
+    }));
+  }, []);
 
-  if (feedLoading) {
-    return <ForYouFeedSkeleton />;
+  const handleFirstVideoReady = useCallback(() => {
+    setFirstVideoReady(true);
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: ForYouFeedItem; index: number }) => {
+      const isActive = isTabActive && appActive && index === activeIndex;
+      return (
+        <ForYouVideoPage
+          item={item}
+          pageHeight={pageHeight}
+          isActive={isActive}
+          isFollowing={Boolean(followingBySeller[item.seller.id])}
+          onToggleFollow={() => toggleFollow(item.seller.id)}
+          onBuyPress={() => handleBuyPress(item)}
+          onSellerPress={() => handleSellerPress(item)}
+          onBecameActive={() => trackView(item.id)}
+          onFirstFrameReady={index === 0 ? handleFirstVideoReady : undefined}
+        />
+      );
+    },
+    [
+      activeIndex,
+      appActive,
+      followingBySeller,
+      handleBuyPress,
+      handleFirstVideoReady,
+      handleSellerPress,
+      isTabActive,
+      pageHeight,
+      toggleFollow,
+      trackView,
+    ],
+  );
+
+  if (error && items.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorTitle}>Could not load For You</Text>
+        <Text style={styles.errorBody}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => void loadFeed()}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
-  return (
-    <ImageBackground source={heroImage} style={styles.container} resizeMode="cover">
-      <View style={styles.profileHeaderContainer}>
-        <View style={styles.profileCircleContainer}>
-          <View style={styles.profileCircle}>
-            <Image source={sellerAvatar} style={styles.profileCircleImage} resizeMode="cover" />
-          </View>
-        </View>
-        <TouchableOpacity
-          style={styles.usernameContainer}
-          onPress={handleUserProfilePress}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.username}>{feedProduct ? sellerLabel(feedProduct) : "Safick Seller"}</Text>
-          <View style={styles.locationRow}>
-            <EvilIcons name="location" size={16} color="#FFFFFF" />
-            <Text style={styles.locationText}>{locationLabel}</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.followButton} onPress={() => setIsFollowing(!isFollowing)}>
-          <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-            {isFollowing ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ProductCard
-        product={cardProduct}
-        onPress={handleBuyPress}
-        containerStyle={styles.productCardPosition}
-      />
-
-      <View style={styles.userInfoContainer}>
-        <Text style={styles.productDescription}>
-          {feedProduct?.description?.trim() ||
-            "Discover trusted sellers and shop with people you can follow on Safick."}
+  if (!loading && items.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyTitle}>No videos yet</Text>
+        <Text style={styles.emptyBody}>
+          Listings with product videos will appear here. Check Discover or post a video listing.
         </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => void loadFeed()}>
+          <Text style={styles.retryButtonText}>Refresh</Text>
+        </TouchableOpacity>
       </View>
+    );
+  }
 
-      <VideoSideIcons />
-    </ImageBackground>
+  const awaitingLayout = pageHeight === 0;
+  const awaitingFeed = loading && items.length === 0;
+  const awaitingFirstVideo = items.length > 0 && pageHeight > 0 && !firstVideoReady;
+  const showFeedSkeleton = awaitingFeed || awaitingLayout || awaitingFirstVideo;
+  const canMountFeed = items.length > 0 && pageHeight > 0;
+
+  return (
+    <View
+      style={styles.container}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0 && h !== pageHeight) setPageHeight(h);
+      }}
+    >
+      {canMountFeed ? (
+        <FlatList
+          style={firstVideoReady ? styles.feedVisible : styles.feedHidden}
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          pagingEnabled
+          snapToInterval={pageHeight}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          showsVerticalScrollIndicator={false}
+          getItemLayout={(_, index) => ({
+            length: pageHeight,
+            offset: pageHeight * index,
+            index,
+          })}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          nestedScrollEnabled
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={[styles.footerLoader, { height: pageHeight * 0.15 }]}>
+                <ActivityIndicator color="#FF2800" />
+              </View>
+            ) : null
+          }
+        />
+      ) : null}
+      {showFeedSkeleton ? (
+        <View style={styles.skeletonOverlay} pointerEvents="none">
+          <ForYouFeedSkeleton />
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -170,92 +289,68 @@ const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
     flex: 1,
+    backgroundColor: "#111827",
   },
-  productCardPosition: {
-    bottom: 60,
+  feedHidden: {
+    opacity: 0,
   },
-  userInfoContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 16,
-    right: 80,
-    paddingRight: 16,
+  feedVisible: {
+    opacity: 1,
   },
-  profileHeaderContainer: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    right: 100,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  skeletonOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
-  usernameContainer: {
-    flexShrink: 0,
-  },
-  username: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    fontFamily: "Inter",
-    marginBottom: 2,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  locationText: {
-    fontSize: 12,
-    color: "#FFFFFF",
-    fontFamily: "Inter",
-    marginLeft: 2,
-  },
-  followButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.35)",
-    paddingHorizontal: 20,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 0.5,
-    borderColor: "rgba(255, 255, 255, 0.4)",
+  centered: {
+    flex: 1,
+    width: SCREEN_WIDTH,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "#111827",
   },
-  followButtonText: {
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "700",
     color: "#FFFFFF",
+    fontFamily: "Inter",
+    marginBottom: 8,
+  },
+  errorBody: {
     fontSize: 14,
+    color: "#D1D5DB",
+    textAlign: "center",
+    fontFamily: "Inter",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    fontFamily: "Inter",
+    marginBottom: 8,
+  },
+  emptyBody: {
+    fontSize: 14,
+    color: "#D1D5DB",
+    textAlign: "center",
+    fontFamily: "Inter",
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#FF2800",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
     fontWeight: "600",
     fontFamily: "Inter",
   },
-  followButtonTextActive: {
-    color: "#000000",
+  footerLoader: {
+    alignItems: "center",
+    justifyContent: "center",
   },
-  productDescription: {
-    fontSize: 14,
-    fontWeight: "400",
-    color: "#FFFFFF",
-    fontFamily: "Inter",
-    lineHeight: 20,
-    textShadowColor: "rgba(0, 0, 0, 0.75)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  profileCircleContainer: {},
-  profileCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: "#000000",
-    overflow: "hidden",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  profileCircleImage: {
-    width: "100%",
-    height: "100%",
-  },
+ 
 });

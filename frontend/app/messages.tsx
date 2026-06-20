@@ -13,7 +13,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { ComponentProps } from "react";
-import type { MessageItemData } from "../context/MessageContext";
+import type { MessageItemData } from "../stores/messageStore";
 import { listConversations, type ConversationSummary } from "../utils/conversationApi";
 import { primeConversationBootstrap } from "../utils/conversationBootstrapCache";
 import { useAuth } from "../context/AuthContext";

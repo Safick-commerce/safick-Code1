@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useRouter } from "expo-router";
 import Splashscreen from "./screens/Intro/splashscreen";
-import { useUserProfile } from "../context/UserProfileContext";
+import { useUserProfile } from "../stores/userProfileStore";
 import { useAuth } from "../context/AuthContext";
 import { splashDelayRemaining } from "../constants/splash";
 
@@ -9,10 +9,10 @@ import { splashDelayRemaining } from "../constants/splash";
 export default function Index() {
   const router = useRouter();
   const { profile, isLoaded: profileLoaded } = useUserProfile();
-  const { isAuthenticated, isReady: authReady, profile: authProfile } = useAuth();
+  const { isAuthenticated, isReady: authReady, profile: authProfile, profileLoading } = useAuth();
 
-  // Don't route until both auth and local profile state are ready.
-  const bootstrapped = authReady && profileLoaded;
+  // Don't route until auth, local profile, and remote profile row are ready.
+  const bootstrapped = authReady && profileLoaded && (!isAuthenticated || !profileLoading);
 
   useEffect(() => {
     if (!bootstrapped) return;
@@ -46,6 +46,7 @@ export default function Index() {
     profile.isGuestUser,
     profile.onboardingCompleted,
     authProfile?.onboarding_completed,
+    profileLoading,
     router,
   ]);
 

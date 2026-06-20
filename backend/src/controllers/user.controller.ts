@@ -13,6 +13,8 @@
 import { Request, Response, NextFunction } from "express";
 import * as userService from "../services/user.service";
 import { parseUuid } from "../utils/uuid";
+import { sellerPayoutSchema } from "../types";
+import { AppError } from "../middleware/errorHandler";
 
 /**
  * GET /api/users/me
@@ -65,6 +67,54 @@ export async function updateMe(req: Request, res: Response, next: NextFunction) 
 export async function completeOnboarding(req: Request, res: Response, next: NextFunction) {
   // TODO: validate body → userService.completeOnboarding
   res.status(501).json({ error: "Not implemented yet" });
+}
+
+/**
+ * GET /api/users/me/payout
+ *
+ * Returns the current user's seller payout destination so the onboarding /
+ * settings screens can pre-fill the form. Always returns 200 with nulls when
+ * nothing is configured yet — the frontend distinguishes "not set" from
+ * "error".
+ */
+export async function getPayout(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const payout = await userService.getSellerPayout(userId);
+    res.json({ payout });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * PUT /api/users/me/payout
+ *
+ * Stores where escrow releases will be sent for this seller. Required before
+ * the user can list a product — enforced at listing-creation time.
+ * Body: SellerPayoutInput (see types/index.ts)
+ * Response: { payout: SellerPayoutResponse }
+ */
+export async function updatePayout(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const parsed = sellerPayoutSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new AppError(parsed.error.issues[0]?.message ?? "Invalid payload", 400);
+    }
+    const payout = await userService.updateSellerPayout(userId, parsed.data);
+    res.json({ payout });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /**

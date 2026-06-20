@@ -1,11 +1,13 @@
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Image, Share, ActivityIndicator } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Image, Share, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons, FontAwesome6, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback } from "react";
-import { useUserProfile } from "../../context/UserProfileContext";
+import { useUserProfile } from "../../stores/userProfileStore";
 import { ReadyToShareBannerDecoration } from "../../components/shared/ReadyToShareBannerDecoration";
-import { GuestSignInPlaceholder } from "../../components/auth/GuestSignInPlaceholder";
+import { GuestProfileHub } from "../../components/auth/GuestProfileHub";
+import { ProfileTabSkeleton } from "../../components/shared/ProfileTabSkeleton";
+import { SkeletonBlock } from "../../components/shared/SkeletonBlock";
 import { useAuth } from "../../context/AuthContext";
 
 // Route constants for security
@@ -86,31 +88,73 @@ export default function ProfileScreen() {
     }
   }, []);
 
-  const handleSignOut = useCallback(async () => {
+  const performSignOut = useCallback(async () => {
     await clearProfile();
     await signOut();
     router.replace("/auth/signin");
   }, [router, clearProfile, signOut]);
 
+  const handleSignOutPress = useCallback(() => {
+    Alert.alert(
+      "Sign out?",
+      "You'll need to sign in again to access your orders, wishlist, and seller tools.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: () => {
+            void performSignOut();
+          },
+        },
+      ],
+    );
+  }, [performSignOut]);
+
   const handleSellerHubPress = useCallback(() => {
     router.push(ROUTES.SELLER_ANALYTICS as any);
   }, [router]);
 
-  const actionCards = [
+  const goTo = useCallback((path: string) => () => router.push(path as any), [router]);
+
+  type ActionCard = {
+    id: number;
+    icon: string;
+    label: string;
+    section: "account" | "shopping" | "selling" | "support" | "legal";
+    badge: string | null;
+    iconLibrary?: "MaterialCommunityIcons";
+    shareProfile?: boolean;
+    onPress?: () => void;
+  };
+
+  const sellingCards: ActionCard[] = profile.readyToShareMode === "seller"
+    ? [
+        { id: 200, icon: "receipt-outline", label: "Selling orders", section: "selling", badge: null, onPress: goTo("/seller-orders") },
+        { id: 201, icon: "wallet-outline", label: "Payout details", section: "selling", badge: null, onPress: goTo("/seller-payout") },
+      ]
+    : [];
+
+  const actionCards: ActionCard[] = [
     // Account Section
     { id: 1, icon: "pulse-outline", label: "Account Health", section: "account", badge: null },
     { id: 3, icon: "notifications-outline", label: "Notification", section: "account", badge: null},
     { id: 4, icon: "mail-outline", label: "Change Email", section: "account", badge: null },
     { id: 5, icon: "check-decagram-outline", label: "Verified Seller", section: "account", badge: null, iconLibrary: "MaterialCommunityIcons" },
     { id: 6, icon: "share-outline", label: "Share profile", section: "account", badge: null, shareProfile: true },
-    
+
     // Shopping Section
-    { id: 7, icon: "heart-outline", label: "Wishlist", section: "shopping", badge: null },
+    { id: 100, icon: "bag-handle-outline", label: "My orders", section: "shopping", badge: null, onPress: goTo("/orders") },
+    { id: 7, icon: "heart-outline", label: "Wishlist", section: "shopping", badge: null, onPress: goTo("/wishlist") },
     { id: 8, icon: "language-outline", label: "Language", section: "shopping", badge: null },
     { id: 9, icon: "card-outline", label: "Payment", section: "shopping", badge: null },
     { id: 10, icon: "location-outline", label: "Addresses", section: "shopping", badge: null },
-    
+
+    // Selling Section (only for sellers)
+    ...sellingCards,
+
     // Support & Legal Section
+    { id: 150, icon: "shield-checkmark-outline", label: "How escrow works", section: "support", badge: null, onPress: goTo("/how-escrow-works") },
     { id: 11, icon: "mail-outline", label: "Contact Us", section: "support", badge: null },
     { id: 12, icon: "flag-outline", label: "User Report", section: "support", badge: null },
     { id: 13, icon: "shield-checkmark-outline", label: "Privacy Policy", section: "legal", badge: null },
@@ -121,22 +165,17 @@ export default function ProfileScreen() {
   const sectionTitles: Record<string, string> = {
     account: "Account",
     shopping: "Shopping",
+    selling: "Selling",
     support: "Support",
     legal: "Legal",
   };
 
   if (!authReady || !profileLoaded) {
-    return (
-      <SafeAreaView style={[styles.container, styles.centeredLoading]} edges={["top", "left", "right"]}>
-        <ActivityIndicator size="large" color="#FF2800" />
-      </SafeAreaView>
-    );
+    return <ProfileTabSkeleton />;
   }
 
   if (!isAuthenticated) {
-    return (
-      <GuestSignInPlaceholder subtitle="Sign in to view your profile, orders, and settings." />
-    );
+    return <GuestProfileHub profile={profile} />;
   }
 
   return (
@@ -154,7 +193,7 @@ export default function ProfileScreen() {
                   accessibilityLabel="Profile picture"
                 />
               ) : profileLoading ? (
-                <ActivityIndicator size="small" color="#FF2800" />
+                <SkeletonBlock style={styles.profilePictureSkeleton} />
               ) : (
                 <Ionicons name="person" size={30} color="#000000" />
               )}
@@ -181,7 +220,7 @@ export default function ProfileScreen() {
 
       {/* Content — banner inside scroll so it moves off-screen when scrolling down */}
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {profile.readyToShareMode !== "buyer" ? (
+        {!profile.readyToSharePromptSeen || profile.readyToShareMode === "seller" ? (
           <View style={styles.bannerContainer}>
             <ReadyToShareBannerDecoration variant="dark" />
             <Text style={styles.bannerTitle}>Ready to share?</Text>
@@ -233,19 +272,19 @@ export default function ProfileScreen() {
 
             <View style={styles.kpiRow}>
               <View style={styles.kpiItem}>
-                <Text style={styles.kpiValue}>2.4K</Text>
+                <Text style={styles.kpiValue}>0</Text>
                 <Text style={styles.kpiLabel}>Views</Text>
               </View>
               <View style={styles.kpiItem}>
-                <Text style={styles.kpiValue}>128</Text>
+                <Text style={styles.kpiValue}>0</Text>
                 <Text style={styles.kpiLabel}>Leads</Text>
               </View>
               <View style={styles.kpiItem}>
-                <Text style={styles.kpiValue}>6.7%</Text>
+                <Text style={styles.kpiValue}>0</Text>
                 <Text style={styles.kpiLabel}>Conversion</Text>
               </View>
               <View style={styles.kpiItem}>
-                <Text style={styles.kpiValue}>24</Text>
+                <Text style={styles.kpiValue}>0</Text>
                 <Text style={styles.kpiLabel}>Sold</Text>
               </View>
             </View>
@@ -271,7 +310,11 @@ export default function ProfileScreen() {
               <TouchableOpacity 
                 style={styles.cardItem}
                 activeOpacity={0.2}
-                onPress={"shareProfile" in card && card.shareProfile ? handleShareProfile : undefined}
+                onPress={
+                  "shareProfile" in card && card.shareProfile
+                    ? handleShareProfile
+                    : card.onPress
+                }
               >
                 <View style={styles.cardLeftSection}>
                   <View style={styles.cardIconContainer}>
@@ -308,7 +351,9 @@ export default function ProfileScreen() {
           <TouchableOpacity 
             style={styles.signOutContainer}
             activeOpacity={0.7}
-            onPress={handleSignOut}
+            onPress={handleSignOutPress}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
           >
             <View style={styles.signOutContent}>
               <FontAwesome6 name="arrow-right-from-bracket" size={20} color="#FF2800" />
@@ -326,9 +371,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  centeredLoading: {
-    justifyContent: "center",
-    alignItems: "center",
+  profilePictureSkeleton: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 9999,
   },
   header: {
     flexDirection: 'row',
@@ -344,7 +390,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginTop: 8,
     marginBottom: 8,
-    backgroundColor: '#1C1C2E',
+    backgroundColor: '#000000',
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -428,7 +474,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#FFF1EE",
+    backgroundColor: "#F9FAFB",
     alignItems: "center",
     justifyContent: "center",
   },

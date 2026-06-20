@@ -20,7 +20,7 @@ import type { LivePost } from "../types";
 import { fetchLiveFeed } from "../utils/liveFeed";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../context/AuthContext";
-import { useUserProfile } from "../context/UserProfileContext";
+import { useUserProfile } from "../stores/userProfileStore";
 
 const RED = "#FF2800";
 /** Glass chips: light fill + border so the stream stays the hero. */
@@ -133,7 +133,10 @@ export default function WatchLiveScreen() {
     return (
       <>
         <StatusBar style="dark" />
-        <GuestSignInPlaceholder subtitle="Sign in to watch lives and chat with sellers." />
+        <GuestSignInPlaceholder
+          subtitle="Sign in to watch lives and chat with sellers."
+          redirectTo="/watch-live"
+        />
       </>
     );
   }

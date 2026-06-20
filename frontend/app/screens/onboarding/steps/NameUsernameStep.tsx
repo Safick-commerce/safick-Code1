@@ -26,6 +26,8 @@ interface NameUsernameStepProps {
   onPasswordChange: (value: string) => void;
   onAgreeChange: (value: boolean) => void;
   onUsernameAvailable?: (available: boolean) => void;
+  /** When set, a matching profile row is treated as available (own username). */
+  excludeUserId?: string;
 }
 
 function ValidationHint({ valid, message }: { valid: boolean; message: string }) {
@@ -53,6 +55,7 @@ export default function NameUsernameStep({
   onPasswordChange,
   onAgreeChange,
   onUsernameAvailable,
+  excludeUserId,
 }: NameUsernameStepProps) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [phone, setPhone] = useState("+237");
@@ -108,7 +111,7 @@ export default function NameUsernameStep({
           return;
         }
 
-        const isTaken = data !== null;
+        const isTaken = data !== null && data.id !== excludeUserId;
         setUsernameAvailable(!isTaken);
         onUsernameAvailable?.(!isTaken);
       } catch (e) {
@@ -125,7 +128,7 @@ export default function NameUsernameStep({
       cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [username, onUsernameAvailable]);
+  }, [username, onUsernameAvailable, excludeUserId]);
 
   // Validation flags
   const emailValid = EMAIL_REGEX.test(email.trim());

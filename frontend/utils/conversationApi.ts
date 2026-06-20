@@ -26,6 +26,10 @@ export type ChatMessage = {
   senderId: string;
   text: string;
   createdAt: string;
+  /** "text" | "order_card" | "system". Defaults to "text" if older payloads omit it. */
+  messageType?: string;
+  /** Set for messageType === "order_card"; lets the chat UI link into the order. */
+  orderId?: string | null;
 };
 
 export type ConversationBootstrap = {

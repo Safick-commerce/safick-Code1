@@ -26,7 +26,8 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: "#FF2800", // primary-600
         tabBarInactiveTintColor: "#000000", // gray-400
-        animation: "fade",
+        // Avoid fade — it reveals the white stack background before content paints.
+        sceneStyle: { backgroundColor: "#ffffff" },
         tabBarButton: (props) => <HapticTabBarButton {...props} />,
         tabBarLabelStyle: {
           marginTop: 2, // Reduces space between icon and title

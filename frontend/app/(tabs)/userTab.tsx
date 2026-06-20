@@ -15,8 +15,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome6 } from "@expo/vector-icons";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useUserProfile } from "../../context/UserProfileContext";
+import { useUserProfile } from "../../stores/userProfileStore";
 import { fetchProfileById, type ProfileRow } from "../../utils/fetchProfile";
+import { getSellerVideoProducts } from "../../utils/productApi";
+import { fetchSellerProductViewCounts } from "../../utils/forYouFeed";
+import { ProfileVideoGrid } from "../../components/profile/ProfileVideoGrid";
+import type { StoreProduct } from "../../types/storeProduct";
 import { ReportUserModal } from "../../components/shared/ReportUserModal";
 import { PROFILE_REPORT_REASONS } from "../../constants/reportReasons";
 import type { ComponentProps } from "react";
@@ -84,6 +88,12 @@ export default function UserTab() {
   const [otherLoading, setOtherLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [clips, setClips] = useState<StoreProduct[]>([]);
+  const [clipViewCounts, setClipViewCounts] = useState<Record<string, number>>({});
+  const [clipsLoading, setClipsLoading] = useState(false);
+
+  const profileUserId = isViewingOther ? userIdFromRoute : selfId;
+  const isClipsTab = activeTab === "Posts" || activeTab === "Clips";
 
 
   type IoniconName = ComponentProps<typeof Ionicons>["name"];
@@ -141,6 +151,34 @@ function MenuActionRow({
   useEffect(() => {
     setIsFollowing(false);
   }, [userIdFromRoute]);
+
+  useEffect(() => {
+    if (!profileUserId) {
+      setClips([]);
+      setClipViewCounts({});
+      setClipsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setClipsLoading(true);
+      try {
+        const [rows, counts] = await Promise.all([
+          getSellerVideoProducts(profileUserId),
+          fetchSellerProductViewCounts(profileUserId).catch(() => ({})),
+        ]);
+        if (!cancelled) {
+          setClips(rows);
+          setClipViewCounts(counts);
+        }
+      } finally {
+        if (!cancelled) setClipsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profileUserId]);
 
   // Prefer Supabase as the canonical source; fall back to local onboarding
   // data while the profile row is still loading (own profile only).
@@ -349,15 +387,15 @@ function MenuActionRow({
       {/* Statistics Section */}
       <View style={styles.statsSection}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>42</Text>
+          <Text style={styles.statNumber}>{clips.length}</Text>
           <Text style={styles.statLabel}>{isViewingOther ? "Clips" : "Posts"}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>1K</Text>
+          <Text style={styles.statNumber}>0</Text>
           <Text style={styles.statLabel}>Followers</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>340</Text>
+          <Text style={styles.statNumber}>0</Text>
           <Text style={styles.statLabel}>{isViewingOther ? "Sold" : "Following"}</Text>
         </View>
       </View>
@@ -423,12 +461,25 @@ function MenuActionRow({
         </Modal>
 
       {/* Main Content Area */}
-      <View style={styles.content}>
-        <Text style={styles.contentText}>
-          {isViewingOther
-            ? `Public ${activeTab} content will appear here`
-            : `Your ${activeTab} content will appear here`}
-        </Text>
+c      <View style={[styles.content, isClipsTab && clips.length > 0 && styles.contentGrid]}>
+        {isClipsTab ? (
+          clipsLoading ? (
+            <ActivityIndicator color="#FF2800" size="large" />
+          ) : (
+            <ProfileVideoGrid
+              products={clips}
+              sellerId={profileUserId ?? ""}
+              viewCounts={clipViewCounts}
+              emptyLabel={
+                isViewingOther
+                  ? "No clips yet"
+                  : "No posts yet \n Create a video listing to show up here"
+              }
+            />
+          )
+        ) : (
+          <Text style={styles.contentText}>No {activeTab} yet</Text>
+        )}
       </View>
         </ScrollView>
       ) : null}
@@ -601,7 +652,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    backgroundColor: "rgb(0, 0, 0)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.18)",
   },
@@ -701,10 +752,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  contentGrid: {
+    paddingHorizontal: 0,
+    paddingTop: 8,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
   contentText: {
     color: '#000000',
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '700',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

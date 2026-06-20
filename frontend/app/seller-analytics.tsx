@@ -11,7 +11,10 @@ export default function SellerAnalytics() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Seller Analytics</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color="#000000" />
+          <Text style={styles.headerText}>Seller Analytics</Text>
+        </TouchableOpacity>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color="#6B7280" />
           <TextInput
@@ -37,19 +40,19 @@ export default function SellerAnalytics() {
         <View style={styles.kpiAndInsightRow}>
           <View style={styles.kpiRow}>
             <View style={styles.kpiItem}>
-              <Text style={styles.kpiValue}>2.4K</Text>
+              <Text style={styles.kpiValue}>0</Text>
               <Text style={styles.kpiLabel}>Views</Text>
             </View>
             <View style={styles.kpiItem}>
-              <Text style={styles.kpiValue}>128</Text>
+              <Text style={styles.kpiValue}>0</Text>
               <Text style={styles.kpiLabel}>Leads</Text>
             </View>
             <View style={styles.kpiItem}>
-              <Text style={styles.kpiValue}>67</Text>
+              <Text style={styles.kpiValue}>0</Text>
               <Text style={styles.kpiLabel}>clips</Text>
             </View>
             <View style={styles.kpiItem}>
-              <Text style={styles.kpiValue}>24</Text>
+              <Text style={styles.kpiValue}>0</Text>
               <Text style={styles.kpiLabel}>Sold</Text>
             </View>
           </View>
@@ -77,7 +80,7 @@ export default function SellerAnalytics() {
             activeOpacity={0.88}
             accessibilityRole="button"
             accessibilityLabel="Create new post"
-            onPress={() => router.push("/screens/products/create" as Href)}
+            onPress={() => router.push("/createnew" as Href)}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
             <Text style={styles.postButtonText}>Post</Text>
@@ -92,6 +95,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   header: {
     paddingHorizontal: 16,

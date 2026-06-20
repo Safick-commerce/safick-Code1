@@ -2,8 +2,8 @@ import { Text, View, TouchableOpacity, StyleSheet, ScrollView, Image, ImageSourc
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { useWishlist } from "../context/WishlistContext";
-import { useMessage } from "../context/MessageContext";
+import { useWishlist } from "../stores/wishlistStore";
+import { useMessage } from "../stores/messageStore";
 import { useCallback } from "react";
 
 function avatarUrlFromImage(image: ImageSourcePropType): string | null {

@@ -1,5 +1,5 @@
 import { BlurView } from "expo-blur";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Platform, View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 export interface ProductCardData {
   name: string;
@@ -14,10 +14,19 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onPress, containerStyle }: ProductCardProps) {
+  const isIos = Platform.OS === "ios";
+
   return (
-    <View style={[styles.container, containerStyle]}>
-      <BlurView intensity={50} tint="dark" style={styles.blur} />
-      <View style={styles.blurTint} pointerEvents="none" />
+    <View
+      style={[styles.container, !isIos && styles.containerAndroid, containerStyle]}
+      collapsable={false}
+    >
+      {isIos ? (
+        <>
+          <BlurView intensity={50} tint="dark" style={styles.blur} />
+          <View style={styles.blurTint} pointerEvents="none" />
+        </>
+      ) : null}
       <View style={styles.productInfoRow}>
         <View style={styles.productTextContainer}>
           <Text style={styles.productName}>{product.name}</Text>
@@ -51,6 +60,11 @@ const styles = StyleSheet.create({
     elevation: 4,
     minHeight: 70,
     minWidth: 280,
+  },
+  containerAndroid: {
+    backgroundColor: "rgb(18, 18, 18)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.14)",
   },
   blur: {
     ...StyleSheet.absoluteFillObject,

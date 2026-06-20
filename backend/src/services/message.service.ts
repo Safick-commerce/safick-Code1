@@ -14,6 +14,8 @@ type MessageRow = {
   sender_id: string;
   body: string;
   created_at: Date;
+  message_type?: string | null;
+  order_id?: string | null;
 };
 
 export function toMessageResponse(row: MessageRow): MessageResponse {
@@ -23,6 +25,8 @@ export function toMessageResponse(row: MessageRow): MessageResponse {
     senderId: row.sender_id,
     text: row.body,
     createdAt: row.created_at.toISOString(),
+    messageType: row.message_type ?? "text",
+    orderId: row.order_id ?? null,
   };
 }
 

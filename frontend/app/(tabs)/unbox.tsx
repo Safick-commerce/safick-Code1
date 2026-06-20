@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
+import { useSurfaceReady } from "../../hooks/useSurfaceReady";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import LivePostsGrid from "../../components/live/LivePostsGrid";
 import { MOCK_LIVE_POSTS } from "../../data/mockLivePosts";
@@ -9,8 +10,10 @@ import { DISCOVER_CATEGORIES } from "../../constants/categories";
 import { filterLivePostsByDiscoverCategory } from "../../utils/liveFeed";
 import { ReadyToShareBannerDecoration } from "../../components/shared/ReadyToShareBannerDecoration";
 import { GuestSignInPlaceholder } from "../../components/auth/GuestSignInPlaceholder";
+import { UnboxTabSkeleton } from "../../components/shared/UnboxTabSkeleton";
+import { UnboxLiveGridSkeleton } from "../../components/shared/UnboxLiveGridSkeleton";
 import { useAuth } from "../../context/AuthContext";
-import { useUserProfile } from "../../context/UserProfileContext";
+import { useUserProfile } from "../../stores/userProfileStore";
 
 // Route constants for security
 const ROUTES = {
@@ -34,11 +37,21 @@ export default function LiveScreen() {
   const { isAuthenticated, isReady } = useAuth();
   const { profile, isLoaded: profileLoaded } = useUserProfile();
   const [activeDiscoverCategory, setActiveDiscoverCategory] = useState<string | null>(null);
+  const bootstrapReady = isReady && profileLoaded;
 
   const filteredPosts = useMemo(
     () => filterLivePostsByDiscoverCategory(MOCK_LIVE_POSTS, activeDiscoverCategory),
     [activeDiscoverCategory]
   );
+
+  const hasLivePosts = filteredPosts.length > 0;
+  const { surfaceReady: liveGridReady, onAssetLoad } = useSurfaceReady({
+    enabled: bootstrapReady && isAuthenticated && hasLivePosts,
+    minLoads: Math.min(2, filteredPosts.length),
+    timeoutMs: 3500,
+    resetKey: activeDiscoverCategory ?? "all",
+  });
+  const showLiveGridSkeleton = hasLivePosts && !liveGridReady;
 
   const categoryEmptyHint = useMemo(
     () => (
@@ -102,19 +115,16 @@ export default function LiveScreen() {
     }
   }, [router]);
 
-  if (!isReady || !profileLoaded) {
-    return (
-      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-        <View style={styles.centeredLoading}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </SafeAreaView>
-    );
+  if (!bootstrapReady) {
+    return <UnboxTabSkeleton />;
   }
 
   if (!isAuthenticated) {
     return (
-      <GuestSignInPlaceholder subtitle="Sign in to access live content, create listings, and go live." />
+      <GuestSignInPlaceholder
+        subtitle="Sign in to access live content, create listings, and go live."
+        redirectTo="/(tabs)/unbox"
+      />
     );
   }
 
@@ -149,9 +159,11 @@ export default function LiveScreen() {
       <LivePostsGrid
         posts={filteredPosts}
         postsPerRow={2}
+        onPostImageLoad={onAssetLoad}
+        gridLoading={showLiveGridSkeleton}
         ListHeaderComponent={
           <>
-            {profile.readyToShareMode !== "buyer" ? (
+            {!profile.readyToSharePromptSeen || profile.readyToShareMode === "seller" ? (
               <View style={styles.bannerContainer}>
                 <ReadyToShareBannerDecoration variant="dark" />
                 <Text style={styles.bannerTitle}>Ready to share?</Text>
@@ -214,6 +226,8 @@ export default function LiveScreen() {
                 ))}
               </ScrollView>
             </View>
+
+            {showLiveGridSkeleton ? <UnboxLiveGridSkeleton /> : null}
           </>
         }
         ListEmptyComponent={categoryEmptyHint}
@@ -257,16 +271,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-  },
-  centeredLoading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#6B7280",
-    fontWeight: "600",
   },
   headerSection: {
     paddingHorizontal: 6,
@@ -315,7 +319,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 8,
     marginBottom: 4,
-    backgroundColor: '#1C1C2E',
+    backgroundColor: '#000000',
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingTop: 20,

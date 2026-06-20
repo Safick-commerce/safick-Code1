@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface FollowingTabProps {
   onDiscoverPress?: () => void;
@@ -32,7 +32,7 @@ export default function FollowingTab({ onDiscoverPress }: FollowingTabProps) {
 const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    flex: 1,
     backgroundColor: "#FAFAFA",
     alignItems: "center",
     justifyContent: "center",

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Keyboard,
   Pressable,
@@ -15,6 +16,7 @@ import { useRouter } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   fetchPopularSellers,
+  fetchSellerPreviewsByIds,
   formatPriceXaf,
   type ProductSort,
   type SellerPreview,
@@ -28,6 +30,12 @@ import { MOCK_LIVE_POSTS } from "../data/mockLivePosts";
 const RED = "#FF2800";
 const DEBOUNCE_MS = 350;
 const MIN_QUERY_LEN = 2;
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const PRODUCT_GRID_GAP = 6;
+const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - 32 - PRODUCT_GRID_GAP) / 2;
+const PRODUCT_IMAGE_HEIGHT = Math.round(SCREEN_HEIGHT * 0.26);
+const PRODUCT_PLACEHOLDER = require("../assets/images/clothes.jpg");
 
 const ROUTES = {
   CATEGORIES: "/(tabs)/categories",
@@ -100,6 +108,55 @@ function SellerAvatar({ url }: { url: string | null }) {
   return <Ionicons name="person" size={26} color="#9CA3AF" />;
 }
 
+function productImageSource(url: string | null | undefined) {
+  const trimmed = url?.trim();
+  return trimmed ? { uri: trimmed } : PRODUCT_PLACEHOLDER;
+}
+
+function ProductSearchCard({
+  product,
+  seller,
+  onPress,
+}: {
+  product: StoreProduct;
+  seller: SellerPreview | null;
+  onPress: () => void;
+}) {
+  const sellerName = seller ? sellerLabel(seller) : "Seller";
+
+  return (
+    <Pressable
+      style={styles.productCard}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${product.title}, ${formatPriceXaf(product.price)}, ${sellerName}`}
+    >
+      <View style={styles.productMedia}>
+        <Image source={productImageSource(product.image_url)} style={styles.productImage} resizeMode="cover" />
+        <View style={styles.productSellerRow}>
+          <View style={styles.productSellerAvatar}>
+            <SellerAvatar url={seller?.avatar_url ?? null} />
+          </View>
+          <Text style={styles.productSellerName} numberOfLines={1}>
+            {sellerName}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.productMeta}>
+        <Text style={styles.productTitle} numberOfLines={2}>
+          {product.title}
+        </Text>
+        <Text style={styles.productPrice}>{formatPriceXaf(product.price)}</Text>
+        {product.description ? (
+          <Text style={styles.productDescription} numberOfLines={2}>
+            {product.description}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function SearchScreen() {
   const router = useRouter();
   const inputRef = useRef<TextInput>(null);
@@ -110,6 +167,7 @@ export default function SearchScreen() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [sellers, setSellers] = useState<SellerPreview[]>([]);
   const [popular, setPopular] = useState<SellerPreview[]>([]);
+  const [productSellers, setProductSellers] = useState<Record<string, SellerPreview>>({});
   const [loadingDiscover, setLoadingDiscover] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
 
@@ -188,6 +246,31 @@ export default function SearchScreen() {
       cancelled = true;
     };
   }, [debounced, scope, sort]);
+
+  useEffect(() => {
+    if (products.length === 0) {
+      setProductSellers({});
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const map = await fetchSellerPreviewsByIds(products.map((p) => p.seller_id));
+      if (!cancelled) setProductSellers(map);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [products]);
+
+  const productRows = useMemo(() => {
+    const rows: StoreProduct[][] = [];
+    for (let i = 0; i < products.length; i += 2) {
+      rows.push(products.slice(i, i + 2));
+    }
+    return rows;
+  }, [products]);
 
   const handleBack = useCallback(() => {
     Keyboard.dismiss();
@@ -405,29 +488,18 @@ export default function SearchScreen() {
         {scope !== "sellers" && scope !== "live" && products.length > 0 ? (
           <>
             <Text style={styles.sectionTitle}>Products ({products.length})</Text>
-            {products.map((p) => (
-              <Pressable
-                key={p.id}
-                style={styles.listRow}
-                onPress={() => openProduct(p.id)}
-                accessibilityRole="button"
-              >
-                <View style={styles.rowIcon}>
-                  <Ionicons name="pricetag-outline" size={20} color="#6B7280" />
-                </View>
-                <View style={styles.rowBody}>
-                  <Text style={styles.rowTitle} numberOfLines={2}>
-                    {p.title}
-                  </Text>
-                  <Text style={styles.rowPrice}>{formatPriceXaf(p.price)}</Text>
-                  {p.description ? (
-                    <Text style={styles.rowSub} numberOfLines={2}>
-                      {p.description}
-                    </Text>
-                  ) : null}
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
-              </Pressable>
+            {productRows.map((row, rowIndex) => (
+              <View key={`product-row-${rowIndex}`} style={styles.productGridRow}>
+                {row.map((p) => (
+                  <ProductSearchCard
+                    key={p.id}
+                    product={p}
+                    seller={productSellers[p.seller_id] ?? null}
+                    onPress={() => openProduct(p.id)}
+                  />
+                ))}
+                {row.length === 1 ? <View style={styles.productCardSpacer} /> : null}
+              </View>
             ))}
           </>
         ) : null}
@@ -690,32 +762,83 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 2,
   },
-  listRow: {
+  productGridRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  productCard: {
+    width: PRODUCT_CARD_WIDTH,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  productCardSpacer: {
+    width: PRODUCT_CARD_WIDTH,
+  },
+  productMedia: {
+    width: "100%",
+    height: PRODUCT_IMAGE_HEIGHT,
+    backgroundColor: "#E5E7EB",
+  },
+  productImage: {
+    width: "100%",
+    height: "100%",
+  },
+  productMeta: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 4,
+  },
+  productSellerRow: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    left: 8,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    gap: 12,
+    justifyContent: "flex-end",
+    gap: 5,
   },
-  rowIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+  productSellerAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    backgroundColor: "#E5E7EB",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
-  rowBody: { flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: 16, fontWeight: "600", color: "#111827" },
-  rowSub: { fontSize: 14, color: "#64748B", marginTop: 2 },
-  rowPrice: { fontSize: 15, fontWeight: "700", color: RED, marginTop: 4 },
+  productSellerName: {
+    flexShrink: 1,
+    maxWidth: PRODUCT_CARD_WIDTH * 0.55,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0, 0, 0, 0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  productTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  productPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: RED,
+  },
+  productDescription: {
+    fontSize: 12,
+    color: "#64748B",
+    lineHeight: 16,
+  },
   muted: { fontSize: 14, color: "#94A3B8" },
   emptyText: { fontSize: 15, color: "#64748B", textAlign: "center", marginTop: 24 },
   hint: { fontSize: 14, color: "#94A3B8", marginTop: 12 },

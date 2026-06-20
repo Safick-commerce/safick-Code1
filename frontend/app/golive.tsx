@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../context/AuthContext";
-import { useUserProfile } from "../context/UserProfileContext";
+import { useUserProfile } from "../stores/userProfileStore";
 
 type Audience = "Public" | "Followers";
 type LiveCategory = "Fashion" | "Beauty" | "Electronics" | "Home" | "Lifestyle";
@@ -97,7 +97,12 @@ export default function GoLiveScreen() {
     );
   }
   if (!isAuthenticated) {
-    return <GuestSignInPlaceholder subtitle="Sign in to start or schedule live sessions." />;
+    return (
+      <GuestSignInPlaceholder
+        subtitle="Sign in to start or schedule live sessions."
+        redirectTo="/golive"
+      />
+    );
   }
   if (!profile.readyToSharePromptSeen || !profile.readyToShareMode) {
     return (

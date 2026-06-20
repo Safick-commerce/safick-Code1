@@ -17,16 +17,13 @@ export default function VideoSideIcons({ containerStyle, showProfileIcon = false
         </TouchableOpacity>
       )}
       <TouchableOpacity style={styles.iconButton}>
-        <FontAwesome name="heart-o" size={28} color="#000000" />
+        <FontAwesome name="heart-o" size={28} color="#FFFFFF" />
       </TouchableOpacity>
       <TouchableOpacity style={styles.iconButton}>
-        <Ionicons name="bookmark-outline" size={28} color="#000000" />
+        <Ionicons name="bookmark-outline" size={28} color="#FFFFFF" />
       </TouchableOpacity>
       <TouchableOpacity style={styles.iconButton}>
-        <Fontisto name="share-a" size={28} color="#000000" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.iconButton}>
-        <Fontisto name="applemusic" size={28} color="#000000" />
+        <Fontisto name="share-a" size={28} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
@@ -49,11 +46,11 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#000000',
+    borderColor: '#FFFFFF',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

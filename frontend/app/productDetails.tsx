@@ -15,7 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome6 } from "@expo/vector-icons";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { useWishlist } from "../context/WishlistContext";
+import { useWishlist } from "../stores/wishlistStore";
+import { useCartStore } from "../stores/cartStore";
 import { startConversationChat } from "../utils/startConversationChat";
 import { getProductById, getRelatedProducts, type ProductDetail } from "../utils/productApi";
 import { formatPriceXaf } from "../utils/searchApi";
@@ -50,6 +51,8 @@ export default function ProductDetails() {
   const { id: productId } = useLocalSearchParams<{ id?: string | string[] }>();
   const resolvedProductId = typeof productId === "string" ? productId : productId?.[0];
   const { toggleWishlist, isSaved } = useWishlist();
+  const addToCart = useCartStore((state) => state.addItem);
+  const cartItems = useCartStore((state) => state.items);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const imageScrollViewRef = useRef<ScrollView>(null);
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -170,6 +173,42 @@ export default function ProductDetails() {
   }, [product]);
 
   const isWishlisted = product ? isSaved(product.id) : false;
+  const isInCart = useMemo(
+    () => (product ? cartItems.some((item) => item.productId === product.id) : false),
+    [cartItems, product],
+  );
+
+  const handleAddToCart = useCallback(() => {
+    if (!product) return;
+    addToCart({
+      productId: product.id,
+      title: product.title,
+      imageUrl: product.image_url ?? null,
+      unitPriceXaf: product.price,
+      sellerId: product.seller_id,
+      sellerName: sellerDisplayName(product),
+      sellerAvatarUrl: product.seller?.avatar_url ?? null,
+      description: product.description?.trim() || null,
+    });
+    Alert.alert("Added to cart", "Open your cart to check out.");
+  }, [product, addToCart]);
+
+  const handleBuyNow = useCallback(() => {
+    if (!product) return;
+    if (!isInCart) {
+      addToCart({
+        productId: product.id,
+        title: product.title,
+        imageUrl: product.image_url ?? null,
+        unitPriceXaf: product.price,
+        sellerId: product.seller_id,
+        sellerName: sellerDisplayName(product),
+        sellerAvatarUrl: product.seller?.avatar_url ?? null,
+        description: product.description?.trim() || null,
+      });
+    }
+    router.push("/checkout/address");
+  }, [product, addToCart, isInCart, router]);
 
   const handleImageScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
@@ -273,6 +312,17 @@ export default function ProductDetails() {
           <View style={styles.priceSection}>
             <View style={styles.productNameRow}>
               <Text style={styles.productName}>{product.title}</Text>
+              <TouchableOpacity
+                onPress={handleSaveProduct}
+                style={styles.titleHeartButton}
+                hitSlop={10}
+              >
+                <Ionicons
+                  name={isWishlisted ? "heart" : "heart-outline"}
+                  size={26}
+                  color={isWishlisted ? "#FF2800" : "#111827"}
+                />
+              </TouchableOpacity>
             </View>
             <View style={styles.priceRow}>
               <Text style={styles.productPrice}>{formattedPrice}</Text>
@@ -375,21 +425,24 @@ export default function ProductDetails() {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={[styles.saveButton, isWishlisted && styles.saveButtonActive]}
-          onPress={handleSaveProduct}
-        >
-          <Ionicons
-            name={isWishlisted ? "heart" : "heart-outline"}
-            size={20}
-            color={isWishlisted ? "#FFFFFF" : "#FF2800"}
-          />
-          <Text style={[styles.saveButtonText, isWishlisted && styles.saveButtonTextActive]}>
-            {isWishlisted ? "Saved" : "Save"}
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.messageButton} onPress={handleMessageSeller}>
           <Text style={styles.messageButtonText}>Message Seller</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.cartIconButton, isInCart && styles.cartIconButtonActive]}
+          onPress={handleAddToCart}
+          accessibilityLabel={isInCart ? "In cart" : "Add to cart"}
+          accessibilityState={{ selected: isInCart }}
+          accessibilityRole="button"
+        >
+          <MaterialIcons
+            name={isInCart ? "shopping-cart-checkout" : "add-shopping-cart"}
+            size={22}
+            color={isInCart ? "#FFFFFF" : "#FF2800"}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
+          <Text style={styles.buyNowButtonText}>Buy Now</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -705,44 +758,60 @@ const styles = StyleSheet.create({
     borderTopColor: "#E5E7EB",
     gap: 12,
   },
-  saveButton: {
+  titleHeartButton: {
+    padding: 4,
+  },
+  messageButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
     height: 50,
-    paddingHorizontal: 24,
     borderRadius: 28,
     borderWidth: 1.5,
     borderColor: "#FF2800",
     backgroundColor: "#FFFFFF",
   },
-  saveButtonActive: {
-    backgroundColor: "#000000",
-    borderColor: "#000000",
-  },
-  saveButtonText: {
-    fontSize: 16,
+  messageButtonText: {
+    fontSize: 15,
     fontWeight: "600",
     color: "#FF2800",
     fontFamily: "Inter",
   },
-  saveButtonTextActive: {
-    color: "#FFFFFF",
-  },
-  messageButton: {
+  buyNowButton: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     height: 50,
     borderRadius: 28,
     backgroundColor: "#FF2800",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 12,
+    shadowColor: "#FF2800",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  messageButtonText: {
+  buyNowButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#FFFFFF",
     fontFamily: "Inter",
+  },
+  cartIconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FF2800",
+    backgroundColor: "#FFFFFF",
+  },
+  cartIconButtonActive: {
+    backgroundColor: "#FF2800",
+    borderColor: "#FF2800",
   },
 });

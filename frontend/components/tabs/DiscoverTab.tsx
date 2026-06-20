@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Image
 import { useMemo, useState } from "react";
 
 import { DISCOVER_CATEGORIES, type DiscoverCategoryName } from "../../constants/categories";
+import { DiscoverTabSkeleton } from "../shared/DiscoverTabSkeleton";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -115,7 +116,11 @@ const POPULAR_PRODUCTS: PopularProduct[] = [
   },
 ];
 
-export default function DiscoverTab() {
+export type DiscoverTabProps = {
+  isLoading?: boolean;
+};
+
+export default function DiscoverTab({ isLoading = false }: DiscoverTabProps) {
   const [activeDiscoverCategory, setActiveDiscoverCategory] = useState<string | null>(null);
 
   const filteredProducts = useMemo(() => {
@@ -130,6 +135,10 @@ export default function DiscoverTab() {
     }
     return rows;
   }, [filteredProducts]);
+
+  if (isLoading) {
+    return <DiscoverTabSkeleton />;
+  }
 
   return (
     <View style={styles.container}>

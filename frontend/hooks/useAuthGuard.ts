@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
-import { useUserProfile } from "../context/UserProfileContext";
+import { useUserProfile } from "../stores/userProfileStore";
 
 /**
  * Keeps navigation aligned with Supabase auth:

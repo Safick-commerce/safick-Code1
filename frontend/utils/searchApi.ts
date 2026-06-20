@@ -142,6 +142,23 @@ export async function searchSellers(query: string, limit = 30): Promise<SellerPr
 /**
  * Sellers who have at least one listing; falls back to recent profiles with usernames.
  */
+export async function fetchSellerPreviewsByIds(ids: string[]): Promise<Record<string, SellerPreview>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return {};
+
+  const { data, error } = await supabase.from("profiles").select(PROFILE_COLS).in("id", unique);
+  if (error) {
+    console.warn("[fetchSellerPreviewsByIds]", error.message);
+    return {};
+  }
+
+  const map: Record<string, SellerPreview> = {};
+  for (const s of mapSellers(data)) {
+    map[s.id] = s;
+  }
+  return map;
+}
+
 export async function fetchPopularSellers(limit = 10): Promise<SellerPreview[]> {
   const { data: productRows, error: pe } = await supabase.from("products").select("seller_id").limit(300);
 

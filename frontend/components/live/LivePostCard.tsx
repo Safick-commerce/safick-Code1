@@ -6,9 +6,10 @@ import { memo, useCallback } from "react";
 interface LivePostCardProps {
   post: LivePost;
   cardWidth: number;
+  onImageLoad?: () => void;
 }
 
-function LivePostCard({ post, cardWidth }: LivePostCardProps) {
+function LivePostCard({ post, cardWidth, onImageLoad }: LivePostCardProps) {
   const router = useRouter();
   const onJoin = useCallback(() => {
     try {
@@ -39,6 +40,7 @@ function LivePostCard({ post, cardWidth }: LivePostCardProps) {
         source={imageSource}
         style={styles.image}
         resizeMode="cover"
+        onLoad={onImageLoad}
         accessibilityLabel={`${post.sellerName} live post`}
       />
 

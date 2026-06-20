@@ -23,6 +23,15 @@ import { getCorsOrigins } from "./config/cors";
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import conversationRoutes from "./routes/conversation.routes";
+import addressRoutes from "./routes/address.routes";
+import {
+  checkoutRouter,
+  ordersRouter,
+  sellerOrdersRouter,
+} from "./routes/order.routes";
+import webhookRoutes from "./routes/webhook.routes";
+import adminRoutes from "./routes/admin.routes";
+import feedRoutes from "./routes/feed.routes";
 
 // Error handler (must be registered last)
 import { errorHandler } from "./middleware/errorHandler";
@@ -48,6 +57,12 @@ app.use(
 // =============================================================================
 // Body Parsing
 // =============================================================================
+// Webhooks (notably Maviance) require the raw body so we can verify their
+// HMAC signature against the exact bytes that came over the wire. We mount
+// the webhook router BEFORE the JSON parser, and it brings its own express.raw()
+// for the routes it owns. Every other route gets express.json() below.
+
+app.use("/api/webhooks", webhookRoutes);
 
 // Parse JSON request bodies (e.g., POST /api/auth/register with { email, password })
 // Limit to 10MB to prevent abuse (large payloads)
@@ -84,6 +99,8 @@ app.get("/", (_req, res) => {
       health: "/api/health",
       auth: "/api/auth (POST register | login | refresh | logout | google)",
       users: "/api/users/me (GET/PUT + auth header) … see user.routes.ts",
+      forYouFeed: "GET /api/products/feed/for-you?limit=10&cursor=… (optional Bearer)",
+      productView: "POST /api/products/:id/view (optional Bearer; guests send clientId)",
       socket: "Socket.IO on this host — auth: { token: supabase access_token }",
     },
   });
@@ -108,10 +125,17 @@ app.get("/api/health", (_req, res) => {
 // =============================================================================
 
 // All routes are prefixed with /api/ to separate them from any future
-// static file serving or web dashboard
+// static file serving or web dashboard.
+// (Webhooks are mounted earlier — before the JSON parser — so the raw body is preserved.)
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/products", feedRoutes);
 app.use("/api/conversations", conversationRoutes);
+app.use("/api/addresses", addressRoutes);
+app.use("/api/checkout", checkoutRouter);
+app.use("/api/orders", ordersRouter);
+app.use("/api/seller/orders", sellerOrdersRouter);
+app.use("/api/admin", adminRoutes);
 
 // =============================================================================
 // 404 Handler — for routes that don't match anything above

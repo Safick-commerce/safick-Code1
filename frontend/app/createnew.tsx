@@ -22,7 +22,7 @@ import * as ImagePicker from "expo-image-picker";
 import { ResizeMode, Video } from "expo-av";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../context/AuthContext";
-import { useUserProfile } from "../context/UserProfileContext";
+import { useUserProfile } from "../stores/userProfileStore";
 import { createProduct } from "../utils/productApi";
 
 /** Wizard: record/select video → trim/edit → listing fields → photos → review/post. */
@@ -290,7 +290,12 @@ export default function CreateNewScreen() {
   }
 
   if (!isAuthenticated) {
-    return <GuestSignInPlaceholder subtitle="Sign in to create product videos and post items." />;
+    return (
+      <GuestSignInPlaceholder
+        subtitle="Sign in to create product videos and post items."
+        redirectTo="/createnew"
+      />
+    );
   }
 
   if (!profile.readyToSharePromptSeen || !profile.readyToShareMode) {

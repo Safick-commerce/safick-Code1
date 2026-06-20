@@ -45,6 +45,31 @@ const envSchema = z.object({
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000), // 15 minutes
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
+
+  // Maviance S3P (Smobilpay) — payment provider
+  // All optional at boot so the backend can run without Maviance configured (e.g. for local UI work).
+  // Service-layer code throws a clear AppError when these are missing but checkout is attempted.
+  MAVIANCE_S3P_BASE_URL: z.string().url().optional(),
+  MAVIANCE_S3P_API_USER: z.string().optional(),
+  MAVIANCE_S3P_API_PASSWORD: z.string().optional(),
+  MAVIANCE_S3P_PUBLIC_KEY: z.string().optional(),
+  MAVIANCE_S3P_WEBHOOK_SECRET: z.string().optional(),
+  // Maviance assigns per-merchant service IDs per telco; collect and disburse are separate.
+  MAVIANCE_SERVICE_ID_MTN_COLLECT: z.string().optional(),
+  MAVIANCE_SERVICE_ID_ORANGE_COLLECT: z.string().optional(),
+  MAVIANCE_SERVICE_ID_EXPRESS_UNION_COLLECT: z.string().optional(),
+  MAVIANCE_SERVICE_ID_CARD_COLLECT: z.string().optional(),
+  MAVIANCE_SERVICE_ID_MTN_CASHIN: z.string().optional(),
+  MAVIANCE_SERVICE_ID_ORANGE_CASHIN: z.string().optional(),
+
+  // Escrow timing
+  ESCROW_AUTO_RELEASE_DAYS: z.coerce.number().int().min(1).default(7),
+
+  // Admin moderation surface — header-based gate on POST /api/admin/* endpoints.
+  // Optional so the backend boots without it; admin routes 503 until it is set.
+  ADMIN_API_KEY: z.string().min(16).optional(),
+  // Optional Slack-compatible webhook to ping when a buyer opens a dispute.
+  OPS_DISPUTE_WEBHOOK_URL: z.string().url().optional(),
 });
 
 // Validate process.env against the schema

@@ -1,18 +1,21 @@
 import { Text, View, TouchableOpacity, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, AntDesign, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import DiscoverTab from "../../components/tabs/DiscoverTab";
 import ForYouTab from "../../components/tabs/ForYouTab";
 import FollowingTab from "../../components/tabs/FollowingTab";
-
+import { useCartItemCount } from "../../stores/cartStore";
+import { useAuth } from "../../context/AuthContext";
+import { useUserProfile } from "../../stores/userProfileStore";
+import { useIsFocused } from "@react-navigation/native";
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TABS = ["Discover", "For you", "Following"] as const;
 
 // Route constants for security
 const ROUTES = {
-  SAVED: "/wishlist",
+  CART: "/cart",
   MESSAGES: "/messages",
   NOTIFICATIONS: "/notifications",
   SEARCH: "/search",
@@ -24,13 +27,17 @@ export default function Index() {
   const scrollViewRef = useRef<ScrollView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const cartItemCount = useCartItemCount();
+  const isHomeFocused = useIsFocused();
+  const { isReady: authReady } = useAuth();
+  const { isLoaded: profileLoaded } = useUserProfile();
+  const tabBootstrapping = !authReady || !profileLoaded;
   // Navigation handlers with error handling
-  const handleSavedPress = useCallback(() => {
+  const handleCartPress = useCallback(() => {
     try {
-      router.push(ROUTES.SAVED);
+      router.push(ROUTES.CART);
     } catch (error) {
       console.error("Navigation error:", error);
-      // Could show user-friendly error message
     }
   }, [router]);
 
@@ -137,13 +144,28 @@ export default function Index() {
 
           {/* Action Icons */}
           <View style={styles.iconsContainer}>
-            {/* Saved / Wishlist Icon */}
-            <TouchableOpacity 
-              onPress={handleSavedPress}
-              accessibilityLabel="Saved items"
+            {/* Cart Icon — replaces the legacy wishlist heart on home. */}
+            <TouchableOpacity
+              onPress={handleCartPress}
+              accessibilityLabel={
+                cartItemCount > 0
+                  ? `Cart, ${cartItemCount} item${cartItemCount === 1 ? "" : "s"}`
+                  : "Cart"
+              }
               accessibilityRole="button"
+              style={styles.cartContainer}
             >
-              <FontAwesome5 name="heart" size={30} color="#000000" />
+              <MaterialIcons name="add-shopping-cart" size={30} color="#000000" />
+              {cartItemCount > 0 ? (
+                <View
+                  style={styles.cartBadge}
+                  accessibilityLabel={`${cartItemCount} item${cartItemCount === 1 ? "" : "s"} in cart`}
+                >
+                  <Text style={styles.cartBadgeText} numberOfLines={1}>
+                    {cartItemCount > 99 ? "99+" : String(cartItemCount)}
+                  </Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
 
             {/* Message Icon */}
@@ -209,10 +231,10 @@ export default function Index() {
         snapToAlignment="center"
       >
         {/* Discover Tab */}
-        <DiscoverTab />
+        <DiscoverTab isLoading={tabBootstrapping} />
 
         {/* For you Tab */}
-        <ForYouTab />
+        <ForYouTab isTabActive={activeTab === "For you"  && isHomeFocused} />
 
         {/* Following Tab */}
         <FollowingTab onDiscoverPress={handleDiscoverSellersPress} />
@@ -290,6 +312,27 @@ const styles = StyleSheet.create({
     height: 8,
     backgroundColor: '#EF4444',
     borderRadius: 4,
+  },
+  cartContainer: {
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: '#FF2800',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Inter',
   },
   tabContainer: {
     paddingHorizontal: 16,

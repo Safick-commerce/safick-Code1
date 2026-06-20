@@ -8,23 +8,24 @@ safick is a **social commerce marketplace** — a hybrid of TikTok-style product
 
 1. Sellers upload product videos/images and create listings
 2. Buyers discover products through the feed (Discover, For You, Following)
-3. When a buyer is interested, they message the seller directly via in-app chat
-4. Buyer and seller negotiate, arrange payment (mobile money, cash on delivery), and delivery privately
-5. After delivery, buyer confirms receipt and leaves a review
+3. Buyer either taps **Buy Now / Add to Cart** to check out on-platform (with escrow), or **Message Seller** for questions and negotiation
+4. For on-platform checkout: buyer pays SAFICK via MTN MoMo / Orange Money / Express Union / card via Maviance S3P; funds escrowed; an order card is auto-posted into the buyer-seller chat
+5. Seller marks item delivered; buyer confirms (or 7-day auto-release fires); SAFICK pays out to seller's stored MoMo / bank destination
+6. After completion, both parties can leave a review tied to the confirmed deal
 
-### Why No In-App Payments (For Now)
+### Why On-Platform Escrow at Launch
 
-- Lower barrier to entry for both sellers and buyers
-- Avoids payment integration complexity at launch
-- Works naturally with how people already transact in Cameroon (mobile money transfers, cash on delivery)
-- Payments can be added later once the platform has traction
+- Eliminates the trust gap that kills WhatsApp commerce — buyers no longer pre-pay a stranger directly
+- Pricing is locked at checkout — no transport-gouge or last-minute changes at handoff
+- Maviance S3P provides the licensed rail (MTN MoMo, Orange Money, Express Union, card) so SAFICK does not have to negotiate directly with each telco
+- Off-platform arrangement (via Message Seller) is still available for edge cases — buyers see an explicit risk-warning tap-through if they choose it
 
-### Revenue Model (Future)
+### Revenue Model
 
-- Featured / promoted listings
-- Seller subscription tiers
-- Optional in-app payments with commission (Phase 3)
-- Runing adververt for bigger firms 
+- **Commission on each completed on-platform transaction** (primary, from launch)
+- Featured / promoted listings (Phase 2)
+- Seller verification subscription tiers (Phase 2)
+- Running advertisements for bigger firms (Phase 2+)
 
 ---
 
@@ -34,7 +35,7 @@ safick is a **social commerce marketplace** — a hybrid of TikTok-style product
 
 - In Cameroon (and most of West/Central Africa), buying is already conversational. People negotiate, ask questions, build relationships. The chat-based model mirrors this natural behavior.
 - WhatsApp commerce is huge — safick is essentially a better version of what millions already do daily.
-- Cash on delivery and mobile money transfers don't need a middleman app to process. People are comfortable paying directly.
+- Mobile money is already the dominant payment habit in Cameroon. SAFICK's checkout uses the same MTN MoMo and Orange Money rails buyers already use daily — the only thing that changes is *who* the buyer pays first (SAFICK, who then holds and releases) instead of the seller directly.
 
 ### Low friction
 
@@ -141,12 +142,13 @@ In African markets, recommendations from friends/community are the strongest pur
 1. Discovery feed        — make browsing addictive
 2. Chat experience       — make buyer-seller communication seamless
 3. Trust features        — ratings, verified sellers, deal tracking
-4. Everything else       — live streaming, AI, payments, etc.
+4. On-platform checkout  — cart + Maviance escrow (Phase 1 promotion)
+5. Everything else       — live streaming, AI, etc.
 ```
 
 ---
 
-## Trust Architecture (No Payments Needed)
+## Trust Architecture (Escrow-Backed)
 
 ### Product-Linked Chats
 
@@ -196,17 +198,25 @@ Buyer gets prompt: "Did you receive your order?"
 
 ### Implementation Phases
 
-**Phase 1 (build now):**
+**Phase 1 (MVP — build now):**
 - Product-linked chats (attach product to conversation)
 - Seller profiles with follower count and join date
 - Report / block functionality
+- **On-platform checkout with cart and escrow** via Maviance S3P (MTN MoMo, Orange Money, Express Union, card)
+- **Order-card chat messages** auto-posted into per-seller conversations on payment
+- **Commission** taken on each completed on-platform transaction
+- **Structured dispute form** routed to on-call moderator
 
-**Phase 2 (once you have users):**
-- Deal status tracking in chat (Inquired → Completed)
+**Phase 2 (once we have users):**
+- Deal status tracking in chat (Inquired → Completed) layered onto the order state machine
 - Buyer reviews after confirmed delivery
 - Response time badges
+- Verified seller program (phone confirmed at signup; ID verification unlocks the badge)
+- Featured / promoted listings
+- Structured in-app dispute admin tool (replaces manual triage)
 
 **Phase 3 (growth):**
-- Verified seller program (ID or phone verification)
-- Optional in-app payments (take a small commission)
-- Escrow for high-value items
+- User wallet / balance / top-up (deferred from MVP — needs e-money licensing or partner-hosted setup)
+- AI recommendations, semantic search, visual search
+- Group buying, price alerts
+- Multi-currency / cross-border support

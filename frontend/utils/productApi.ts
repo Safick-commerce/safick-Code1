@@ -25,8 +25,15 @@ function parseProductRow(raw: unknown): StoreProduct | null {
     image_url: typeof r.image_url === "string" ? r.image_url : r.image_url === null ? null : null,
     seller_id: r.seller_id,
     created_at: created,
+    video_url: typeof r.video_url === "string" ? r.video_url : r.video_url === null ? null : undefined,
+    thumbnail_url:
+      typeof r.thumbnail_url === "string" ? r.thumbnail_url : r.thumbnail_url === null ? null : undefined,
+    media_status: typeof r.media_status === "string" ? r.media_status : undefined,
   };
 }
+
+const PRODUCT_LIST_SELECT =
+  "id, title, description, price, image_url, seller_id, created_at, video_url, thumbnail_url, media_status";
 
 function mapProducts(data: unknown): StoreProduct[] {
   if (!Array.isArray(data)) return [];
@@ -130,10 +137,28 @@ export async function getFirstProductIdForSeller(sellerId: string): Promise<stri
   return data && typeof data.id === "string" ? data.id : null;
 }
 
+/** Video listings for a seller profile grid (Posts / Clips tab). */
+export async function getSellerVideoProducts(sellerId: string): Promise<StoreProduct[]> {
+  const { data, error } = await supabase
+    .from("products")
+    .select(PRODUCT_LIST_SELECT)
+    .eq("seller_id", sellerId)
+    .not("video_url", "is", null)
+    .eq("media_status", "ready")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("[getSellerVideoProducts]", error.message);
+    return [];
+  }
+
+  return mapProducts(data);
+}
+
 export async function getAllProducts(): Promise<StoreProduct[]> {
   const { data, error } = await supabase
     .from("products")
-    .select("id, title, description, price, image_url, seller_id, created_at")
+    .select(PRODUCT_LIST_SELECT)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -158,7 +183,7 @@ export async function getMyProducts(): Promise<StoreProduct[]> {
 
   const { data, error } = await supabase
     .from("products")
-    .select("id, title, description, price, image_url, seller_id, created_at")
+    .select(PRODUCT_LIST_SELECT)
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });
 

@@ -5,12 +5,14 @@ import { type Href, useRouter } from "expo-router";
 type Props = {
   /** Short line under the title (e.g. why sign-in is needed). */
   subtitle?: string;
+  /** Screen or tab to return to when the user taps back on sign-in. */
+  redirectTo: string;
 };
 
 /**
  * Full-screen placeholder for tabs that require an account while keeping the tab visible in the bar.
  */
-export function GuestSignInPlaceholder({ subtitle }: Props) {
+export function GuestSignInPlaceholder({ subtitle, redirectTo }: Props) {
   const router = useRouter();
 
   return (
@@ -20,7 +22,12 @@ export function GuestSignInPlaceholder({ subtitle }: Props) {
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         <TouchableOpacity
           style={styles.primary}
-          onPress={() => router.push("/auth/signin" as Href)}
+          onPress={() =>
+            router.push({
+              pathname: "/auth/signin",
+              params: { redirectTo },
+            } as Href)
+          }
           activeOpacity={0.9}
           accessibilityRole="button"
           accessibilityLabel="Sign in"

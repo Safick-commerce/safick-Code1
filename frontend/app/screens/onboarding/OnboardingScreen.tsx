@@ -1,10 +1,10 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
-import { useUserProfile } from "../../../context/UserProfileContext";
+import { useUserProfile } from "../../../stores/userProfileStore";
 import { supabase } from "../../../lib/supabase";
 import WalkthroughSlides from "./WalkthroughSlides";
 import GenderStep from "./steps/GenderStep";
@@ -26,7 +26,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { skipWalkthrough } = useLocalSearchParams<{ skipWalkthrough?: string }>();
   const { updateProfile, completeOnboarding } = useUserProfile();
-  const { isAuthenticated, signIn, signUp } = useAuth();
+  const { isAuthenticated, signIn, signUp, user, profile: authProfile } = useAuth();
+  const isReturningUser = isAuthenticated && !!authProfile?.username;
   const [phase, setPhase] = useState<Phase>(skipWalkthrough === "1" ? "steps" : "walkthrough");
   const [step, setStep] = useState(0);
 
@@ -41,6 +42,25 @@ export default function OnboardingScreen() {
 
   // Username availability — updated by NameUsernameStep via onUsernameAvailable
   const [usernameAvailable, setUsernameAvailable] = useState(false);
+
+  // Pre-fill and skip account creation when the user already has a profile row.
+  useEffect(() => {
+    if (!isReturningUser || !authProfile) return;
+
+    const display = authProfile.display_name || authProfile.full_name || "";
+    if (display) setName(display);
+    if (authProfile.username) {
+      setUsername(authProfile.username);
+      setUsernameAvailable(true);
+    }
+    if (authProfile.email) setEmail(authProfile.email);
+    if (authProfile.gender) setGender(authProfile.gender);
+    if (authProfile.city) setCity(authProfile.city);
+    if (authProfile.interests.length > 0) setInterests(authProfile.interests);
+
+    // Jump past "Create your account" — they already have one.
+    setStep(1);
+  }, [isReturningUser, authProfile]);
 
   // Loading state for the Sign Up button
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,6 +78,7 @@ export default function OnboardingScreen() {
   const isStepValid = () => {
     switch (step) {
       case 0:
+        if (isReturningUser) return true;
         return (
           name.trim().length >= 2 &&
           username.trim().length >= 3 &&
@@ -85,6 +106,10 @@ export default function OnboardingScreen() {
     try {
       switch (step) {
         case 0:
+          if (isReturningUser) {
+            setStep(1);
+            break;
+          }
           await Promise.all([
             updateProfile({
               displayName: name.trim(),
@@ -152,13 +177,11 @@ export default function OnboardingScreen() {
                   city: city || null,
                   interests,
                   onboarding_completed: true,
+                  ...(name.trim() ? { display_name: name.trim(), full_name: name.trim() } : {}),
                 })
                 .eq("id", currentUser.id);
               if (profileError) {
-                console.warn(
-                  "[onboarding] failed to sync profile fields:",
-                  profileError.message
-                );
+                throw new Error(profileError.message);
               }
             }
           } catch (syncError) {
@@ -189,7 +212,7 @@ export default function OnboardingScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [step, name, username, email, password, gender, city, interests, updateProfile, completeOnboarding, isAuthenticated, signIn, signUp, router]);
+  }, [step, name, username, email, password, gender, city, interests, updateProfile, completeOnboarding, isAuthenticated, isReturningUser, signIn, signUp, router]);
 
   const handleBack = useCallback(() => {
     if (step > 0) setStep(step - 1);
@@ -249,6 +272,7 @@ export default function OnboardingScreen() {
               onPasswordChange={setPassword}
               onAgreeChange={setAgreedToTerms}
               onUsernameAvailable={setUsernameAvailable}
+              excludeUserId={user?.id}
             />
           )}
           {step === 1 && (
