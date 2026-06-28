@@ -20,3 +20,9 @@
 
 Task completed so far language translation was added, live feature still to be fully tested, Create a profile, edit profile, create post, 
 Search for products,sign in and sign out checkout flow to make payment. 
+
+#App rate limite for sign in and reset password. 
+
+#Language change apply on category label. 
+
+#Go live ui layout needed to be improved with option to add product, show comments, notification before stop live, live activation notice, and other necessary features. 
