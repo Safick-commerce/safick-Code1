@@ -101,7 +101,7 @@ Important: **Expo Go does not work** for live. Use an EAS dev APK (see below).
    cd frontend
    eas build --profile development --platform android
    ```
-4. **Share** the EAS APK link with the team. Each phone: download → allow unknown sources → install.
+4. **Share the EAS APK link** with the team (from the build page or artifact URL). Each phone: download → allow unknown sources → install.
 
 ### Every test session (host PC)
 

@@ -35,7 +35,7 @@
         "android.permission.WAKE_LOCK",
         "android.permission.SYSTEM_ALERT_WINDOW"
       ],
-      "package": "com.anonymous.safick"
+      "package": "com.safick.app"
     },
     "web": {
       "output": "static",
