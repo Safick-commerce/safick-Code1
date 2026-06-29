@@ -74,18 +74,76 @@ npm run dev
 ```
 
 ### 2. Frontend setup
-In frontend/.env, make sure this exists:
-- EXPO_PUBLIC_LIVEKIT_URL
+In `frontend/.env`, set:
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_API_URL` — URL phones use to reach the backend (see testing section below)
 
-Then run:
+LiveKit URL/token come from the **backend** at runtime — no LiveKit keys in `frontend/.env`.
+
 ```bash
 cd frontend
 npm install
-npx expo prebuild
-npx expo run:android
 ```
 
-Important: use a real Android phone, not Expo Go.
+Important: **Expo Go does not work** for live. Use an EAS dev APK (see below).
+
+## How to test live
+
+**Branch:** `Bless-testing-v2` · **No Expo Go** · **Android dev APK required** · **2 accounts** (seller + viewer)
+
+### One-time (one person on the team)
+
+1. **Env** — `backend/.env`: LiveKit keys + DB + Supabase. `frontend/.env`: Supabase + `EXPO_PUBLIC_API_URL` (see below). Share `.env` securely, never commit.
+2. **`frontend/app.json`** — set `icon` to logo path and `android.adaptiveIcon.backgroundColor` to `#FFFFFF` (empty values break EAS build).
+3. **Build APK:**
+   ```bash
+   cd frontend
+   eas build --profile development --platform android
+   ```
+4. **Share** the EAS APK link with the team. Each phone: download → allow unknown sources → install.
+
+### Every test session (host PC)
+
+```bash
+cd backend && npm run dev
+cd frontend && npx expo start --dev-client    # add --tunnel if testers are remote
+```
+
+Host must keep both running while testers use the **Safick** app (not Expo Go).
+
+### API URL (`EXPO_PUBLIC_API_URL`)
+
+| Team location | Set to |
+|---------------|--------|
+| Same Wi‑Fi as host | `http://192.168.x.x:4000` (PC IPv4 from `ipconfig`) |
+| Remote | Public backend URL, or `ngrok http 4000` → use ngrok HTTPS URL |
+
+Remote phones cannot use a LAN IP. For remote testers who should not depend on Metro: set a public API URL, then `eas build --profile preview --platform android`.
+
+### Test flow
+
+| Phone | User | Action |
+|-------|------|--------|
+| Android 1 | Seller | Sign in → **Go Live** → camera/mic → start |
+| Android 2 | Viewer | Same APK → different account → **Watch Live** |
+
+### Send to testers
+
+```
+1. Install APK: <link>
+2. Open Safick (not Expo Go)
+3. Sign in: <credentials>
+4. Viewer: Watch Live while seller is live
+```
+
+### Works when
+
+- Log: `already connected to room safick-live-...`
+- Viewer sees live video
+- iPhone live test needs paid Apple Developer + `eas build -p ios`
+
+---
 
 ## How to fix common errors
 
@@ -154,5 +212,5 @@ If the build keeps referencing the old project path:
 6. Reinstall node_modules.
 7. Run npx expo run:android again.
 
-## Final note very important Emma
+## Final note
 The goal was to keep the app structure unchanged and only connect LiveKit to the existing live screens. Most problems came from Windows Android build setup, not the LiveKit code itself.
