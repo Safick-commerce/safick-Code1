@@ -12,6 +12,7 @@
 // =============================================================================
 
 import { Request, Response, NextFunction } from "express";
+import * as passwordResetService from "../services/passwordReset.service";
 
 /**
  * POST /api/auth/google
@@ -108,4 +109,58 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
   // 2. Delete session from database
   // 3. Return { success: true }
   res.status(501).json({ error: "Not implemented yet" });
+}
+
+/**
+ * POST /api/auth/forgot-password
+ *
+ * Generates a 4-digit OTP, stores a bcrypt hash, and emails the code.
+ *
+ * Request body: { email: string }
+ * Response: { message: string }
+ */
+export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body as { email: string };
+    const result = await passwordResetService.requestPasswordReset(email);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/auth/verify-otp
+ *
+ * Validates the 4-digit OTP and returns a short-lived reset token.
+ *
+ * Request body: { email: string, code: string }
+ * Response: { resetToken: string }
+ */
+export async function verifyOtp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email, code } = req.body as { email: string; code: string };
+    const result = await passwordResetService.verifyPasswordResetOtp(email, code);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/auth/reset-password
+ *
+ * Validates the reset token and updates the user's password via Supabase admin API.
+ *
+ * Request body: { resetToken: string, password: string }
+ * Response: { success: true }
+ */
+export async function resetPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { resetToken, password } = req.body as { resetToken: string; password: string };
+    const result = await passwordResetService.resetPasswordWithToken(resetToken, password);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
 }

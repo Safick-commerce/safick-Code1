@@ -28,7 +28,7 @@ export default function SignInScreen() {
     redirectTo?: string;
     id?: string;
   }>();
-  const { signIn, signInWithOAuth, resetPassword } = useAuth();
+  const { signIn, signInWithOAuth } = useAuth();
   const { isLoaded: profileLoaded, updateProfile } = useUserProfile();
 
   const [identifier, setIdentifier] = useState("");
@@ -73,20 +73,9 @@ export default function SignInScreen() {
     }
   }, [identifier, password, signIn, navigateAfterLogin, t]);
 
-  const handleForgotPassword = useCallback(async () => {
-    const trimmed = identifier.trim();
-    if (!trimmed) {
-      Alert.alert(t("auth_alert_reset_title"), t("auth_alert_reset_body"));
-      return;
-    }
-    try {
-      await resetPassword(trimmed);
-      Alert.alert(t("auth_alert_reset_sent_title"), t("auth_alert_reset_sent_body"));
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : t("auth_error_reset_email");
-      Alert.alert(t("auth_alert_reset_title"), message);
-    }
-  }, [identifier, resetPassword, t]);
+  const handleForgotPassword = useCallback(() => {
+    router.push("/auth/forgot-password");
+  }, [router]);
 
   const handleOAuthSignIn = useCallback(
     async (provider: "google" | "apple") => {
