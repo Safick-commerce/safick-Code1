@@ -9,18 +9,13 @@
 //   POST /api/auth/logout    → Invalidate refresh token (end session)
 //
 // None of these routes require authentication (they CREATE the auth state).
+// Password reset is handled client-side via Supabase Auth (resetPasswordForEmail).
 //
 // TODO: Wire up controllers and validation schemas in the next step
 // =============================================================================
 
 import { Router } from "express";
 import * as authController from "../controllers/auth.controller";
-import { validate } from "../middleware/validate";
-import {
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  verifyOtpSchema,
-} from "../types";
 
 const router = Router();
 
@@ -38,10 +33,5 @@ router.post("/refresh", authController.refreshToken);
 
 // Logout — deletes the session (invalidates the refresh token)
 router.post("/logout", authController.logout);
-
-// Password reset — 4-digit OTP flow (no auth required)
-router.post("/forgot-password", validate(forgotPasswordSchema), authController.forgotPassword);
-router.post("/verify-otp", validate(verifyOtpSchema), authController.verifyOtp);
-router.post("/reset-password", validate(resetPasswordSchema), authController.resetPassword);
 
 export default router;

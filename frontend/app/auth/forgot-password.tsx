@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLanguage } from "../../context/LanguageContext";
-import { forgotPassword } from "../../lib/authApi";
+import { supabase } from "../../lib/supabase";
 
 const RED = "#FF2800";
 
@@ -34,9 +34,11 @@ export default function ForgotPasswordScreen() {
 
     setSubmitting(true);
     try {
-      await forgotPassword(trimmed);
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed);
+      if (error) throw error;
+
       router.push({
-        pathname: "/auth/verify-code",
+        pathname: "/auth/create-new-password",
         params: { email: trimmed },
       });
     } catch (e: unknown) {

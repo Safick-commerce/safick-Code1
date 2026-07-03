@@ -1,0 +1,85 @@
+# Safick Dev Notes
+
+Running log of features, fixes, and gotchas. Add a new entry at the top each session.
+
+---
+
+## 2026-07-02 — Custom 4-digit OTP Password Reset
+
+**Branch:** `Bless-testing-v2`
+**Commit:** `e02deba` — "Added custom 4-digit OTP password reset"
+
+### What was built
+Full forgot-password / reset-password flow, 4 screens matching Figma design:
+`Sign In → Forgot Password (email) → Verification Code (4-digit) → Create New Password → Success → Sign In`
+
+**Backend:**
+- `password_reset_otps` table (email, hashed code, expiry, verified)
+- `POST /api/auth/forgot-password` — generates + emails 4-digit code
+- `POST /api/auth/verify-otp` — validates code, returns signed reset token
+- `POST /api/auth/reset-password` — validates token, updates password via Supabase admin API
+- New files: `services/passwordReset.service.ts`, `services/email.service.ts` (nodemailer, console-log fallback in dev), `utils/supabaseAdmin.ts`
+- Tests: `tests/passwordReset.test.ts`
+
+**Frontend:**
+- New screens under `app/auth/`: `forgot-password.tsx`, `verify-code.tsx`, `create-new-password.tsx`, `password-reset-success.tsx`
+- `lib/authApi.ts` — unauthenticated API client
+- Sign In screen's "Forgot Password?" now routes here instead of the old Supabase email-link alert
+
+### Required `.env` additions (each teammate needs these locally — not committed)
+
+`backend/.env`:
+```
+SUPABASE_URL=<same value as EXPO_PUBLIC_SUPABASE_URL, no prefix>
+PASSWORD_RESET_TOKEN_SECRET=<random string — generate with the command below>
+```
+
+Generate a secret:
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+SMTP is optional in dev — if unset, the OTP prints to the backend console instead of emailing:
+```
+[email] SMTP not configured — password reset OTP for user@example.com: 1234
+```
+To send real emails, also add: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`.
+
+### Bugs hit + fixes (Windows / Expo dev client)
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| "Network request failed" calling backend from phone | `frontend/.env` had `EXPO_PUBLIC_API_URL` set to `localhost` | Use PC's LAN IP instead: `ipconfig` → IPv4 under Wi-Fi adapter → `http://192.168.x.x:4000` |
+| Still failed after fixing IP | Duplicated variable name typo: `EXPO_PUBLIC_API_URL= EXPO_PUBLIC_API_URL=http://...` | Fix to single `EXPO_PUBLIC_API_URL=http://192.168.x.x:4000`, restart with `npx expo start --dev-client -c` (cache clear — env vars are baked into the bundle) |
+| Phone browser also couldn't reach `192.168.x.x:4000` | Windows Firewall blocking inbound port 4000 | `New-NetFirewallRule -DisplayName "Node Dev Server 4000" -Direction Inbound -LocalPort 4000 -Protocol TCP -Action Allow` (run as Administrator) |
+| `verify-otp` → "Password reset is not configured" (503) | Missing signing secret; code checks for `PASSWORD_RESET_TOKEN_SECRET`, `SUPABASE_JWT_SECRET`, or `JWT_ACCESS_SECRET` — none present | Added `PASSWORD_RESET_TOKEN_SECRET` to `backend/.env` |
+| `reset-password` → "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required" | Only `EXPO_PUBLIC_SUPABASE_URL` existed (frontend-style); backend admin code needs plain `SUPABASE_URL` | Added `SUPABASE_URL=<same value, no prefix>` |
+
+### Open items / follow-ups
+- [ ] Configure real SMTP credentials before this goes to real users (currently console-log only)
+- [ ] Confirm whether `/forgot-password` reveals if an email is registered (email enumeration) — check `passwordReset.service.ts` for a `listUsers`/`findUser` call before sending. Best practice: return a generic "if this email is registered, a code was sent" message regardless.
+
+### Useful commands
+```powershell
+# Backend
+cd backend && npm run dev
+
+# Frontend (same Wi-Fi as backend host)
+cd frontend && npx expo start --dev-client
+# add -c to clear cache after .env changes
+
+# Find PC LAN IP
+ipconfig   # look for IPv4 Address under "Wireless LAN adapter Wi-Fi"
+
+# EAS dev client build (only needed if native modules changed — NOT needed for this feature)
+cd frontend && eas build --profile development --platform android
+```
+
+---
+
+## Earlier: LiveKit Live Streaming Setup
+
+See `LiveKit-SETUP` in repo root for full details. Summary:
+- Branch: `Bless-testing-v2`, Expo Go does NOT work (native WebRTC modules) — requires EAS dev client APK
+- Test with 2 accounts/phones (seller + viewer), same Wi-Fi or `--tunnel`/ngrok for remote
+- Common Windows build issues: Java/JAVA_HOME, Android SDK path, `colors.xml` missing `iconBackground`, Windows path length limits, stale `.cxx`/Gradle cache — see `LiveKit-SETUP` troubleshooting section for fixes

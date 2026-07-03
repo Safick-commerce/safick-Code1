@@ -41,32 +41,6 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, "Refresh token is required"),
 });
 
-// POST /api/auth/forgot-password — send 4-digit OTP to email
-export const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address"),
-});
-
-// POST /api/auth/verify-otp — verify 4-digit OTP, return reset token
-export const verifyOtpSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  code: z
-    .string()
-    .trim()
-    .regex(/^\d{4}$/, "Verification code must be 4 digits"),
-});
-
-// POST /api/auth/reset-password — set new password using reset token
-export const resetPasswordSchema = z.object({
-  resetToken: z.string().min(1, "Reset token is required"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128)
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
-});
-
 // =============================================================================
 // User Schemas — request validation for user endpoints
 // =============================================================================
@@ -161,9 +135,6 @@ export type GoogleSignInInput = z.infer<typeof googleSignInSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
-export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
-export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 

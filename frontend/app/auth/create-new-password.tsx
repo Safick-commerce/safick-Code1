@@ -1,6 +1,6 @@
 import { FontAwesome6, MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,13 +12,16 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  type TextInput as TextInputType,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLanguage } from "../../context/LanguageContext";
-import { resetPassword } from "../../lib/authApi";
-import { consumePendingResetToken } from "../../lib/passwordResetSession";
+import { supabase } from "../../lib/supabase";
 
 const RED = "#FF2800";
+const CODE_LENGTH = 8;
+
+type Step = "code" | "password";
 
 function ValidationHint({ valid, message }: { valid: boolean; message: string }) {
   return (
@@ -29,22 +32,26 @@ function ValidationHint({ valid, message }: { valid: boolean; message: string })
 export default function CreateNewPasswordScreen() {
   const { t } = useLanguage();
   const router = useRouter();
-  const [resetToken, setResetToken] = useState<string | null>(null);
+  const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
+  const email = typeof emailParam === "string" ? emailParam.trim().toLowerCase() : "";
 
-  useEffect(() => {
-    const token = consumePendingResetToken();
-    if (!token) {
-      router.replace("/auth/forgot-password");
-      return;
-    }
-    setResetToken(token);
-  }, [router]);
-
+  const [step, setStep] = useState<Step>("code");
+  const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+  const inputRefs = useRef<(TextInputType | null)[]>([]);
+
+  const code = digits.join("");
+
+  useEffect(() => {
+    if (!email) {
+      router.replace("/auth/forgot-password");
+    }
+  }, [email, router]);
 
   const passwordMinLength = password.length >= 8;
   const passwordHasUpper = /[A-Z]/.test(password);
@@ -54,10 +61,73 @@ export default function CreateNewPasswordScreen() {
   const isValid =
     passwordMinLength && passwordHasUpper && passwordHasNumber && passwordHasSpecial && passwordsMatch;
 
-  const handleReset = useCallback(async () => {
-    if (!resetToken) {
+  const handleDigitChange = useCallback((index: number, value: string) => {
+    const cleaned = value.replace(/\D/g, "").slice(-1);
+    setDigits((prev) => {
+      const next = [...prev];
+      next[index] = cleaned;
+      return next;
+    });
+    if (cleaned && index < CODE_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  }, []);
+
+  const handleKeyPress = useCallback(
+    (index: number, key: string) => {
+      if (key === "Backspace" && !digits[index] && index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+    },
+    [digits],
+  );
+
+  const handleVerifyCode = useCallback(async () => {
+    if (!email) {
+      Alert.alert(t("auth_reset_title"), t("auth_reset_missing_email"));
+      router.replace("/auth/forgot-password");
       return;
     }
+    if (code.length !== CODE_LENGTH) {
+      Alert.alert(t("auth_reset_title"), t("auth_reset_code_required"));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: "recovery",
+      });
+      if (error) throw error;
+      setStep("password");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : t("auth_reset_code_invalid");
+      Alert.alert(t("auth_reset_title"), message);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [code, email, router, t]);
+
+  const handleResend = useCallback(async () => {
+    if (!email) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      setDigits(Array(CODE_LENGTH).fill(""));
+      inputRefs.current[0]?.focus();
+      Alert.alert(t("auth_reset_code_sent_title"), t("auth_reset_code_sent_body"));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : t("auth_error_reset_email");
+      Alert.alert(t("auth_reset_title"), message);
+    } finally {
+      setResending(false);
+    }
+  }, [email, t]);
+
+  const handleReset = useCallback(async () => {
     if (!isValid) {
       Alert.alert(t("auth_reset_title"), t("auth_reset_password_invalid"));
       return;
@@ -65,7 +135,10 @@ export default function CreateNewPasswordScreen() {
 
     setSubmitting(true);
     try {
-      await resetPassword(resetToken, password);
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+
+      await supabase.auth.signOut();
       router.replace("/auth/password-reset-success");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : t("auth_reset_password_failed");
@@ -73,9 +146,17 @@ export default function CreateNewPasswordScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [resetToken, isValid, password, router, t]);
+  }, [isValid, password, router, t]);
 
-  if (!resetToken) {
+  const handleBack = useCallback(() => {
+    if (step === "password") {
+      setStep("code");
+      return;
+    }
+    router.back();
+  }, [router, step]);
+
+  if (!email) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View style={[styles.flex, styles.center]}>
@@ -94,7 +175,7 @@ export default function CreateNewPasswordScreen() {
       >
         <View style={styles.headerRow}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={handleBack}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={t("common_go_back")}
@@ -110,76 +191,133 @@ export default function CreateNewPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.eyebrow}>{t("auth_reset_title")}</Text>
-          <Text style={styles.title}>{t("auth_reset_new_password_heading")}</Text>
-          <Text style={styles.description}>{t("auth_reset_new_password_body")}</Text>
 
-          <Text style={styles.label}>{t("auth_reset_new_password_label")}</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder={t("account_password_ph")}
-              placeholderTextColor="#828282"
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-              editable={!submitting}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((s) => !s)}
-              style={styles.eye}
-              accessibilityRole="button"
-              accessibilityLabel={showPassword ? t("a11y_hide_password") : t("a11y_show_password")}
-            >
-              <FontAwesome6 name={showPassword ? "eye-slash" : "eye"} size={18} color="#64748B" />
-            </TouchableOpacity>
-          </View>
+          {step === "code" ? (
+            <>
+              <Text style={styles.title}>{t("auth_reset_verify_heading")}</Text>
+              <Text style={styles.description}>
+                {t("auth_reset_verify_body", { email: email || t("auth_reset_your_email") })}
+              </Text>
 
-          {password.length > 0 && (
-            <View style={styles.passwordHints}>
-              <ValidationHint valid={passwordMinLength} message={t("account_password_min")} />
-              <ValidationHint valid={passwordHasUpper} message={t("account_password_upper")} />
-              <ValidationHint valid={passwordHasNumber} message={t("account_password_number")} />
-              <ValidationHint valid={passwordHasSpecial} message={t("account_password_special")} />
-            </View>
+              <View style={styles.codeRow}>
+                {digits.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => {
+                      inputRefs.current[index] = ref;
+                    }}
+                    style={[styles.codeInput, digit ? styles.codeInputFilled : null]}
+                    value={digit}
+                    onChangeText={(value) => handleDigitChange(index, value)}
+                    onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    selectTextOnFocus
+                    editable={!submitting}
+                    accessibilityLabel={t("auth_reset_digit_label", { index: index + 1 })}
+                  />
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.primary, submitting && styles.primaryDisabled]}
+                onPress={handleVerifyCode}
+                disabled={submitting}
+                activeOpacity={0.9}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryText}>{t("auth_reset_verify_button")}</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendRow}
+                onPress={handleResend}
+                disabled={resending || submitting}
+              >
+                {resending ? (
+                  <ActivityIndicator color={RED} size="small" />
+                ) : (
+                  <Text style={styles.resendText}>{t("auth_reset_resend_code")}</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.title}>{t("auth_reset_new_password_heading")}</Text>
+              <Text style={styles.description}>{t("auth_reset_new_password_body")}</Text>
+
+              <Text style={styles.label}>{t("auth_reset_new_password_label")}</Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder={t("account_password_ph")}
+                  placeholderTextColor="#828282"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!submitting}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((s) => !s)}
+                  style={styles.eye}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? t("a11y_hide_password") : t("a11y_show_password")}
+                >
+                  <FontAwesome6 name={showPassword ? "eye-slash" : "eye"} size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              {password.length > 0 && (
+                <View style={styles.passwordHints}>
+                  <ValidationHint valid={passwordMinLength} message={t("account_password_min")} />
+                  <ValidationHint valid={passwordHasUpper} message={t("account_password_upper")} />
+                  <ValidationHint valid={passwordHasNumber} message={t("account_password_number")} />
+                  <ValidationHint valid={passwordHasSpecial} message={t("account_password_special")} />
+                </View>
+              )}
+
+              <Text style={[styles.label, styles.confirmLabel]}>{t("auth_reset_confirm_password_label")}</Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder={t("auth_reset_confirm_password_placeholder")}
+                  placeholderTextColor="#828282"
+                  secureTextEntry={!showConfirm}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  editable={!submitting}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirm((s) => !s)}
+                  style={styles.eye}
+                  accessibilityRole="button"
+                  accessibilityLabel={showConfirm ? t("a11y_hide_password") : t("a11y_show_password")}
+                >
+                  <FontAwesome6 name={showConfirm ? "eye-slash" : "eye"} size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              {confirmPassword.length > 0 && !passwordsMatch && (
+                <Text style={styles.mismatch}>{t("auth_reset_password_mismatch")}</Text>
+              )}
+
+              <TouchableOpacity
+                style={[styles.primary, (submitting || !isValid) && styles.primaryDisabled]}
+                onPress={handleReset}
+                disabled={submitting || !isValid}
+                activeOpacity={0.9}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryText}>{t("auth_reset_save_password")}</Text>
+                )}
+              </TouchableOpacity>
+            </>
           )}
-
-          <Text style={[styles.label, styles.confirmLabel]}>{t("auth_reset_confirm_password_label")}</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder={t("auth_reset_confirm_password_placeholder")}
-              placeholderTextColor="#828282"
-              secureTextEntry={!showConfirm}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              editable={!submitting}
-            />
-            <TouchableOpacity
-              onPress={() => setShowConfirm((s) => !s)}
-              style={styles.eye}
-              accessibilityRole="button"
-              accessibilityLabel={showConfirm ? t("a11y_hide_password") : t("a11y_show_password")}
-            >
-              <FontAwesome6 name={showConfirm ? "eye-slash" : "eye"} size={18} color="#64748B" />
-            </TouchableOpacity>
-          </View>
-
-          {confirmPassword.length > 0 && !passwordsMatch && (
-            <Text style={styles.mismatch}>{t("auth_reset_password_mismatch")}</Text>
-          )}
-
-          <TouchableOpacity
-            style={[styles.primary, (submitting || !isValid) && styles.primaryDisabled]}
-            onPress={handleReset}
-            disabled={submitting || !isValid}
-            activeOpacity={0.9}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.primaryText}>{t("auth_reset_save_password")}</Text>
-            )}
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -219,6 +357,27 @@ const styles = StyleSheet.create({
     color: "#64748B",
     lineHeight: 22,
     marginBottom: 24,
+  },
+  codeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 28,
+  },
+  codeInput: {
+    flex: 1,
+    aspectRatio: 1,
+    maxWidth: 48,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    fontSize: 22,
+    fontWeight: "700",
+    textAlign: "center",
+    color: "#111827",
+  },
+  codeInputFilled: {
+    borderColor: RED,
   },
   label: {
     fontSize: 15,
@@ -276,6 +435,16 @@ const styles = StyleSheet.create({
   primaryText: {
     color: "#FFFFFF",
     fontSize: 17,
+    fontWeight: "700",
+  },
+  resendRow: {
+    marginTop: 20,
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  resendText: {
+    color: RED,
+    fontSize: 15,
     fontWeight: "700",
   },
 });

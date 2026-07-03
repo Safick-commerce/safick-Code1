@@ -745,18 +745,6 @@ model product_views {
   @@schema("public")
 }
 
-model password_reset_otps {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email       String
-  hashed_code String
-  expires_at  DateTime @db.Timestamptz(6)
-  verified    Boolean  @default(false)
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-
-  @@index([email, created_at(sort: Desc)], map: "password_reset_otps_email_created_idx")
-  @@schema("public")
-}
-
 enum live_event_status {
   scheduled
   live
