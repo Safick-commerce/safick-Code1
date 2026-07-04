@@ -1,113 +1,78 @@
 // =============================================================================
-// Auth Service
-// =============================================================================
-// Contains all authentication business logic:
-//   - Google ID token verification
-//   - Password hashing and comparison (bcrypt)
-//   - JWT access/refresh token generation
-//   - Session creation and management
-//   - User lookup/creation for OAuth flows
-//
-// This is where the actual work happens. Controllers call these functions
-// and handle the HTTP request/response layer.
-//
-// TODO: Implement each function in the next step
+// Auth Service — Supabase password sign-in (proxied for rate limiting)
 // =============================================================================
 
-// --- Google Token Verification ---
+import { AppError } from "../middleware/errorHandler";
+import { prisma } from "../config/database";
+import { getSupabaseAnonClient } from "../utils/supabaseJwt";
 
-/**
- * Verifies a Google ID token using the google-auth-library.
- * Returns the user's Google profile data if the token is valid.
- *
- * @param idToken - The ID token from GoogleSignIn on the mobile app
- * @returns { email, name, googleId, avatarUrl }
- * @throws AppError(401) if the token is invalid or expired
- */
-// export async function verifyGoogleToken(idToken: string) { ... }
+const USERNAME_REGEX = /^[a-z0-9][a-z0-9._]{1,28}[a-z0-9]$/;
 
-// --- Password Hashing ---
+function sanitizeUsername(input: string): string {
+  return input.toLowerCase().replace(/[^a-z0-9._]/g, "");
+}
 
-/**
- * Hashes a plain-text password using bcrypt (12 salt rounds).
- * Used during email/password registration.
- *
- * @param password - The plain-text password from the user
- * @returns The bcrypt hash string
- */
-// export async function hashPassword(password: string): Promise<string> { ... }
+/** Resolve email or username to a Supabase auth email. */
+export async function resolveLoginEmail(identifier: string): Promise<string> {
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    throw new AppError("Invalid login credentials", 401);
+  }
 
-/**
- * Compares a plain-text password against a bcrypt hash.
- * Used during email/password login.
- *
- * @param password - The plain-text password from the login form
- * @param hash - The stored bcrypt hash from the database
- * @returns true if the password matches, false otherwise
- */
-// export async function comparePassword(password: string, hash: string): Promise<boolean> { ... }
+  if (trimmed.includes("@")) {
+    return trimmed.toLowerCase();
+  }
 
-// --- JWT Token Generation ---
+  const username = sanitizeUsername(trimmed);
+  if (username.length < 3 || !USERNAME_REGEX.test(username)) {
+    throw new AppError("Invalid login credentials", 401);
+  }
 
-/**
- * Generates a short-lived JWT access token (15 minutes).
- * Contains the user's ID in the payload.
- * Sent with every API request in the Authorization header.
- *
- * @param userId - The user's database ID
- * @returns The signed JWT access token string
- */
-// export function generateAccessToken(userId: string): string { ... }
+  const profile = await prisma.profiles.findFirst({
+    where: { username },
+    select: { email: true },
+  });
 
-/**
- * Generates a long-lived refresh token (30 days).
- * Stored in the Session table (hashed) and on the client.
- * Used to get new access tokens without re-authentication.
- *
- * @returns The plain-text refresh token string (hash this before storing in DB)
- */
-// export function generateRefreshToken(): string { ... }
+  const email = profile?.email?.trim().toLowerCase();
+  if (!email) {
+    throw new AppError("Invalid login credentials", 401);
+  }
 
-// --- Session Management ---
+  return email;
+}
 
-/**
- * Creates a new session with a refresh token for the user.
- * Called after successful login (Google or email/password).
- *
- * @param userId - The user's database ID
- * @param refreshToken - The plain-text refresh token (will be hashed before storage)
- * @returns The created Session record
- */
-// export async function createSession(userId: string, refreshToken: string) { ... }
+export type LoginResult = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: { id: string; email: string | undefined };
+};
 
-/**
- * Finds a session by its refresh token.
- * Used during token refresh to validate the token.
- *
- * @param refreshToken - The plain-text refresh token from the client
- * @returns The Session record or null if not found
- */
-// export async function findSessionByToken(refreshToken: string) { ... }
+export async function loginWithPassword(identifier: string, password: string): Promise<LoginResult> {
+  const client = getSupabaseAnonClient();
+  const email = await resolveLoginEmail(identifier);
 
-/**
- * Deletes a session (logout or token rotation).
- *
- * @param sessionId - The session's database ID
- */
-// export async function deleteSession(sessionId: string) { ... }
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
 
-// --- User Lookup for OAuth ---
+  if (error) {
+    const lower = error.message.toLowerCase();
+    if (/rate limit|too many|429/.test(lower)) {
+      throw new AppError("Too many sign-in attempts. Please try again later.", 429);
+    }
+    throw new AppError("Invalid login credentials", 401);
+  }
 
-/**
- * Finds an existing user by Google ID or email, or creates a new one.
- * Used during Google Sign-In flow.
- *
- * Logic:
- *   1. Look up by googleId → found = returning Google user
- *   2. Look up by email → found = user exists with email/password, link Google account
- *   3. Not found → create new user with Google profile data
- *
- * @param googleProfile - { email, name, googleId, avatarUrl }
- * @returns { user, isNewUser }
- */
-// export async function findOrCreateGoogleUser(googleProfile: {...}) { ... }
+  if (!data.session || !data.user) {
+    throw new AppError("Could not start session", 500);
+  }
+
+  return {
+    accessToken: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    expiresIn: data.session.expires_in ?? 3600,
+    user: {
+      id: data.user.id,
+      email: data.user.email,
+    },
+  };
+}

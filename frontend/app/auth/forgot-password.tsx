@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLanguage } from "../../context/LanguageContext";
 import { supabase } from "../../lib/supabase";
+import { isAuthEmailRateLimited } from "../../utils/authResetEmail";
 
 const RED = "#FF2800";
 
@@ -42,7 +43,10 @@ export default function ForgotPasswordScreen() {
         params: { email: trimmed },
       });
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : t("auth_error_reset_email");
+      const raw = e instanceof Error ? e.message : "";
+      const message = raw && isAuthEmailRateLimited(raw)
+        ? t("auth_reset_resend_too_soon")
+        : raw || t("auth_error_reset_email");
       Alert.alert(t("auth_reset_title"), message);
     } finally {
       setSubmitting(false);

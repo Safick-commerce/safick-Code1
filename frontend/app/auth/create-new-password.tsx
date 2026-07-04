@@ -1,11 +1,12 @@
 import { FontAwesome6, MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,9 +18,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLanguage } from "../../context/LanguageContext";
 import { supabase } from "../../lib/supabase";
+import { isAuthEmailRateLimited } from "../../utils/authResetEmail";
 
 const RED = "#FF2800";
 const CODE_LENGTH = 8;
+const CODE_BOX_SIZE = 30;
 
 type Step = "code" | "password";
 
@@ -36,16 +39,25 @@ export default function CreateNewPasswordScreen() {
   const email = typeof emailParam === "string" ? emailParam.trim().toLowerCase() : "";
 
   const [step, setStep] = useState<Step>("code");
-  const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
+  const [code, setCode] = useState("");
+  const [codeFocused, setCodeFocused] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const inputRefs = useRef<(TextInputType | null)[]>([]);
+  const codeInputRef = useRef<TextInputType>(null);
 
-  const code = digits.join("");
+  const digits = useMemo(() => {
+    const chars = code.split("");
+    while (chars.length < CODE_LENGTH) {
+      chars.push("");
+    }
+    return chars.slice(0, CODE_LENGTH);
+  }, [code]);
+
+  const activeDigitIndex = Math.min(code.length, CODE_LENGTH - 1);
 
   useEffect(() => {
     if (!email) {
@@ -61,26 +73,13 @@ export default function CreateNewPasswordScreen() {
   const isValid =
     passwordMinLength && passwordHasUpper && passwordHasNumber && passwordHasSpecial && passwordsMatch;
 
-  const handleDigitChange = useCallback((index: number, value: string) => {
-    const cleaned = value.replace(/\D/g, "").slice(-1);
-    setDigits((prev) => {
-      const next = [...prev];
-      next[index] = cleaned;
-      return next;
-    });
-    if (cleaned && index < CODE_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
-    }
+  const handleCodeChange = useCallback((value: string) => {
+    setCode(value.replace(/\D/g, "").slice(0, CODE_LENGTH));
   }, []);
 
-  const handleKeyPress = useCallback(
-    (index: number, key: string) => {
-      if (key === "Backspace" && !digits[index] && index > 0) {
-        inputRefs.current[index - 1]?.focus();
-      }
-    },
-    [digits],
-  );
+  const focusCodeInput = useCallback(() => {
+    codeInputRef.current?.focus();
+  }, []);
 
   const handleVerifyCode = useCallback(async () => {
     if (!email) {
@@ -116,11 +115,14 @@ export default function CreateNewPasswordScreen() {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
-      setDigits(Array(CODE_LENGTH).fill(""));
-      inputRefs.current[0]?.focus();
+      setCode("");
+      codeInputRef.current?.focus();
       Alert.alert(t("auth_reset_code_sent_title"), t("auth_reset_code_sent_body"));
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : t("auth_error_reset_email");
+      const raw = e instanceof Error ? e.message : "";
+      const message = raw && isAuthEmailRateLimited(raw)
+        ? t("auth_reset_resend_too_soon")
+        : raw || t("auth_error_reset_email");
       Alert.alert(t("auth_reset_title"), message);
     } finally {
       setResending(false);
@@ -199,25 +201,39 @@ export default function CreateNewPasswordScreen() {
                 {t("auth_reset_verify_body", { email: email || t("auth_reset_your_email") })}
               </Text>
 
-              <View style={styles.codeRow}>
-                {digits.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={(ref) => {
-                      inputRefs.current[index] = ref;
-                    }}
-                    style={[styles.codeInput, digit ? styles.codeInputFilled : null]}
-                    value={digit}
-                    onChangeText={(value) => handleDigitChange(index, value)}
-                    onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    selectTextOnFocus
-                    editable={!submitting}
-                    accessibilityLabel={t("auth_reset_digit_label", { index: index + 1 })}
-                  />
-                ))}
-              </View>
+              <Pressable style={styles.codeSection} onPress={focusCodeInput}>
+                <View style={styles.codeRow} pointerEvents="none">
+                  {digits.map((digit, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.codeBox,
+                        digit ? styles.codeBoxFilled : null,
+                        codeFocused && index === activeDigitIndex ? styles.codeBoxActive : null,
+                      ]}
+                    >
+                      <Text style={styles.codeDigit}>{digit}</Text>
+                    </View>
+                  ))}
+                </View>
+                <TextInput
+                  ref={codeInputRef}
+                  style={styles.hiddenCodeInput}
+                  value={code}
+                  onChangeText={handleCodeChange}
+                  keyboardType="number-pad"
+                  maxLength={CODE_LENGTH}
+                  editable={!submitting}
+                  caretHidden
+                  autoFocus
+                  importantForAutofill="yes"
+                  textContentType="oneTimeCode"
+                  autoComplete={Platform.OS === "android" ? "sms-otp" : "one-time-code"}
+                  onFocus={() => setCodeFocused(true)}
+                  onBlur={() => setCodeFocused(false)}
+                  accessibilityLabel={t("auth_reset_verify_heading")}
+                />
+              </Pressable>
 
               <TouchableOpacity
                 style={[styles.primary, submitting && styles.primaryDisabled]}
@@ -358,26 +374,46 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
   },
-  codeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
+  codeSection: {
+    position: "relative",
     marginBottom: 28,
   },
-  codeInput: {
-    flex: 1,
-    aspectRatio: 1,
-    maxWidth: 48,
+  codeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    rowGap: 12,
+  },
+  codeBox: {
+    width: CODE_BOX_SIZE,
+    height: CODE_BOX_SIZE,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 12,
-    fontSize: 22,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#111827",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  codeInputFilled: {
+  codeBoxFilled: {
     borderColor: RED,
+  },
+  codeBoxActive: {
+    borderColor: RED,
+    borderWidth: 2,
+  },
+  codeDigit: {
+    fontSize: 24,
+    fontWeight: "700",
+    fontFamily: "Inter",
+    color: "#111827",
+    textAlign: "center",
+    lineHeight: 28,
+  },
+  hiddenCodeInput: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0,
+    color: "transparent",
   },
   label: {
     fontSize: 15,

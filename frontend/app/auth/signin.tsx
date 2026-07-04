@@ -21,6 +21,17 @@ import { useLanguage } from "../../context/LanguageContext";
 
 const RED = "#FF2800";
 
+function classifySignInError(message: string): "rate_limit" | "invalid_credentials" | "other" {
+  const lower = message.toLowerCase();
+  if (/rate limit|too many attempts|too many sign-in/.test(lower)) {
+    return "rate_limit";
+  }
+  if (/invalid login credentials|invalid credentials|wrong password/.test(lower)) {
+    return "invalid_credentials";
+  }
+  return "other";
+}
+
 export default function SignInScreen() {
   const { t } = useLanguage();
   const router = useRouter();
@@ -67,6 +78,15 @@ export default function SignInScreen() {
       await navigateAfterLogin();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : t("auth_error_sign_in");
+      const kind = classifySignInError(message);
+      if (kind === "rate_limit") {
+        Alert.alert(t("auth_sign_in_too_many_attempts_title"), t("auth_sign_in_rate_limited"));
+        return;
+      }
+      if (kind === "invalid_credentials") {
+        Alert.alert(t("auth_alert_failed_title"), t("auth_sign_in_invalid_credentials"));
+        return;
+      }
       Alert.alert(t("auth_alert_failed_title"), message);
     } finally {
       setSubmitting(false);
@@ -90,7 +110,7 @@ export default function SignInScreen() {
         setSubmitting(false);
       }
     },
-    [signInWithOAuth, navigateAfterLogin, t]
+    [signInWithOAuth, navigateAfterLogin, t],
   );
 
   if (!profileLoaded) {

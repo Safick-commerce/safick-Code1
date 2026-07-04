@@ -30,9 +30,9 @@ export const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").max(128),
 });
 
-// POST /api/auth/login — existing account sign-in
+// POST /api/auth/login — existing account sign-in (email or username)
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  identifier: z.string().min(1, "Email or username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
