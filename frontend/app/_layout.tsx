@@ -1,3 +1,4 @@
+import { registerGlobals } from "@livekit/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as ExpoSplashScreen from "expo-splash-screen";
@@ -15,8 +16,11 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useUserProfile } from "../stores/userProfileStore";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { SocketProvider } from "../context/SocketContext";
+import { LanguageProvider } from "../context/LanguageContext";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 import Splashscreen from "./screens/Intro/splashscreen";
+
+registerGlobals();
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -47,10 +51,11 @@ function BootstrapGate({ children }: { children: ReactNode }) {
 
 function AppTree() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <BootstrapGate>
-          <KeyboardProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <BootstrapGate>
+            <KeyboardProvider>
               <AuthGate />
               <StatusBar style="dark" />
               <Stack
@@ -103,11 +108,13 @@ function AppTree() {
                   }}
                 />
                 <Stack.Screen name="discover-category" />
+                <Stack.Screen name="language" />
               </Stack>
-          </KeyboardProvider>
-        </BootstrapGate>
-      </SocketProvider>
-    </AuthProvider>
+            </KeyboardProvider>
+          </BootstrapGate>
+        </SocketProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 
@@ -125,7 +132,9 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return (
       <SafeAreaProvider>
-        <Splashscreen />
+        <LanguageProvider>
+          <Splashscreen />
+        </LanguageProvider>
       </SafeAreaProvider>
     );
   }

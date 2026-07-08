@@ -3,8 +3,10 @@ import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function SellerAnalytics() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [filterQuery, setFilterQuery] = useState("");
 
@@ -13,23 +15,23 @@ export default function SellerAnalytics() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="#000000" />
-          <Text style={styles.headerText}>Seller Analytics</Text>
+          <Text style={styles.headerText}>{t("seller_analytics_title")}</Text>
         </TouchableOpacity>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color="#6B7280" />
           <TextInput
             value={filterQuery}
             onChangeText={setFilterQuery}
-            placeholder="Search to filter"
+            placeholder={t("seller_analytics_search")}
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
             returnKeyType="search"
-            accessibilityLabel="Search to filter analytics"
+            accessibilityLabel={t("a11y_search_analytics")}
             accessibilityRole="search"
           />
         </View>
         <View style={styles.periodRow}>
-          <Text style={styles.periodLabel}>Last 30 days</Text>
+          <Text style={styles.periodLabel}>{t("seller_analytics_period")}</Text>
           <Ionicons
             name="alert-circle-outline"
             size={20}
@@ -41,49 +43,46 @@ export default function SellerAnalytics() {
           <View style={styles.kpiRow}>
             <View style={styles.kpiItem}>
               <Text style={styles.kpiValue}>0</Text>
-              <Text style={styles.kpiLabel}>Views</Text>
+              <Text style={styles.kpiLabel}>{t("profile_views")}</Text>
             </View>
             <View style={styles.kpiItem}>
               <Text style={styles.kpiValue}>0</Text>
-              <Text style={styles.kpiLabel}>Leads</Text>
+              <Text style={styles.kpiLabel}>{t("profile_leads")}</Text>
             </View>
             <View style={styles.kpiItem}>
               <Text style={styles.kpiValue}>0</Text>
-              <Text style={styles.kpiLabel}>clips</Text>
+              <Text style={styles.kpiLabel}>{t("seller_analytics_kpi_clips")}</Text>
             </View>
             <View style={styles.kpiItem}>
               <Text style={styles.kpiValue}>0</Text>
-              <Text style={styles.kpiLabel}>Sold</Text>
+              <Text style={styles.kpiLabel}>{t("profile_sold")}</Text>
             </View>
           </View>
           <TouchableOpacity
             style={styles.insightButton}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Open insights"
+            accessibilityLabel={t("a11y_open_insights")}
           >
             <Ionicons name="sparkles-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.insightButtonText}>Insights</Text>
+            <Text style={styles.insightButtonText}>{t("seller_analytics_insights")}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.belowHeader}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No Active Listing</Text>
-          <Text style={styles.emptySubtitle}>
-            Post a product video to go live. Views, leads, and sales will show
-            up here once you have active listings.
-          </Text>
+          <Text style={styles.emptyTitle}>{t("seller_analytics_empty_title")}</Text>
+          <Text style={styles.emptySubtitle}>{t("seller_analytics_empty_sub")}</Text>
           <TouchableOpacity
             style={styles.postButton}
             activeOpacity={0.88}
             accessibilityRole="button"
-            accessibilityLabel="Create new post"
+            accessibilityLabel={t("a11y_create_post")}
             onPress={() => router.push("/createnew" as Href)}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
-            <Text style={styles.postButtonText}>Post</Text>
+            <Text style={styles.postButtonText}>{t("common_post")}</Text>
           </TouchableOpacity>
         </View>
       </View>

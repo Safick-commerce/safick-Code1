@@ -48,6 +48,17 @@ function getSupabaseAuthClient(): SupabaseClient | null {
   return supabaseAuthClient;
 }
 
+/** Anon Supabase client for server-side password sign-in. */
+export function getSupabaseAnonClient(): SupabaseClient {
+  const client = getSupabaseAuthClient();
+  if (!client) {
+    throw new Error(
+      "SUPABASE_URL and SUPABASE_ANON_KEY are required for password sign-in",
+    );
+  }
+  return client;
+}
+
 function getSupabaseJwtSecret(): string | null {
   const secret = process.env.SUPABASE_JWT_SECRET?.trim();
   return secret || null;

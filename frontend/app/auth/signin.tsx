@@ -17,16 +17,29 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile } from "../../stores/userProfileStore";
+import { useLanguage } from "../../context/LanguageContext";
 
 const RED = "#FF2800";
 
+function classifySignInError(message: string): "rate_limit" | "invalid_credentials" | "other" {
+  const lower = message.toLowerCase();
+  if (/rate limit|too many attempts|too many sign-in/.test(lower)) {
+    return "rate_limit";
+  }
+  if (/invalid login credentials|invalid credentials|wrong password/.test(lower)) {
+    return "invalid_credentials";
+  }
+  return "other";
+}
+
 export default function SignInScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { redirectTo, id: redirectProductId } = useLocalSearchParams<{
     redirectTo?: string;
     id?: string;
   }>();
-  const { signIn, signInWithOAuth, resetPassword } = useAuth();
+  const { signIn, signInWithOAuth } = useAuth();
   const { isLoaded: profileLoaded, updateProfile } = useUserProfile();
 
   const [identifier, setIdentifier] = useState("");
@@ -74,7 +87,7 @@ export default function SignInScreen() {
   const handleSignIn = useCallback(async () => {
     const trimmed = identifier.trim();
     if (!trimmed || !password) {
-      Alert.alert("Sign in", "Please enter your email or username and password.");
+      Alert.alert(t("auth_alert_sign_in_title"), t("auth_alert_sign_in_body"));
       return;
     }
     setSubmitting(true);
@@ -82,27 +95,25 @@ export default function SignInScreen() {
       await signIn(trimmed, password);
       await navigateAfterLogin();
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Could not sign in.";
-      Alert.alert("Sign in failed", message);
+      const message = e instanceof Error ? e.message : t("auth_error_sign_in");
+      const kind = classifySignInError(message);
+      if (kind === "rate_limit") {
+        Alert.alert(t("auth_sign_in_too_many_attempts_title"), t("auth_sign_in_rate_limited"));
+        return;
+      }
+      if (kind === "invalid_credentials") {
+        Alert.alert(t("auth_alert_failed_title"), t("auth_sign_in_invalid_credentials"));
+        return;
+      }
+      Alert.alert(t("auth_alert_failed_title"), message);
     } finally {
       setSubmitting(false);
     }
-  }, [identifier, password, signIn, navigateAfterLogin]);
+  }, [identifier, password, signIn, navigateAfterLogin, t]);
 
-  const handleForgotPassword = useCallback(async () => {
-    const trimmed = identifier.trim();
-    if (!trimmed) {
-      Alert.alert("Reset password", "Enter your email or username first, then tap Forgot Password.");
-      return;
-    }
-    try {
-      await resetPassword(trimmed);
-      Alert.alert("Check your inbox", "Password reset instructions were sent to your email.");
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Could not send reset email.";
-      Alert.alert("Reset password", message);
-    }
-  }, [identifier, resetPassword]);
+  const handleForgotPassword = useCallback(() => {
+    router.push("/auth/forgot-password");
+  }, [router]);
 
   const handleOAuthSignIn = useCallback(
     async (provider: "google" | "apple") => {
@@ -111,13 +122,13 @@ export default function SignInScreen() {
         await signInWithOAuth(provider);
         await navigateAfterLogin();
       } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : "Could not sign in.";
-        Alert.alert(`${provider === "google" ? "Google" : "Apple"} sign in failed`, message);
+        const message = e instanceof Error ? e.message : t("auth_error_sign_in");
+        Alert.alert(provider === "google" ? t("auth_alert_google_failed") : t("auth_alert_apple_failed"), message);
       } finally {
         setSubmitting(false);
       }
     },
-    [signInWithOAuth, navigateAfterLogin]
+    [signInWithOAuth, navigateAfterLogin, t],
   );
 
   if (!profileLoaded) {
@@ -140,7 +151,7 @@ export default function SignInScreen() {
             onPress={handleBack}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common_go_back")}
           >
             <MaterialIcons name="keyboard-arrow-left" size={37} color="#000000" />
           </TouchableOpacity>
@@ -152,13 +163,13 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title}>Login</Text>
-          <Text style={styles.subtitle}>Welcome Back!</Text>
+          <Text style={styles.title}>{t("auth_login")}</Text>
+          <Text style={styles.subtitle}>{t("auth_welcome")}</Text>
 
-          <Text style={styles.label}>Email or Username</Text>
+          <Text style={styles.label}>{t("auth_email_username")}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter email or username"
+            placeholder={t("auth_email_placeholder")}
             placeholderTextColor="#828282"
             keyboardType="default"
             autoCapitalize="none"
@@ -169,11 +180,11 @@ export default function SignInScreen() {
             editable={!submitting}
           />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t("auth_password")}</Text>
           <View style={styles.passwordRow}>
             <TextInput
               style={styles.passwordInput}
-              placeholder="Enter password"
+              placeholder={t("auth_password_placeholder")}
               placeholderTextColor="#828282"
               secureTextEntry={!showPassword}
               value={password}
@@ -184,14 +195,14 @@ export default function SignInScreen() {
               onPress={() => setShowPassword((s) => !s)}
               style={styles.eye}
               accessibilityRole="button"
-              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+              accessibilityLabel={showPassword ? t("a11y_hide_password") : t("a11y_show_password")}
             >
               <FontAwesome6 name={showPassword ? "eye-slash" : "eye"} size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword} disabled={submitting}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            <Text style={styles.forgotPasswordText}>{t("auth_forgot")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -203,13 +214,13 @@ export default function SignInScreen() {
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryText}>Log In</Text>
+              <Text style={styles.primaryText}>{t("auth_log_in")}</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.orRow}>
             <View style={styles.orLine} />
-            <Text style={styles.orText}>or</Text>
+            <Text style={styles.orText}>{t("common_or")}</Text>
             <View style={styles.orLine} />
           </View>
 
@@ -220,7 +231,7 @@ export default function SignInScreen() {
             disabled={submitting}
           >
             <Image source={require("../../assets/images/Google.png")} style={styles.googleLogo} />
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
+            <Text style={styles.socialButtonText}>{t("auth_google")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -230,13 +241,15 @@ export default function SignInScreen() {
             disabled={submitting}
           >
             <Ionicons name="logo-apple" size={22} color="#0F172A" />
-            <Text style={styles.socialButtonText}>Continue with Apple</Text>
+            <Text style={styles.socialButtonText}>{t("auth_apple")}</Text>
           </TouchableOpacity>
 
           <View style={styles.termsFooter}>
             <Text style={styles.termsText}>
-              By clicking continue, you agree to our <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              {t("auth_terms_prefix")}
+              <Text style={styles.termsLink}>{t("common_terms_of_service")}</Text>
+              {t("auth_terms_and")}
+              <Text style={styles.termsLink}>{t("common_privacy_policy")}</Text>
             </Text>
           </View>
 
@@ -247,8 +260,8 @@ export default function SignInScreen() {
             }
             disabled={submitting}
           >
-            <Text style={styles.secondaryPrompt}>Don't have an account? </Text>
-            <Text style={styles.secondaryText}>Sign up now</Text>
+            <Text style={styles.secondaryPrompt}>{t("auth_no_account")} </Text>
+            <Text style={styles.secondaryText}>{t("auth_sign_up")}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

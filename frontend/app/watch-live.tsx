@@ -16,11 +16,16 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import { LiveKitRoom, VideoTrack, useTracks } from "@livekit/react-native";
+import { Track } from "livekit-client";
 import type { LivePost } from "../types";
 import { fetchLiveFeed } from "../utils/liveFeed";
+import { getLiveViewerToken } from "../lib/liveApi";
+import { joinLive, leaveLive } from "../lib/socket";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../stores/userProfileStore";
+import { useLanguage } from "../context/LanguageContext";
 
 const RED = "#FF2800";
 /** Glass chips: light fill + border so the stream stays the hero. */
@@ -77,7 +82,25 @@ function LivePulseDot({ small }: { small?: boolean }) {
   );
 }
 
+function RemoteLiveVideo() {
+  const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
+  const remoteTrack = tracks.find((track) => !track.participant.isLocal);
+
+  if (!remoteTrack) return null;
+
+  return (
+    <View style={StyleSheet.absoluteFillObject}>
+      <VideoTrack
+        trackRef={remoteTrack}
+        style={{ flex: 1 }}
+        objectFit="cover"
+      />
+    </View>
+  );
+}
+
 export default function WatchLiveScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { liveId } = useLocalSearchParams<{ liveId?: string | string[] }>();
@@ -88,6 +111,8 @@ export default function WatchLiveScreen() {
 
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState<LivePost | null>(null);
+  const [lkSession, setLkSession] = useState<{ url: string; token: string } | null>(null);
+  const [connectingStream, setConnectingStream] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +138,38 @@ export default function WatchLiveScreen() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!id || !post?.isLive) {
+      setLkSession(null);
+      setConnectingStream(false);
+      return;
+    }
+
+    let cancelled = false;
+    setConnectingStream(true);
+
+    (async () => {
+      try {
+        await joinLive(id);
+        const creds = await getLiveViewerToken(id);
+        if (!cancelled) {
+          setLkSession({ url: creds.url, token: creds.token });
+        }
+      } catch {
+        if (!cancelled) setLkSession(null);
+      } finally {
+        if (!cancelled) setConnectingStream(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      leaveLive(id);
+      setLkSession(null);
+      setConnectingStream(false);
+    };
+  }, [id, post?.isLive]);
+
   const leave = useCallback(() => {
     router.back();
   }, [router]);
@@ -134,7 +191,7 @@ export default function WatchLiveScreen() {
       <>
         <StatusBar style="dark" />
         <GuestSignInPlaceholder
-          subtitle="Sign in to watch lives and chat with sellers."
+          subtitle={t("guest_watch_live_subtitle")}
           redirectTo="/watch-live"
         />
       </>
@@ -147,7 +204,25 @@ export default function WatchLiveScreen() {
 
       {post && sources && !loading ? (
         <>
-          <Image source={sources.cover} style={styles.mediaFill} resizeMode="cover" />
+          {isLive && lkSession ? (
+            <View style={styles.mediaFill}>
+              <LiveKitRoom
+                serverUrl={lkSession.url}
+                token={lkSession.token}
+                connect
+                audio={false}
+                video={false}
+              >
+                <RemoteLiveVideo />
+              </LiveKitRoom>
+            </View>
+          ) : isLive && connectingStream ? (
+            <View style={[styles.mediaFill, styles.streamConnecting]}>
+              <ActivityIndicator color={RED} size="large" />
+            </View>
+          ) : (
+            <Image source={sources.cover} style={styles.mediaFill} resizeMode="cover" />
+          )}
           <View pointerEvents="none" style={styles.mediaDim} />
           <View
             pointerEvents="none"
@@ -165,7 +240,7 @@ export default function WatchLiveScreen() {
                 onPress={leave}
                 style={styles.iconChip}
                 accessibilityRole="button"
-                accessibilityLabel="Leave live"
+                accessibilityLabel={t("a11y_leave_live")}
                 hitSlop={12}
               >
                 <Ionicons name="chevron-down" size={24} color="#F8FAFC" />
@@ -181,12 +256,12 @@ export default function WatchLiveScreen() {
                     {isLive ? (
                       <View style={styles.liveMiniWrap}>
                         <LivePulseDot small />
-                        <Text style={styles.liveMiniText}>LIVE</Text>
+                        <Text style={styles.liveMiniText}>{t("common_live")}</Text>
                       </View>
                     ) : (
                       <View style={styles.replayMiniWrap}>
                         <Ionicons name="play-circle" size={12} color="#CBD5E1" />
-                        <Text style={styles.replayMiniText}>Replay</Text>
+                        <Text style={styles.replayMiniText}>{t("common_replay")}</Text>
                       </View>
                     )}
                   </View>
@@ -211,7 +286,7 @@ export default function WatchLiveScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Follow ${post.sellerName}`}
                 >
-                  <Text style={styles.followBtnHeaderText}>Follow</Text>
+                  <Text style={styles.followBtnHeaderText}>{t("common_follow")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -221,7 +296,7 @@ export default function WatchLiveScreen() {
                 onPress={leave}
                 style={styles.iconChip}
                 accessibilityRole="button"
-                accessibilityLabel="Leave live"
+                accessibilityLabel={t("a11y_leave_live")}
                 hitSlop={12}
               >
                 <Ionicons name="chevron-down" size={24} color="#F8FAFC" />
@@ -235,17 +310,15 @@ export default function WatchLiveScreen() {
         {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator color={RED} size="large" />
-            <Text style={styles.loadingHint}>Connecting to the stream…</Text>
+            <Text style={styles.loadingHint}>{t("watch_live_connecting")}</Text>
           </View>
         ) : !post || !sources ? (
           <View style={styles.centered}>
             <Ionicons name="mic-off-outline" size={48} color="#64748B" />
-            <Text style={styles.endedTitle}>This live isn't available</Text>
-            <Text style={styles.endedSub}>
-              It may have ended or the link could be wrong. Head back and pick another stream.
-            </Text>
+            <Text style={styles.endedTitle}>{t("watch_live_unavailable_title")}</Text>
+            <Text style={styles.endedSub}>{t("watch_live_unavailable_sub")}</Text>
             <TouchableOpacity style={styles.primaryBtn} onPress={leave} activeOpacity={0.88}>
-              <Text style={styles.primaryBtnText}>Go back</Text>
+              <Text style={styles.primaryBtnText}>{t("watch_live_go_back")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -260,17 +333,15 @@ export default function WatchLiveScreen() {
                 <View style={styles.composer}>
                   <TextInput
                     style={styles.composerInput}
-                    placeholder="Say hi to the room…"
+                    placeholder={t("watch_live_chat_placeholder")}
                     placeholderTextColor="rgba(255,255,255,0.42)"
                     editable={false}
                   />
-                  <TouchableOpacity style={styles.sendBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Send message">
+                  <TouchableOpacity style={styles.sendBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t("a11y_send_message")}>
                     <Ionicons name="send" size={18} color="rgba(248,250,252,0.85)" />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.composerHint}>
-                  Live chat and in-stream checkout are on the way.
-                </Text>
+                <Text style={styles.composerHint}>{t("watch_live_chat_hint")}</Text>
               </View>
             </SafeAreaView>
           </>
@@ -285,6 +356,11 @@ const styles = StyleSheet.create({
   mediaFill: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
+  },
+  streamConnecting: {
+    backgroundColor: "#000000",
+    alignItems: "center",
+    justifyContent: "center",
   },
   mediaDim: {
     ...StyleSheet.absoluteFillObject,

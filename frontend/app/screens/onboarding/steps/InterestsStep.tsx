@@ -4,6 +4,7 @@
 // Category data imported from data/interestCategories.ts
 
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { useLanguage } from "../../../../context/LanguageContext";
 import { INTEREST_CATEGORIES } from "../../../../data/interestCategories";
 
 const RED = "#FF2800";
@@ -15,12 +16,14 @@ interface InterestsStepProps {
 }
 
 export default function InterestsStep({ interests, onToggle }: InterestsStepProps) {
+  const { t } = useLanguage();
+
   return (
     <View style={styles.container}>
       {/* -------- Header -------- */}
-      <Text style={styles.heading}>What interests you?</Text>
+      <Text style={styles.heading}>{t("interests_heading")}</Text>
       <Text style={styles.subheading}>
-        Pick at least {MIN_SELECTIONS} so we can personalize your feed
+        {t("interests_subheading", { min: MIN_SELECTIONS })}
       </Text>
 
       {/* -------- Category Chips -------- */}
@@ -39,7 +42,7 @@ export default function InterestsStep({ interests, onToggle }: InterestsStepProp
               activeOpacity={0.7}
             >
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-                {cat.label}
+                {t(cat.labelKey)}
               </Text>
             </TouchableOpacity>
           );
@@ -49,9 +52,9 @@ export default function InterestsStep({ interests, onToggle }: InterestsStepProp
       {/* -------- Selection Counter -------- */}
       {/* Shows how many are selected and how many more are needed */}
       <Text style={styles.counter}>
-        {interests.length} selected
+        {t("interests_counter", { count: interests.length })}
         {interests.length < MIN_SELECTIONS
-          ? ` — pick ${MIN_SELECTIONS - interests.length} more`
+          ? t("interests_pick_more", { remaining: MIN_SELECTIONS - interests.length })
           : ""}
       </Text>
     </View>

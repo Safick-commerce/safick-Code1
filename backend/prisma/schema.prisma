@@ -24,30 +24,31 @@ model audit_log_entries {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model custom_oauth_providers {
-  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  provider_type         String
-  identifier            String    @unique
-  name                  String
-  client_id             String
-  client_secret         String
-  acceptable_client_ids String[]  @default([])
-  scopes                String[]  @default([])
-  pkce_enabled          Boolean   @default(true)
-  attribute_mapping     Json      @default("{}")
-  authorization_params  Json      @default("{}")
-  enabled               Boolean   @default(true)
-  email_optional        Boolean   @default(false)
-  issuer                String?
-  discovery_url         String?
-  skip_nonce_check      Boolean   @default(false)
-  cached_discovery      Json?
-  discovery_cached_at   DateTime? @db.Timestamptz(6)
-  authorization_url     String?
-  token_url             String?
-  userinfo_url          String?
-  jwks_uri              String?
-  created_at            DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider_type           String
+  identifier              String    @unique
+  name                    String
+  client_id               String
+  client_secret           String
+  acceptable_client_ids   String[]  @default([])
+  scopes                  String[]  @default([])
+  pkce_enabled            Boolean   @default(true)
+  attribute_mapping       Json      @default("{}")
+  authorization_params    Json      @default("{}")
+  enabled                 Boolean   @default(true)
+  email_optional          Boolean   @default(false)
+  issuer                  String?
+  discovery_url           String?
+  skip_nonce_check        Boolean   @default(false)
+  cached_discovery        Json?
+  discovery_cached_at     DateTime? @db.Timestamptz(6)
+  authorization_url       String?
+  token_url               String?
+  userinfo_url            String?
+  jwks_uri                String?
+  created_at              DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime  @default(now()) @db.Timestamptz(6)
+  custom_claims_allowlist String[]  @default([])
 
   @@index([created_at])
   @@index([enabled])
@@ -508,12 +509,34 @@ model products {
   thumbnail_url String?
   media_status  String          @default("ready")
   conversations conversations[]
+  live_events   live_events[]
   order_items   order_items[]
   product_views product_views[]
   profiles      profiles?       @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([category], where: raw("(category IS NOT NULL)"))
   @@index([created_at(sort: Desc)], map: "products_for_you_feed_idx", where: raw("((video_url IS NOT NULL) AND (media_status = 'ready'::text))"))
+  @@schema("public")
+}
+
+model live_events {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seller_id         String            @db.Uuid
+  product_id        String?           @db.Uuid
+  title             String
+  category          String?
+  audience          String            @default("public")
+  status            live_event_status @default(scheduled)
+  livekit_room_name String            @unique
+  playback_url      String?
+  viewer_count      Int               @default(0)
+  started_at        DateTime?         @db.Timestamptz(6)
+  ended_at          DateTime?         @db.Timestamptz(6)
+  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  products          products?         @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  profiles          profiles          @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([status, started_at(sort: Desc)], map: "live_events_status_started_idx")
   @@schema("public")
 }
 
@@ -579,6 +602,7 @@ model profiles {
   checkouts_as_buyer      checkouts[]     @relation("checkout_buyer")
   conversations_as_buyer  conversations[] @relation("conversation_buyer")
   conversations_as_seller conversations[] @relation("conversation_seller")
+  live_events             live_events[]
   messages_sent           messages[]
   orders_as_seller        orders[]        @relation("order_seller")
   payouts_received        payouts[]       @relation("payout_seller")
@@ -725,6 +749,14 @@ model product_views {
   @@index([client_id, product_id, created_at(sort: Desc)], map: "product_views_client_product_created_at_idx", where: raw("(client_id IS NOT NULL)"))
   @@index([product_id, created_at(sort: Desc)])
   @@index([viewer_id, product_id, created_at(sort: Desc)], map: "product_views_viewer_product_created_at_idx", where: raw("(viewer_id IS NOT NULL)"))
+  @@schema("public")
+}
+
+enum live_event_status {
+  scheduled
+  live
+  ended
+
   @@schema("public")
 }
 

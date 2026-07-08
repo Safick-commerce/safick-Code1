@@ -3,6 +3,16 @@ import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../stores/userProfileStore";
 
+/** Signed-in users may finish these flows before being sent to the main app. */
+const AUTH_ROUTES_WHILE_SIGNED_IN = new Set([
+  "/auth/create-new-password",
+  "/auth/password-reset-success",
+]);
+
+function isPasswordResetRoute(path: string): boolean {
+  return AUTH_ROUTES_WHILE_SIGNED_IN.has(path);
+}
+
 /**
  * Keeps navigation aligned with Supabase auth:
  * - Guests cannot stay on main tabs (deep links).
@@ -34,7 +44,7 @@ export function useAuthGuard() {
       return;
     }
 
-    if (isAuthenticated && path.startsWith("/auth")) {
+    if (isAuthenticated && path.startsWith("/auth") && !isPasswordResetRoute(path)) {
       router.replace("/(tabs)");
     }
   }, [isReady, isAuthenticated, profileLoaded, profile.isGuestUser, pathname, router]);

@@ -1,6 +1,9 @@
 import { Stack } from "expo-router";
+import { useLanguage } from "../../../context/LanguageContext";
 
 export default function ProductsScreensLayout() {
+  const { t } = useLanguage();
+
   return (
     <Stack
       screenOptions={{
@@ -10,7 +13,7 @@ export default function ProductsScreensLayout() {
         contentStyle: { backgroundColor: "#FFFFFF" },
       }}
     >
-      <Stack.Screen name="my-products" options={{ title: "My products" }} />
+      <Stack.Screen name="my-products" options={{ title: t("my_products_title") }} />
     </Stack>
   );
 }

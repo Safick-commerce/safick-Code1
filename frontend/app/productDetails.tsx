@@ -12,7 +12,7 @@ import {
   Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { type Href, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome6 } from "@expo/vector-icons";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useWishlist } from "../stores/wishlistStore";
@@ -22,6 +22,7 @@ import { getProductById, getRelatedProducts, type ProductDetail } from "../utils
 import { formatPriceXaf } from "../utils/searchApi";
 import type { StoreProduct } from "../types/storeProduct";
 import { ProductDetailsSkeleton } from "../components/shared/ProductDetailsSkeleton";
+import { useLanguage } from "../context/LanguageContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLACEHOLDER_IMAGE = require("../assets/images/clothes.jpg");
@@ -31,13 +32,13 @@ function productImageSource(url: string | null | undefined) {
   return trimmed ? { uri: trimmed } : PLACEHOLDER_IMAGE;
 }
 
-function sellerDisplayName(detail: ProductDetail): string {
+function sellerDisplayName(detail: ProductDetail, sellerFallback: string): string {
   const seller = detail.seller;
-  if (!seller) return "Seller";
+  if (!seller) return sellerFallback;
   return (
     seller.display_name?.trim() ||
     seller.full_name?.trim() ||
-    (seller.username ? `@${seller.username}` : "Seller")
+    (seller.username ? `@${seller.username}` : sellerFallback)
   );
 }
 
@@ -47,6 +48,7 @@ function sellerHandle(detail: ProductDetail): string {
 }
 
 export default function ProductDetails() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { id: productId } = useLocalSearchParams<{ id?: string | string[] }>();
   const resolvedProductId = typeof productId === "string" ? productId : productId?.[0];
@@ -83,7 +85,7 @@ export default function ProductDetails() {
         if (!detail) {
           setProduct(null);
           setRelatedProducts([]);
-          setError("This listing could not be found.");
+          setError(t("product_not_found"));
           return;
         }
         setProduct(detail);
@@ -92,7 +94,7 @@ export default function ProductDetails() {
         if (cancelled) return;
         setProduct(null);
         setRelatedProducts([]);
-        setError(e instanceof Error ? e.message : "Could not load product.");
+        setError(e instanceof Error ? e.message : t("product_load_error_title"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -101,7 +103,7 @@ export default function ProductDetails() {
     return () => {
       cancelled = true;
     };
-  }, [resolvedProductId]);
+  }, [resolvedProductId, t]);
 
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -123,25 +125,23 @@ export default function ProductDetails() {
       router.push({ pathname: "/userTab", params: { userId: sellerId } });
       return;
     }
-    Alert.alert("Seller profile", "Seller information is not available for this listing.");
-  }, [product, router]);
+    Alert.alert(t("alert_seller_profile_title"), t("alert_seller_profile_body"));
+  }, [product, router, t]);
 
   const handleMessageSeller = useCallback(async () => {
     if (!resolvedProductId) {
-      Alert.alert(
-        "Message seller",
-      );
+      Alert.alert(t("product_message_seller"), t("product_alert_message_seller"));
       return;
     }
     try {
       await startConversationChat(router, resolvedProductId, "product");
     } catch (err) {
       Alert.alert(
-        "Could not start chat",
-        err instanceof Error ? err.message : "Please try again.",
+        t("product_alert_chat_failed"),
+        err instanceof Error ? err.message : t("product_please_try_again"),
       );
     }
-  }, [resolvedProductId, router]);
+  }, [resolvedProductId, router, t]);
 
   const handleSaveProduct = useCallback(() => {
     if (!product) return;
@@ -150,9 +150,9 @@ export default function ProductDetails() {
       name: product.title,
       price: formatPriceXaf(product.price),
       image: productImageSource(product.image_url),
-      sellerName: sellerDisplayName(product),
+      sellerName: sellerDisplayName(product, t("common_seller")),
     });
-  }, [product, toggleWishlist]);
+  }, [product, toggleWishlist, t]);
 
   const handleSearchPress = useCallback(() => {
     router.push("/search");
@@ -168,9 +168,9 @@ export default function ProductDetails() {
   const handleShareProduct = useCallback(() => {
     if (!product) return;
     Share.share({
-      message: `Check out this ${product.title} from ${sellerDisplayName(product)} on SAFICK!`,
+      message: t("product_share_message", { title: product.title }),
     });
-  }, [product]);
+  }, [product, t]);
 
   const isWishlisted = product ? isSaved(product.id) : false;
   const isInCart = useMemo(
@@ -186,12 +186,12 @@ export default function ProductDetails() {
       imageUrl: product.image_url ?? null,
       unitPriceXaf: product.price,
       sellerId: product.seller_id,
-      sellerName: sellerDisplayName(product),
+      sellerName: sellerDisplayName(product, t("common_seller")),
       sellerAvatarUrl: product.seller?.avatar_url ?? null,
       description: product.description?.trim() || null,
     });
     Alert.alert("Added to cart", "Open your cart to check out.");
-  }, [product, addToCart]);
+  }, [product, addToCart, t]);
 
   const handleBuyNow = useCallback(() => {
     if (!product) return;
@@ -202,13 +202,13 @@ export default function ProductDetails() {
         imageUrl: product.image_url ?? null,
         unitPriceXaf: product.price,
         sellerId: product.seller_id,
-        sellerName: sellerDisplayName(product),
+        sellerName: sellerDisplayName(product, t("common_seller")),
         sellerAvatarUrl: product.seller?.avatar_url ?? null,
         description: product.description?.trim() || null,
       });
     }
-    router.push("/checkout/address");
-  }, [product, addToCart, isInCart, router]);
+    router.push("/checkout/address" as Href);
+  }, [product, addToCart, isInCart, router, t]);
 
   const handleImageScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
@@ -223,12 +223,10 @@ export default function ProductDetails() {
   if (!resolvedProductId) {
     return (
       <SafeAreaView style={[styles.container, styles.centered]} edges={["top"]}>
-        <Text style={styles.stateTitle}>No product selected</Text>
-        <Text style={styles.stateText}>
-          Open a listing from search or your feed to view details.
-        </Text>
+        <Text style={styles.stateTitle}>{t("product_no_selection_title")}</Text>
+        <Text style={styles.stateText}>{t("product_no_selection_body")}</Text>
         <TouchableOpacity style={styles.stateButton} onPress={handleBackPress}>
-          <Text style={styles.stateButtonText}>Go back</Text>
+          <Text style={styles.stateButtonText}>{t("chat_go_back")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -237,10 +235,10 @@ export default function ProductDetails() {
   if (error || !product) {
     return (
       <SafeAreaView style={[styles.container, styles.centered]} edges={["top"]}>
-        <Text style={styles.stateTitle}>Could not load product</Text>
-        <Text style={styles.stateText}>{error ?? "Please try again."}</Text>
+        <Text style={styles.stateTitle}>{t("product_load_error_title")}</Text>
+        <Text style={styles.stateText}>{error ?? t("product_please_try_again")}</Text>
         <TouchableOpacity style={styles.stateButton} onPress={handleBackPress}>
-          <Text style={styles.stateButtonText}>Go back</Text>
+          <Text style={styles.stateButtonText}>{t("chat_go_back")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -248,8 +246,7 @@ export default function ProductDetails() {
 
   const formattedPrice = formatPriceXaf(product.price);
   const description =
-    product.description?.trim() ||
-    "The seller has not added a description for this listing yet.";
+    product.description?.trim() || t("product_default_description");
   const sellerLocation = product.seller?.city?.trim();
 
   return (
@@ -332,17 +329,17 @@ export default function ProductDetails() {
           <View style={styles.stockSection}>
             <View style={styles.stockRow}>
               <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={styles.stockText}>Available on Safick</Text>
+              <Text style={styles.stockText}>{t("product_available_on_safick")}</Text>
             </View>
           </View>
 
           <View style={styles.descriptionSection}>
-            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.sectionTitle}>{t("product_description")}</Text>
             <Text style={styles.descriptionText}>{description}</Text>
           </View>
 
           <View style={styles.sellerAboutSection}>
-            <Text style={styles.sectionTitle}>About Seller</Text>
+            <Text style={styles.sectionTitle}>{t("product_about_seller")}</Text>
             <View style={styles.sellerCardContainer}>
               <TouchableOpacity
                 style={styles.sellerSection}
@@ -355,7 +352,7 @@ export default function ProductDetails() {
                   resizeMode="cover"
                 />
                 <View style={styles.sellerInfo}>
-                  <Text style={styles.sellerName}>{sellerDisplayName(product)}</Text>
+                  <Text style={styles.sellerName}>{sellerDisplayName(product, t("common_seller"))}</Text>
                   {sellerHandle(product) ? (
                     <Text style={styles.sellerHandle}>{sellerHandle(product)}</Text>
                   ) : null}
@@ -369,15 +366,15 @@ export default function ProductDetails() {
               <View style={styles.sellerMetricsRow}>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>94%</Text>
-                  <Text style={styles.metricLabel}>Product{"\n"}Satisfaction</Text>
+                  <Text style={styles.metricLabel}>{t("user_profile_trust_satisfaction")}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>10 min</Text>
-                  <Text style={styles.metricLabel}>Response{"\n"}Time</Text>
+                  <Text style={styles.metricLabel}>{t("user_profile_trust_response")}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>96%</Text>
-                  <Text style={styles.metricLabel}>On-Time{"\n"}Delivery</Text>
+                  <Text style={styles.metricLabel}>{t("user_profile_trust_delivery")}</Text>
                 </View>
               </View>
             </View>
@@ -385,15 +382,15 @@ export default function ProductDetails() {
 
           <View style={styles.reviewsSection}>
             <View style={styles.reviewsHeader}>
-              <Text style={styles.sectionTitle}>Reviews</Text>
+              <Text style={styles.sectionTitle}>{t("product_reviews_title")}</Text>
             </View>
-            <Text style={styles.reviewsPlaceholder}>Customer reviews will appear here</Text>
+            <Text style={styles.reviewsPlaceholder}>{t("product_reviews_placeholder")}</Text>
           </View>
 
           {relatedProducts.length > 0 ? (
             <View style={styles.recommendedSection}>
               <View style={styles.reviewsHeader}>
-                <Text style={styles.sectionTitle}>More listings</Text>
+                <Text style={styles.sectionTitle}>{t("product_more_listings")}</Text>
               </View>
               <View style={styles.recommendedGrid}>
                 {relatedProducts.map((item) => (
@@ -426,7 +423,7 @@ export default function ProductDetails() {
 
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.messageButton} onPress={handleMessageSeller}>
-          <Text style={styles.messageButtonText}>Message Seller</Text>
+          <Text style={styles.messageButtonText}>{t("product_message_seller")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.cartIconButton, isInCart && styles.cartIconButtonActive]}

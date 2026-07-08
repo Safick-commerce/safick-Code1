@@ -12,11 +12,13 @@ import { useRouter } from "expo-router";
 import FeedProductCard from "../../../components/shared/FeedProductCard";
 import { ProductGridSkeleton } from "../../../components/shared/ProductGridSkeleton";
 import { useAuth } from "../../../context/AuthContext";
+import { useLanguage } from "../../../context/LanguageContext";
 import { getMyProducts } from "../../../utils/productApi";
 import type { StoreProduct } from "../../../types/storeProduct";
 
 export default function MyProductsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { isAuthenticated, isReady: authReady } = useAuth();
   const [items, setItems] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,12 +31,12 @@ export default function MyProductsScreen() {
       const list = await getMyProducts();
       setItems(list);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load products.");
+      setError(e instanceof Error ? e.message : t("my_products_load_error"));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +66,7 @@ export default function MyProductsScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["bottom", "left", "right"]}>
         <View style={styles.centered}>
-          <Text style={styles.muted}>Sign in to see your products.</Text>
+          <Text style={styles.muted}>{t("my_products_sign_in")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -89,7 +91,7 @@ export default function MyProductsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF2800" />
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>You have not listed any products yet.</Text>
+            <Text style={styles.empty}>{t("my_products_empty")}</Text>
           }
           renderItem={({ item }) => (
             <View style={styles.cell}>

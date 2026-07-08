@@ -4,15 +4,17 @@
 
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useLanguage } from "../../../../context/LanguageContext";
+import type { TranslationKey } from "../../../../i18n/types";
 
 const RED = "#FF2800";
 
 // Gender options with Ionicons icon names
-const GENDERS = [
-  { value: "male", label: "Male" as const },
-  { value: "female", label: "Female" as const },
-  { value: "other", label: "Other" as const },
-  { value: "prefer_not_to_say", label: "Prefer not to say" as const },
+const GENDERS: { value: string; labelKey: TranslationKey }[] = [
+  { value: "male", labelKey: "gender_male" },
+  { value: "female", labelKey: "gender_female" },
+  { value: "other", labelKey: "gender_other" },
+  { value: "prefer_not_to_say", labelKey: "gender_prefer_not" },
 ];
 
 interface GenderStepProps {
@@ -21,11 +23,13 @@ interface GenderStepProps {
 }
 
 export default function GenderStep({ gender, onGenderChange }: GenderStepProps) {
+  const { t } = useLanguage();
+
   return (
     <View style={styles.container}>
       {/* -------- Header -------- */}
-      <Text style={styles.heading}>{"What's your gender?"}</Text>
-      <Text style={styles.subheading}>This helps us personalize your experience</Text>
+      <Text style={styles.heading}>{t("gender_heading")}</Text>
+      <Text style={styles.subheading}>{t("gender_subheading")}</Text>
 
       {/* -------- Gender Option Cards -------- */}
       <View style={styles.options}>
@@ -39,7 +43,7 @@ export default function GenderStep({ gender, onGenderChange }: GenderStepProps) 
               activeOpacity={0.7}
             >
               <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                {g.label}
+                {t(g.labelKey)}
               </Text>
               {isSelected && (
                 <Ionicons name="checkmark-circle" size={22} color={RED} style={styles.check} />

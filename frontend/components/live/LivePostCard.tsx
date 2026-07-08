@@ -2,6 +2,7 @@ import { View, Text, Image, StyleSheet, ImageSourcePropType, TouchableOpacity } 
 import { useRouter } from "expo-router";
 import { LivePost } from "../../types";
 import { memo, useCallback } from "react";
+import { useLanguage } from "../../context/LanguageContext";
 
 interface LivePostCardProps {
   post: LivePost;
@@ -10,6 +11,7 @@ interface LivePostCardProps {
 }
 
 function LivePostCard({ post, cardWidth, onImageLoad }: LivePostCardProps) {
+  const { t } = useLanguage();
   const router = useRouter();
   const onJoin = useCallback(() => {
     try {
@@ -41,7 +43,7 @@ function LivePostCard({ post, cardWidth, onImageLoad }: LivePostCardProps) {
         style={styles.image}
         resizeMode="cover"
         onLoad={onImageLoad}
-        accessibilityLabel={`${post.sellerName} live post`}
+        accessibilityLabel={t("live_card_a11y_post", { seller: post.sellerName })}
       />
 
       {/* Seller info overlay */}
@@ -64,9 +66,9 @@ function LivePostCard({ post, cardWidth, onImageLoad }: LivePostCardProps) {
         activeOpacity={0.8}
         onPress={onJoin}
         accessibilityRole="button"
-        accessibilityLabel={`Join ${post.sellerName} live`}
+        accessibilityLabel={t("live_card_a11y_join", { seller: post.sellerName })}
       >
-        <Text style={styles.joinText}>Join</Text>
+        <Text style={styles.joinText}>{t("live_card_join")}</Text>
       </TouchableOpacity>
     </View>
 

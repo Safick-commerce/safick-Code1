@@ -944,7 +944,7 @@ See **[docs/PHASE1_LIVE.md](./docs/PHASE1_LIVE.md)** for provider choice (**Live
 - [ ] Optional in-app payments (Orange Money / Mobile Money)
 - [ ] Commission on in-app transactions
 - [ ] Featured / promoted listings
-- [ ] Seller subscription tiers
+- [ ] Seller subscription tiers include (Free basic shop; paid tiers for more listings, analytics, verification badge, multiple lives per week.)
 - [ ] User wallet / balance / top-up (deferred from MVP — requires e-money licensing or partner-hosted setup)
 
 #### AI Features

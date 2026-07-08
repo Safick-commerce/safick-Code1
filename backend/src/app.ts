@@ -32,6 +32,7 @@ import {
 import webhookRoutes from "./routes/webhook.routes";
 import adminRoutes from "./routes/admin.routes";
 import feedRoutes from "./routes/feed.routes";
+import liveRoutes from "./routes/live.routes";
 
 // Error handler (must be registered last)
 import { errorHandler } from "./middleware/errorHandler";
@@ -136,6 +137,7 @@ app.use("/api/checkout", checkoutRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/seller/orders", sellerOrdersRouter);
 app.use("/api/admin", adminRoutes);
+app.use("/api/live", liveRoutes);
 
 // =============================================================================
 // 404 Handler — for routes that don't match anything above

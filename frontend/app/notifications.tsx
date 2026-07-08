@@ -12,6 +12,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLanguage } from "../context/LanguageContext";
 
 const RED = "#FF2800";
 
@@ -43,6 +44,7 @@ function normalizeFromParam(raw: string | string[] | undefined): boolean {
 }
 
 export default function NotificationsScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { from } = useLocalSearchParams<{ from?: string | string[] }>();
@@ -56,7 +58,7 @@ export default function NotificationsScreen() {
   const [bannerUndo, setBannerUndo] = useState<(() => void) | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const screenTitle = fromUnbox ? "Live alerts" : "Activity";
+  const screenTitle = fromUnbox ? t("notifications_live_alerts") : t("notifications_activity");
   const hasActiveFilters = !filters.live || !filters.soon || !filters.replay;
 
   const visibleAlerts = useMemo(
@@ -108,24 +110,24 @@ export default function NotificationsScreen() {
     setMenuOpen(false);
     if (readAll) return;
     setReadAll(true);
-    showBanner("Marked all as read", () => setReadAll(false));
+    showBanner(t("notifications_marked_read"), () => setReadAll(false));
   };
 
   const onMuteForHour = () => {
     setMenuOpen(false);
-    showBanner("Alerts muted for 1 hour");
+    showBanner(t("notifications_muted"));
   };
 
   const onOpenSettings = () => {
     setMenuOpen(false);
-    showBanner("Notification settings coming soon");
+    showBanner(t("notifications_settings_soon"));
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <View style={styles.leftSection}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t("common_go_back")}>
             <MaterialIcons name="keyboard-arrow-left" size={37} color="#000000" />
           </TouchableOpacity>
           <View>
@@ -135,7 +137,7 @@ export default function NotificationsScreen() {
         <TouchableOpacity
           style={styles.menuButton}
           accessibilityRole="button"
-          accessibilityLabel="Notification options"
+          accessibilityLabel={t("a11y_notification_options")}
           onPress={() => setMenuOpen(true)}
         >
           <Ionicons name="options-outline" size={28} color="#000000" />
@@ -154,13 +156,13 @@ export default function NotificationsScreen() {
                   dismissBanner();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Undo"
+                accessibilityLabel={t("common_undo")}
                 hitSlop={8}
               >
-                <Text style={styles.bannerUndoText}>Undo</Text>
+                <Text style={styles.bannerUndoText}>{t("notifications_undo")}</Text>
               </TouchableOpacity>
             ) : null}
-            <TouchableOpacity onPress={dismissBanner} accessibilityRole="button" accessibilityLabel="Dismiss" hitSlop={8}>
+            <TouchableOpacity onPress={dismissBanner} accessibilityRole="button" accessibilityLabel={t("common_dismiss")} hitSlop={8}>
               <Ionicons name="close" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -174,43 +176,41 @@ export default function NotificationsScreen() {
               style={[styles.filterButton, activeFilter === "All" && styles.filterButtonActive]}
               onPress={() => setActiveFilter("All")}
             >
-              <Text style={[styles.filterText, activeFilter === "All" && styles.filterTextActive]}>All</Text>
+              <Text style={[styles.filterText, activeFilter === "All" && styles.filterTextActive]}>{t("common_all")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.filterButton, activeFilter === "Sellers" && styles.filterButtonActive]}
               onPress={() => setActiveFilter("Sellers")}
             >
-              <Text style={[styles.filterText, activeFilter === "Sellers" && styles.filterTextActive]}>Sellers</Text>
+              <Text style={[styles.filterText, activeFilter === "Sellers" && styles.filterTextActive]}>{t("notifications_sellers")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.filterButton, activeFilter === "Important" && styles.filterButtonActive]}
               onPress={() => setActiveFilter("Important")}
             >
-              <Text style={[styles.filterText, activeFilter === "Important" && styles.filterTextActive]}>Important</Text>
+              <Text style={[styles.filterText, activeFilter === "Important" && styles.filterTextActive]}>{t("notifications_important")}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.content}>
             <Text style={styles.placeholderText}>
-              {readAll ? "You're all caught up." : "All notifications will appear here."}
+              {readAll ? t("notifications_caught_up") : t("notifications_all_here")}
             </Text>
           </View>
         </>
       ) : !hasAnyAlerts ? (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyTitle}>No live alerts yet</Text>
-          <Text style={styles.emptySub}>
-            Follow sellers and we'll let you know when they go live, schedule a stream, or post a replay.
-          </Text>
+          <Text style={styles.emptyTitle}>{t("notifications_no_live")}</Text>
+          <Text style={styles.emptySub}>{t("notifications_no_live_body")}</Text>
         </View>
       ) : visibleAlerts.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Ionicons name="filter-outline" size={36} color="#94A3B8" />
-          <Text style={styles.emptyTitle}>No alerts match these filters</Text>
+          <Text style={styles.emptyTitle}>{t("notifications_no_match")}</Text>
           <TouchableOpacity style={styles.resetBtn} onPress={resetFilters} accessibilityRole="button">
-            <Text style={styles.resetBtnText}>Reset filters</Text>
+            <Text style={styles.resetBtnText}>{t("notifications_reset_filters")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -224,7 +224,7 @@ export default function NotificationsScreen() {
               disabled={!row.liveId}
               accessibilityRole="button"
               accessibilityLabel={`${row.title}. ${row.subtitle}. ${row.time}.`}
-              accessibilityHint={row.liveId ? "Opens live viewer" : undefined}
+              accessibilityHint={row.liveId ? t("a11y_opens_live_viewer") : undefined}
             >
               <View style={styles.alertRowLeft}>
                 <View
@@ -242,7 +242,7 @@ export default function NotificationsScreen() {
                     </Text>
                     {row.tone === "live" ? (
                       <View style={styles.livePill}>
-                        <Text style={styles.livePillText}>LIVE</Text>
+                        <Text style={styles.livePillText}>{t("common_live")}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -274,52 +274,52 @@ export default function NotificationsScreen() {
           >
             {fromUnbox ? (
               <>
-                <Text style={styles.menuSectionLabel}>Filter</Text>
+                <Text style={styles.menuSectionLabel}>{t("notifications_filter")}</Text>
                 <MenuToggleRow
                   iconName="radio-outline"
                   iconColor={RED}
-                  label="Live now"
+                  label={t("notifications_live_now")}
                   value={filters.live}
                   onToggle={() => toggleFilter("live")}
                 />
                 <MenuToggleRow
                   iconName="time-outline"
                   iconColor="#828282"
-                  label="Scheduled"
+                  label={t("notifications_scheduled")}
                   value={filters.soon}
                   onToggle={() => toggleFilter("soon")}
                 />
                 <MenuToggleRow
                   iconName="play-circle-outline"
                   iconColor="#828282"
-                  label="Replays"
+                  label={t("notifications_replays")}
                   value={filters.replay}
                   onToggle={() => toggleFilter("replay")}
                 />
                 {hasActiveFilters ? (
                   <TouchableOpacity onPress={resetFilters} style={styles.menuLinkRow} accessibilityRole="button">
-                    <Text style={styles.menuLinkText}>Reset filters</Text>
+                    <Text style={styles.menuLinkText}>{t("notifications_reset_filters")}</Text>
                   </TouchableOpacity>
                 ) : null}
                 <View style={styles.menuDivider} />
               </>
             ) : null}
 
-            <Text style={styles.menuSectionLabel}>Actions</Text>
+            <Text style={styles.menuSectionLabel}>{t("common_actions")}</Text>
             <MenuActionRow
               iconName="checkmark-done-outline"
-              label="Mark all as read"
+              label={t("notifications_mark_all")}
               onPress={onMarkAllAsRead}
               disabled={readAll}
             />
             <MenuActionRow
               iconName="notifications-off-outline"
-              label="Mute alerts for 1 hour"
+              label={t("notifications_mute_hour")}
               onPress={onMuteForHour}
             />
             <MenuActionRow
               iconName="settings-outline"
-              label="Notification settings"
+              label={t("notifications_settings")}
               onPress={onOpenSettings}
             />
           </Pressable>

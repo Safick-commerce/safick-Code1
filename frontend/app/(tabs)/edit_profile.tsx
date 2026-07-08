@@ -26,6 +26,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { CAMEROON_CITIES } from "../../data/cameroonCities";
 import { supabase } from "../../lib/supabase";
 import { uploadProfileAvatar, uploadProfileCoverImage } from "../../utils/uploadAvatar";
@@ -82,6 +83,7 @@ function shallowEqualState(a: FormState, b: FormState) {
 export default function EditProfileScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const { t } = useLanguage();
   const { user, profile: authProfile, refetchProfile, isReady, profileLoading } = useAuth();
 
   const handleBackPress = useCallback(() => {
@@ -193,12 +195,12 @@ export default function EditProfileScreen() {
       if (!isDirty || isSaving) return;
       e.preventDefault();
       Alert.alert(
-        "Discard changes?",
-        "You have unsaved changes. Are you sure you want to leave?",
+        t("edit_profile_discard_title"),
+        t("edit_profile_discard_body"),
         [
-          { text: "Keep editing", style: "cancel" },
+          { text: t("edit_profile_keep_editing"), style: "cancel" },
           {
-            text: "Discard",
+            text: t("edit_profile_discard"),
             style: "destructive",
             onPress: () => (navigation as any).dispatch(e.data.action),
           },
@@ -206,7 +208,7 @@ export default function EditProfileScreen() {
       );
     });
     return unsubscribe;
-  }, [navigation, isDirty, isSaving, isUploadingAvatar, isUploadingCover]);
+  }, [navigation, isDirty, isSaving, isUploadingAvatar, isUploadingCover, t]);
 
   const setField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -228,27 +230,27 @@ export default function EditProfileScreen() {
     const bio = form.bio.trim();
     const phone = form.phone.trim();
 
-    if (name.length < 2) return "Name must be at least 2 characters.";
-    if (name.length > NAME_MAX) return `Name must be at most ${NAME_MAX} characters.`;
+    if (name.length < 2) return t("edit_profile_name_min");
+    if (name.length > NAME_MAX) return t("edit_profile_name_max", { max: NAME_MAX });
     if (username.length < USERNAME_MIN)
-      return `Username must be at least ${USERNAME_MIN} characters.`;
+      return t("edit_profile_username_min", { min: USERNAME_MIN });
     if (!USERNAME_REGEX.test(username))
-      return "Username can only contain lowercase letters, numbers, dots, and underscores.";
-    if (usernameAvailable === false) return "That username is already taken.";
-    if (bio.length > BIO_MAX) return `Bio must be at most ${BIO_MAX} characters.`;
+      return t("edit_profile_username_format");
+    if (usernameAvailable === false) return t("edit_profile_username_taken");
+    if (bio.length > BIO_MAX) return t("edit_profile_bio_max", { max: BIO_MAX });
     if (phone && phone !== "+237" && !CAMEROON_PHONE_REGEX.test(phone))
-      return "Enter a valid Cameroon phone number (+237 followed by 9 digits).";
+      return t("edit_profile_phone_invalid");
     return null;
-  }, [form, usernameAvailable]);
+  }, [form, usernameAvailable, t]);
 
   const handleChangeAvatar = useCallback(async () => {
     if (!user?.id) {
-      Alert.alert("Sign in required", "You need to be signed in to change your photo.");
+      Alert.alert(t("edit_profile_sign_in_required"), t("edit_profile_sign_in_photo"));
       return;
     }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Photo library access is required to choose a profile picture.");
+      Alert.alert(t("common_permission_needed"), t("edit_profile_photo_permission"));
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
@@ -264,21 +266,21 @@ export default function EditProfileScreen() {
       await uploadProfileAvatar(picked.assets[0].uri);
       await refetchProfile();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not upload your photo.";
-      Alert.alert("Upload failed", msg);
+      const msg = e instanceof Error ? e.message : t("edit_profile_upload_photo_error");
+      Alert.alert(t("edit_profile_upload_failed"), msg);
     } finally {
       setIsUploadingAvatar(false);
     }
-  }, [user?.id, refetchProfile]);
+  }, [user?.id, refetchProfile, t]);
 
   const handleChangeCover = useCallback(async () => {
     if (!user?.id) {
-      Alert.alert("Sign in required", "You need to be signed in to change your cover image.");
+      Alert.alert(t("edit_profile_sign_in_required"), t("edit_profile_sign_in_cover"));
       return;
     }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Photo library access is required to choose a cover image.");
+      Alert.alert(t("common_permission_needed"), t("edit_profile_cover_permission"));
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
@@ -294,24 +296,24 @@ export default function EditProfileScreen() {
       await uploadProfileCoverImage(picked.assets[0].uri);
       await refetchProfile();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not upload your cover image.";
-      Alert.alert("Upload failed", msg);
+      const msg = e instanceof Error ? e.message : t("edit_profile_upload_cover_error");
+      Alert.alert(t("edit_profile_upload_failed"), msg);
     } finally {
       setIsUploadingCover(false);
     }
-  }, [user?.id, refetchProfile]);
+  }, [user?.id, refetchProfile, t]);
 
   const handleSave = useCallback(async () => {
     // Identity comes from the auth session, NOT the loaded profile row. A
     // profile row may briefly be null (still loading, RLS hiccup, or missing
     // for a freshly created account) while the user is still signed in.
     if (!user?.id) {
-      Alert.alert("Sign in required", "You need to be signed in to edit your profile.");
+      Alert.alert(t("edit_profile_sign_in_required"), t("edit_profile_sign_in_edit"));
       return;
     }
     const validationError = validate();
     if (validationError) {
-      Alert.alert("Check your details", validationError);
+      Alert.alert(t("edit_profile_check_details"), validationError);
       return;
     }
 
@@ -343,9 +345,9 @@ export default function EditProfileScreen() {
 
       if (error) {
         const msg = /duplicate key|unique/i.test(error.message)
-          ? "That username is already taken."
-          : error.message || "Could not save your profile.";
-        Alert.alert("Could not save", msg);
+          ? t("edit_profile_username_taken")
+          : error.message || t("edit_profile_save_error");
+        Alert.alert(t("edit_profile_could_not_save"), msg);
         return;
       }
 
@@ -353,12 +355,12 @@ export default function EditProfileScreen() {
       initialRef.current = { ...form };
       router.back();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Could not save your profile.";
-      Alert.alert("Could not save", message);
+      const message = e instanceof Error ? e.message : t("edit_profile_save_error");
+      Alert.alert(t("edit_profile_could_not_save"), message);
     } finally {
       setIsSaving(false);
     }
-  }, [user?.id, authProfile?.avatar_url, authProfile?.cover_image_url, form, refetchProfile, router, validate]);
+  }, [user?.id, authProfile?.avatar_url, authProfile?.cover_image_url, form, refetchProfile, router, validate, t]);
 
   if (!isReady || (user?.id && profileLoading && !authProfile)) {
     return (
@@ -393,22 +395,22 @@ export default function EditProfileScreen() {
             onPress={handleBackPress}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common_back")}
           >
             <Ionicons name="chevron-back" size={26} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <Text style={styles.headerTitle}>{t("edit_profile_title")}</Text>
           <TouchableOpacity
             onPress={handleSave}
             disabled={!canSave}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Save profile"
+            accessibilityLabel={t("common_save")}
           >
             {isSaving ? (
               <ActivityIndicator size="small" color={RED} />
             ) : (
-              <Text style={[styles.saveText, !canSave && styles.saveTextDisabled]}>Save</Text>
+              <Text style={[styles.saveText, !canSave && styles.saveTextDisabled]}>{t("common_save")}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -436,7 +438,7 @@ export default function EditProfileScreen() {
               onPress={handleChangeCover}
               disabled={isUploadingCover || isUploadingAvatar}
               accessibilityRole="button"
-              accessibilityLabel="Change cover image"
+              accessibilityLabel={t("a11y_change_cover")}
             >
               <Ionicons name="camera-outline" size={24} color="#FFFFFF" />
             </TouchableOpacity>
@@ -460,23 +462,23 @@ export default function EditProfileScreen() {
               onPress={handleChangeAvatar}
               disabled={isUploadingAvatar || isUploadingCover}
               accessibilityRole="button"
-              accessibilityLabel="Change profile picture"
+              accessibilityLabel={t("a11y_change_profile_picture")}
             >
               <Ionicons name="camera" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
           {/* -------- Personal Details -------- */}
-          <Text style={styles.sectionHeading}>Personal Details</Text>
+          <Text style={styles.sectionHeading}>{t("edit_profile_personal")}</Text>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
-              Name<Text style={styles.required}>*</Text>
+              {t("edit_profile_name")}<Text style={styles.required}>*</Text>
             </Text>
             <TextInput
               value={form.fullName}
-              onChangeText={(t) => setField("fullName", t)}
-              placeholder="Your full name"
+              onChangeText={(v) => setField("fullName", v)}
+              placeholder={t("edit_profile_name_ph")}
               placeholderTextColor="#828282"
               autoCapitalize="words"
               maxLength={NAME_MAX}
@@ -487,7 +489,7 @@ export default function EditProfileScreen() {
           <View style={styles.fieldGroup}>
             <View style={styles.labelRow}>
               <Text style={styles.fieldLabel}>
-                Username<Text style={styles.fieldCounter}>({form.username.length}/{USERNAME_MAX})</Text>
+                {t("edit_profile_username")}<Text style={styles.fieldCounter}>({form.username.length}/{USERNAME_MAX})</Text>
                 <Text style={styles.required}>*</Text>
               </Text>
             </View>
@@ -504,13 +506,13 @@ export default function EditProfileScreen() {
               <Text style={styles.atSymbol}>@</Text>
               <TextInput
                 value={form.username}
-                onChangeText={(t) =>
+                onChangeText={(v) =>
                   setField(
                     "username",
-                    t.toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, USERNAME_MAX)
+                    v.toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, USERNAME_MAX)
                   )
                 }
-                placeholder="yourhandle"
+                placeholder={t("edit_profile_username_ph")}
                 placeholderTextColor="#828282"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -522,12 +524,12 @@ export default function EditProfileScreen() {
 
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
-              Bio<Text style={styles.fieldCounter}>({form.bio.length}/{BIO_MAX})</Text>
+              {t("edit_profile_bio")}<Text style={styles.fieldCounter}>({form.bio.length}/{BIO_MAX})</Text>
             </Text>
             <TextInput
               value={form.bio}
-              onChangeText={(t) => setField("bio", t.slice(0, BIO_MAX))}
-              placeholder="Tell us about yourself..."
+              onChangeText={(v) => setField("bio", v.slice(0, BIO_MAX))}
+              placeholder={t("edit_profile_bio_ph")}
               placeholderTextColor="#828282"
               multiline
               numberOfLines={4}
@@ -537,17 +539,17 @@ export default function EditProfileScreen() {
           </View>
 
           {/* -------- Location & Contact -------- */}
-          <Text style={styles.sectionHeading}>Location & Contact</Text>
+          <Text style={styles.sectionHeading}>{t("edit_profile_location_contact")}</Text>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>City</Text>
+            <Text style={styles.fieldLabel}>{t("edit_profile_city")}</Text>
             <View style={styles.input}>
               <TextInput
                 value={form.city}
-                onChangeText={(t) => setField("city", t)}
+                onChangeText={(v) => setField("city", v)}
                 onFocus={() => setCityFocused(true)}
                 onBlur={() => setCityFocused(false)}
-                placeholder="e.g. Douala"
+                placeholder={t("edit_profile_city_ph")}
                 placeholderTextColor="#828282"
                 autoCapitalize="words"
                 style={styles.cityTextInput}
@@ -571,7 +573,7 @@ export default function EditProfileScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Phone</Text>
+            <Text style={styles.fieldLabel}>{t("edit_profile_phone")}</Text>
             <View style={styles.phoneRow}>
               <View style={styles.phonePrefix}>
                 <Text style={styles.flag}>🇨🇲</Text>
@@ -580,11 +582,11 @@ export default function EditProfileScreen() {
               <View style={styles.phoneDivider} />
               <TextInput
                 value={form.phone.startsWith("+237") ? form.phone.slice(4) : form.phone}
-                onChangeText={(t) => {
-                  const digits = t.replace(/[^0-9]/g, "").slice(0, 9);
+                onChangeText={(v) => {
+                  const digits = v.replace(/[^0-9]/g, "").slice(0, 9);
                   setField("phone", "+237" + digits);
                 }}
-                placeholder="6XXXXXXXX"
+                placeholder={t("edit_profile_phone_ph")}
                 placeholderTextColor="#828282"
                 keyboardType="phone-pad"
                 maxLength={9}

@@ -4,6 +4,7 @@ import { FontAwesome6, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { useLanguage } from '../../../context/LanguageContext';
 
 type LoginscreensProps = {
   /** Called when user taps "Get Started" or "Continue with Google". */
@@ -20,6 +21,7 @@ const APP_ICON = require('../../../assets/images/saficklogo03.svg');
 const RED = '#FF2800';
 
 export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource }: LoginscreensProps) {
+  const { t } = useLanguage();
   const router = useRouter();
   // Selected language for the pill selector; currently UI-only (English / Français)
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
@@ -47,14 +49,14 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
               onPress={() => setLanguage('en')}
               activeOpacity={0.8}
             >
-              <Text style={[styles.languageText, language === 'en' && styles.languageTextActive]}>English</Text>
+              <Text style={[styles.languageText, language === 'en' && styles.languageTextActive]}>{t('login_language_en')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.languageTab, language === 'fr' && styles.languageTabActive]}
               onPress={() => setLanguage('fr')}
               activeOpacity={0.8}
             >
-              <Text style={[styles.languageText, language === 'fr' && styles.languageTextActive]}>Français</Text>
+              <Text style={[styles.languageText, language === 'fr' && styles.languageTextActive]}>{t('login_language_fr')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -71,7 +73,7 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
               />
             </View>
           </View>
-          <Text style={styles.tagline}> DISCOVER, CONNECT, AND SHOP WITH PEOPLE YOU CAN TRUST TODAY. </Text>
+          <Text style={styles.tagline}>{t('login_tagline')}</Text>
         </View>
 
         {/* ---------- Bottom: primary actions + sign-in link + community ---------- */}
@@ -82,7 +84,7 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
             onPress={handleGetStarted}
             activeOpacity={0.9}
           >
-            <Text style={styles.buttonPrimaryText}>Get Started</Text>
+            <Text style={styles.buttonPrimaryText}>{t('login_get_started')}</Text>
           </TouchableOpacity>
 
           {/* "I already have an account" → uses onSignInPress if provided, otherwise onSuccess */}
@@ -91,17 +93,17 @@ export default function Loginscreens({ onSuccess, onSignInPress, logoIconSource 
             onPress={handleSignIn}
             activeOpacity={0.8}
           >
-            <Text style={styles.signInPrompt}>I already have an account </Text>
-            <Text style={styles.signInLink}>Sign In</Text>
+            <Text style={styles.signInPrompt}>{t('login_already_have_account')}</Text>
+            <Text style={styles.signInLink}>{t('login_sign_in_link')}</Text>
           </TouchableOpacity>
 
           {/* Terms footer */}
           <View style={styles.termsFooter}>
             <Text style={styles.termsText}>
-              By clicking continue, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text>
-              {' '}and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              {t('auth_terms_prefix')}
+              <Text style={styles.termsLink}>{t('auth_terms_of_service')}</Text>
+              {t('auth_terms_and')}
+              <Text style={styles.termsLink}>{t('auth_privacy_policy')}</Text>
             </Text>
           </View>
         </View>

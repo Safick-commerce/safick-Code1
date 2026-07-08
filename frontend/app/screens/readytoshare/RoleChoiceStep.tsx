@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useLanguage } from "../../../context/LanguageContext";
 
 const RED = "#FF2800";
 
@@ -12,13 +13,14 @@ type Props = {
 };
 
 export default function RoleChoiceStep({ selectedRole, onSelectRole, onContinue }: Props) {
+  const { t } = useLanguage();
   const sellerSelected = selectedRole === "seller";
   const buyerSelected = selectedRole === "buyer";
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>How do you want to use SAFICK?</Text>
-      <Text style={styles.subtitle}>Choose your starting mode. You can switch anytime in settings.</Text>
+      <Text style={styles.title}>{t("role_title")}</Text>
+      <Text style={styles.subtitle}>{t("role_subtitle")}</Text>
 
       <TouchableOpacity
         style={[styles.option, styles.sellerOption, sellerSelected && styles.sellerOptionSelected]}
@@ -29,16 +31,16 @@ export default function RoleChoiceStep({ selectedRole, onSelectRole, onContinue 
           <View style={styles.sellerHeaderIcon}>
             <MaterialCommunityIcons name="storefront-outline" size={22} color="#FFFFFF" />
           </View>
-          <Text style={styles.optionTitleLight}>Seller Mode</Text>
-          <Text style={styles.optionTextLight}>List products, go live, and start selling faster.</Text>
+          <Text style={styles.optionTitleLight}>{t("role_seller_mode")}</Text>
+          <Text style={styles.optionTextLight}>{t("role_seller_desc")}</Text>
           <View style={styles.sellerBenefits}>
             <View style={styles.benefitRow}>
               <MaterialCommunityIcons name="check-circle-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.benefitText}>Professional inventory tools</Text>
+              <Text style={styles.benefitText}>{t("role_seller_benefit_inventory")}</Text>
             </View>
          <View style={styles.benefitRow}>
               <MaterialCommunityIcons name="check-circle-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.benefitText}>CRM & Lead conversion</Text>
+              <Text style={styles.benefitText}>{t("role_seller_benefit_crm")}</Text>
             </View>
           </View>
         </View>
@@ -53,8 +55,8 @@ export default function RoleChoiceStep({ selectedRole, onSelectRole, onContinue 
           <View style={styles.buyerHeaderIcon}>
             <MaterialCommunityIcons name="shopping-outline" size={22} color={RED} />
           </View>
-          <Text style={styles.optionTitleDark}>Consumer Mode</Text>
-          <Text style={styles.optionTextDark}>Browse and buy products from trusted sellers. No selling features.</Text>
+          <Text style={styles.optionTitleDark}>{t("role_consumer_mode")}</Text>
+          <Text style={styles.optionTextDark}>{t("role_consumer_desc")}</Text>
         </View>
       </TouchableOpacity>
 
@@ -64,7 +66,7 @@ export default function RoleChoiceStep({ selectedRole, onSelectRole, onContinue 
         disabled={!selectedRole}
         onPress={onContinue}
       >
-        <Text style={styles.continueText}>Continue</Text>
+        <Text style={styles.continueText}>{t("common_continue")}</Text>
       </TouchableOpacity>
     </View>
   );

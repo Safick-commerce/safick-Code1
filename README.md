@@ -1,28 +1,20 @@
-{/** Task to complete */}
+{/** Integration branch notes — merge of Bless-testing-v2 into Testing-production */}
 
-#Wire sellerclip video to discoverTab based on categories and create shared screens to pull different categories in the categoriestab.
+## Completed on Bless-testing-v2
+- Language translation (i18n)
+- LiveKit live streaming (needs full QA — see LiveKit-SETUP)
+- Password reset flow + sign-in rate limiting
+- Auth, onboarding, listings, search, chat improvements
 
-#Create Reset screen to anable forgoten password.
+## Completed on Testing-production
+- Checkout / escrow / orders (Maviance)
+- Zustand store migration
+- For You feed API
 
-#Add leading screens to the profile settings actioncard.
+## Still to do
+- Wire seller clips to DiscoverTab by category
+- Follow / like / share tables
+- Go live UI polish (products, comments, stop-live notice)
+- Full LiveKit regression testing
 
-#Add follow like and share tables to the database.
-
-#Work on the apps algirthm.
-
-#Design seller profile metric add review to profile.
-
-#Mavience API will be one of the last things we would add so don't worry about that part.
-
-#We will also have to look into the UI&UX designs which will later be used to disign poster for social media pages. #
-
-#I will update this on the next commit or find if something was left out. 
-
-Task completed so far language translation was added, live feature still to be fully tested, Create a profile, edit profile, create post, 
-Search for products,sign in and sign out checkout flow to make payment. 
-
-#App rate limite for sign in and reset password. 
-
-#Language change apply on category label. 
-
-#Go live ui layout needed to be improved with option to add product, show comments, notification before stop live, live activation notice, and other necessary features. 
+**Note:** LiveKit has been implemented, but some issues exist within the code and need immediate attention before production.

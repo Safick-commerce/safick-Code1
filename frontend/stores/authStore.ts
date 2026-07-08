@@ -16,6 +16,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { supabase } from "../lib/supabase";
+import { getApiBaseUrl } from "../lib/apiConfig";
 import { fetchProfile, type ProfileRow } from "../utils/fetchProfile";
 import { mergeRemoteProfileIntoLocal } from "../utils/profileSync";
 
@@ -148,14 +149,48 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   },
 
   signIn: async (identifier, password) => {
-    const email = await resolveLoginEmail(identifier);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const baseUrl = getApiBaseUrl();
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: identifier.trim(), password }),
+      });
+    } catch {
+      throw new Error(
+        "Could not reach the server. Ensure the backend is running and EXPO_PUBLIC_API_URL is set.",
+      );
+    }
+
+    const text = await res.text();
+    let data: { error?: string; accessToken?: string; refreshToken?: string } = {};
+    if (text) {
+      try {
+        data = JSON.parse(text) as typeof data;
+      } catch {
+        data = {};
+      }
+    }
+
+    if (res.status === 429) {
+      throw new Error(data.error ?? "Too many sign-in attempts. Please try again later.");
+    }
+    if (!res.ok) {
+      throw new Error(data.error ?? "Invalid login credentials.");
+    }
+
+    if (!data.accessToken || !data.refreshToken) {
+      throw new Error("Invalid server response.");
+    }
+
+    const { data: sessionData, error } = await supabase.auth.setSession({
+      access_token: data.accessToken,
+      refresh_token: data.refreshToken,
     });
     if (error) throw error;
-    if (data.session) {
-      get().setSession(data.session);
+    if (sessionData.session) {
+      get().setSession(sessionData.session);
     }
   },
 

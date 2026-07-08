@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, T
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
 import { useUserProfile } from "../../../stores/userProfileStore";
+import { useLanguage } from "../../../context/LanguageContext";
 import { supabase } from "../../../lib/supabase";
 import WalkthroughSlides from "./WalkthroughSlides";
 import GenderStep from "./steps/GenderStep";
@@ -24,6 +25,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { skipWalkthrough } = useLocalSearchParams<{ skipWalkthrough?: string }>();
   const { updateProfile, completeOnboarding } = useUserProfile();
   const { isAuthenticated, signIn, signUp, user, profile: authProfile } = useAuth();
@@ -150,8 +152,8 @@ export default function OnboardingScreen() {
               if (/email not confirmed/i.test(signInMessage)) {
                 await completeOnboarding();
                 Alert.alert(
-                  "Check your email",
-                  "We sent a confirmation link to your email. Tap the link, then sign in to finish setting up your account."
+                  t("onboarding_email_confirm_title"),
+                  t("onboarding_email_confirm_body")
                 );
                 router.replace("/auth/signin");
                 return;
@@ -206,13 +208,13 @@ export default function OnboardingScreen() {
         );
       }
       const message = isTriggerFailure
-        ? "We couldn't create your account right now. Please try again in a moment."
-        : rawMessage || "Please try again.";
-      Alert.alert("Could not finish onboarding", message);
+        ? t("onboarding_error_account_create")
+        : rawMessage || t("onboarding_error_generic");
+      Alert.alert(t("onboarding_error_title"), message);
     } finally {
       setIsSubmitting(false);
     }
-  }, [step, name, username, email, password, gender, city, interests, updateProfile, completeOnboarding, isAuthenticated, isReturningUser, signIn, signUp, router]);
+  }, [step, name, username, email, password, gender, city, interests, updateProfile, completeOnboarding, isAuthenticated, isReturningUser, signIn, signUp, router, t]);
 
   const handleBack = useCallback(() => {
     if (step > 0) setStep(step - 1);
@@ -248,9 +250,11 @@ export default function OnboardingScreen() {
           ) : (
             <View style={styles.backPlaceholder} />
           )}
-          <Text style={styles.stepLabel}>Step {step + 1} of {TOTAL_STEPS}</Text>
+          <Text style={styles.stepLabel}>
+            {t("onboarding_step", { current: step + 1, total: TOTAL_STEPS })}
+          </Text>
           <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.7}>
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={styles.skipText}>{t("onboarding_skip")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -297,7 +301,7 @@ export default function OnboardingScreen() {
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text style={styles.continueText}>
-                {step === 0 ? "Sign Up" : isLast ? "Finish" : "Continue"}
+                {step === 0 ? t("onboarding_sign_up") : isLast ? t("onboarding_finish") : t("onboarding_continue")}
               </Text>
             )}
           </TouchableOpacity>

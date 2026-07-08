@@ -14,6 +14,7 @@ import { UnboxTabSkeleton } from "../../components/shared/UnboxTabSkeleton";
 import { UnboxLiveGridSkeleton } from "../../components/shared/UnboxLiveGridSkeleton";
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile } from "../../stores/userProfileStore";
+import { useLanguage } from "../../context/LanguageContext";
 
 // Route constants for security
 const ROUTES = {
@@ -33,6 +34,7 @@ const TRENDING_NOW = [
 ] as const;
 
 export default function LiveScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { isAuthenticated, isReady } = useAuth();
   const { profile, isLoaded: profileLoaded } = useUserProfile();
@@ -58,13 +60,13 @@ export default function LiveScreen() {
       <View style={styles.emptyCategoryWrap}>
         <Text style={styles.emptyCategoryTitle}>
           {activeDiscoverCategory
-            ? `No lives in ${activeDiscoverCategory} right now`
-            : "No lives to show yet"}
+            ? t("unbox_empty_category", { category: activeDiscoverCategory })
+            : t("unbox_empty_all")}
         </Text>
-        <Text style={styles.emptyCategorySub}>Try another category or check back soon.</Text>
+        <Text style={styles.emptyCategorySub}>{t("unbox_try_category")}</Text>
       </View>
     ),
-    [activeDiscoverCategory]
+    [activeDiscoverCategory, t]
   );
 
   const handleCreateNew = useCallback(() => {
@@ -122,7 +124,7 @@ export default function LiveScreen() {
   if (!isAuthenticated) {
     return (
       <GuestSignInPlaceholder
-        subtitle="Sign in to access live content, create listings, and go live."
+        subtitle={t("guest_unbox_subtitle")}
         redirectTo="/(tabs)/unbox"
       />
     );
@@ -138,17 +140,17 @@ export default function LiveScreen() {
             onPress={openUnboxSearch}
             activeOpacity={0.88}
             accessibilityRole="button"
-            accessibilityLabel="Search live and replays"
+            accessibilityLabel={t("a11y_search_live_replays")}
           >
             <Ionicons name="search" size={26} color="#000000" />
-            <Text style={styles.searchPlaceholder}>Search live…</Text>
+            <Text style={styles.searchPlaceholder}>{t("unbox_search_placeholder")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerBellButton}
             onPress={openLiveAlerts}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Live alerts and activity"
+            accessibilityLabel={t("a11y_live_alerts")}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
           >
             <Ionicons name="notifications-outline" size={30} color="#000000" />
@@ -166,16 +168,16 @@ export default function LiveScreen() {
             {!profile.readyToSharePromptSeen || profile.readyToShareMode === "seller" ? (
               <View style={styles.bannerContainer}>
                 <ReadyToShareBannerDecoration variant="dark" />
-                <Text style={styles.bannerTitle}>Ready to share?</Text>
-                <Text style={styles.bannerSubtitle}>Start a stream or upload new products</Text>
+                <Text style={styles.bannerTitle}>{t("unbox_ready_title")}</Text>
+                <Text style={styles.bannerSubtitle}>{t("unbox_ready_subtitle")}</Text>
                 <View style={styles.bannerButtons}>
-                  <TouchableOpacity style={styles.createNewButton} activeOpacity={0.8} onPress={handleCreateNew} accessibilityRole="button" accessibilityLabel="Create new product">
+                  <TouchableOpacity style={styles.createNewButton} activeOpacity={0.8} onPress={handleCreateNew} accessibilityRole="button" accessibilityLabel={t("a11y_create_product")}>
                     <Ionicons name="add-circle-outline" size={20} color="#000000" />
-                    <Text style={styles.createNewText}>Create New</Text>
+                    <Text style={styles.createNewText}>{t("unbox_create_new")}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.goLiveButton} activeOpacity={0.8} onPress={handleGoLive} accessibilityRole="button" accessibilityLabel="Go live">
+                  <TouchableOpacity style={styles.goLiveButton} activeOpacity={0.8} onPress={handleGoLive} accessibilityRole="button" accessibilityLabel={t("a11y_go_live")}>
                     <MaterialCommunityIcons name="television-classic" size={18} color="#FFFFFF" />
-                    <Text style={styles.goLiveText}>Go Live</Text>
+                    <Text style={styles.goLiveText}>{t("unbox_go_live")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -183,7 +185,7 @@ export default function LiveScreen() {
 
             {/* Categories */}
             <View style={styles.liveNowHeader}>
-              <Text style={styles.liveNowTitle}>Live Now</Text>
+              <Text style={styles.liveNowTitle}>{t("unbox_live_now")}</Text>
             </View>
             <View style={styles.discoverCategoriesWrap}>
               <ScrollView
@@ -197,12 +199,12 @@ export default function LiveScreen() {
                     onPress={() => setActiveDiscoverCategory(null)}
                     activeOpacity={0.88}
                     accessibilityRole="button"
-                    accessibilityLabel="All categories"
+                    accessibilityLabel={t("a11y_all_categories")}
                     accessibilityState={{ selected: activeDiscoverCategory === null }}
                   >
                     <MaterialCommunityIcons name="view-grid-outline" size={28} color="#111827" />
                   </TouchableOpacity>
-                  <Text style={styles.discoverCircleLabel}>All</Text>
+                  <Text style={styles.discoverCircleLabel}>{t("common_all")}</Text>
                 </View>
                 {DISCOVER_CATEGORIES.map((cat) => (
                   <View key={cat.id} style={styles.circleContainer}>
@@ -234,7 +236,7 @@ export default function LiveScreen() {
         ListFooterComponent={
           <View style={styles.trendingSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Trending Now</Text>
+              <Text style={styles.sectionTitle}>{t("unbox_trending_now")}</Text>
             </View>
             <ScrollView
               horizontal

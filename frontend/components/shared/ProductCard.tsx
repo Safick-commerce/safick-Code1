@@ -1,5 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useLanguage } from "../../context/LanguageContext";
 
 export interface ProductCardData {
   name: string;
@@ -15,6 +16,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onPress, containerStyle }: ProductCardProps) {
   const isIos = Platform.OS === "ios";
+  const { t } = useLanguage();
 
   return (
     <View
@@ -38,7 +40,7 @@ export default function ProductCard({ product, onPress, containerStyle }: Produc
           </View>
         </View>
         <TouchableOpacity style={styles.buyButton} onPress={onPress}>
-          <Text style={styles.buyButtonText}>Buy</Text>
+          <Text style={styles.buyButtonText}>{t("common_buy")}</Text>
         </TouchableOpacity>
       </View>
     </View>

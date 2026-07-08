@@ -461,7 +461,7 @@ function MenuActionRow({
         </Modal>
 
       {/* Main Content Area */}
-c      <View style={[styles.content, isClipsTab && clips.length > 0 && styles.contentGrid]}>
+      <View style={[styles.content, isClipsTab && clips.length > 0 && styles.contentGrid]}>
         {isClipsTab ? (
           clipsLoading ? (
             <ActivityIndicator color="#FF2800" size="large" />

@@ -2,7 +2,7 @@ import { Text, View, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Nativ
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, AntDesign, MaterialIcons } from "@expo/vector-icons";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
 import DiscoverTab from "../../components/tabs/DiscoverTab";
 import ForYouTab from "../../components/tabs/ForYouTab";
 import FollowingTab from "../../components/tabs/FollowingTab";
@@ -10,8 +10,11 @@ import { useCartItemCount } from "../../stores/cartStore";
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile } from "../../stores/userProfileStore";
 import { useIsFocused } from "@react-navigation/native";
+import { useLanguage } from "../../context/LanguageContext";
+import type { TranslationKey } from "../../i18n/types";
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TABS = ["Discover", "For you", "Following"] as const;
+const TAB_KEYS = ["home_tab_discover", "home_tab_for_you", "home_tab_following"] as const satisfies readonly TranslationKey[];
+type TabKey = (typeof TAB_KEYS)[number];
 
 // Route constants for security
 const ROUTES = {
@@ -22,7 +25,8 @@ const ROUTES = {
 } as const;
 
 export default function Index() {
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("For you");
+  const { t } = useLanguage();
+  const [activeTab, setActiveTab] = useState<TabKey>("home_tab_for_you");
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -35,7 +39,7 @@ export default function Index() {
   // Navigation handlers with error handling
   const handleCartPress = useCallback(() => {
     try {
-      router.push(ROUTES.CART);
+      router.push(ROUTES.CART as Href);
     } catch (error) {
       console.error("Navigation error:", error);
     }
@@ -66,8 +70,8 @@ export default function Index() {
   }, [router]);
 
   // Handle tab press and scroll to the selected tab
-  const handleTabPress = useCallback((tab: (typeof TABS)[number]) => {
-    const index = TABS.indexOf(tab);
+  const handleTabPress = useCallback((tab: TabKey) => {
+    const index = TAB_KEYS.indexOf(tab);
     if (index === -1) {
       console.warn("Invalid tab:", tab);
       return;
@@ -88,18 +92,18 @@ export default function Index() {
     const index = Math.round(scrollPosition / SCREEN_WIDTH);
     
     // Bounds checking to prevent array index out of bounds
-    if (index >= 0 && index < TABS.length) {
-      setActiveTab(TABS[index]);
+    if (index >= 0 && index < TAB_KEYS.length) {
+      setActiveTab(TAB_KEYS[index]);
     }
   }, []);
 
   const handleDiscoverSellersPress = useCallback(() => {
-    handleTabPress("Discover");
+    handleTabPress("home_tab_discover");
   }, [handleTabPress]);
 
   // Initialize scroll position to "For you" tab (index 1)
   useEffect(() => {
-    const initialIndex = TABS.indexOf("For you");
+    const initialIndex = TAB_KEYS.indexOf("home_tab_for_you");
     if (initialIndex === -1) return;
 
     // Use InteractionManager or onLayout instead of setTimeout
@@ -134,11 +138,11 @@ export default function Index() {
             onPress={handleSearchPress}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Search Safick"
+            accessibilityLabel={t("home_search_placeholder")}
           >
             <Ionicons name="search" size={26} color="#000000" />
             <Text style={styles.searchPlaceholder} numberOfLines={1}>
-              Search Safick...
+              {t("home_search_placeholder")}
             </Text>
           </TouchableOpacity>
 
@@ -171,7 +175,7 @@ export default function Index() {
             {/* Message Icon */}
             <TouchableOpacity 
               onPress={handleMessagePress}
-              accessibilityLabel="Messages"
+              accessibilityLabel={t("a11y_messages")}
               accessibilityRole="button"
             >
               <AntDesign name="message" size={30} color="#000000" />
@@ -181,11 +185,11 @@ export default function Index() {
             <TouchableOpacity 
               style={styles.notificationContainer}
               onPress={handleNotificationPress}
-              accessibilityLabel="Notifications"
+              accessibilityLabel={t("a11y_notifications")}
               accessibilityRole="button"
             >
               <Ionicons name="notifications-outline" size={30} color="#000000" />
-              <View style={styles.badge} accessibilityLabel="Unread notifications" />
+              <View style={styles.badge} accessibilityLabel={t("a11y_unread_notifications")} />
             </TouchableOpacity>
           </View>
         </View>
@@ -194,24 +198,24 @@ export default function Index() {
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
         <View style={styles.tabsRow}>
-          {TABS.map((tab) => (
+          {TAB_KEYS.map((tabKey) => (
             <TouchableOpacity
-              key={tab}
-              onPress={() => handleTabPress(tab)}
+              key={tabKey}
+              onPress={() => handleTabPress(tabKey)}
               style={styles.tabButton}
-              accessibilityLabel={`${tab} tab`}
+              accessibilityLabel={`${t(tabKey)} tab`}
               accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === tab }}
+              accessibilityState={{ selected: activeTab === tabKey }}
             >
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === tab && styles.tabTextActive,
+                  activeTab === tabKey && styles.tabTextActive,
                 ]}
               >
-                {tab}
+                {t(tabKey)}
               </Text>
-              {activeTab === tab && <View style={styles.tabIndicator} />}
+              {activeTab === tabKey && <View style={styles.tabIndicator} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -234,7 +238,7 @@ export default function Index() {
         <DiscoverTab isLoading={tabBootstrapping} />
 
         {/* For you Tab */}
-        <ForYouTab isTabActive={activeTab === "For you"  && isHomeFocused} />
+        <ForYouTab isTabActive={activeTab === "home_tab_for_you" && isHomeFocused} />
 
         {/* Following Tab */}
         <FollowingTab onDiscoverPress={handleDiscoverSellersPress} />

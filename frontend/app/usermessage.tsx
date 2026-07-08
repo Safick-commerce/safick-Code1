@@ -28,6 +28,8 @@ import type { SocketChatMessagePayload, SocketTypingPayload } from "../types/soc
 import { ProfileAvatar } from "../components/shared/ProfileAvatar";
 import { ReportUserModal } from "../components/shared/ReportUserModal";
 import { CHAT_REPORT_REASONS } from "../constants/reportReasons";
+import { useLanguage } from "../context/LanguageContext";
+import type { TranslationKey } from "../i18n/types";
 
 const ROUTES = { USER_TAB: "/userTab" } as const;
 
@@ -131,11 +133,12 @@ function buildMessageList(
   conv: ConversationSummary,
   history: ChatMessage[],
   currentUserId: string | undefined,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
 ): Message[] {
   const systemLine: Message = {
     id: `system-${conv.id}`,
     type: "system",
-    text: `Conversation about ${conv.productTitle}`,
+    text: t("chat_conversation_about", { title: conv.productTitle }),
     isSent: false,
     timestamp: formatMessageTime(conv.createdAt),
   };
@@ -161,6 +164,7 @@ interface Message {
 // Sample messages removed — loaded from GET /api/conversations/:id/messages
 
 export default function UserMessage() {
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isConnected, connectionError } = useSocket();
@@ -212,7 +216,7 @@ export default function UserMessage() {
 
   const loadConversation = useCallback(async () => {
     if (!conversationId) {
-      setLoadError("No conversation selected.");
+      setLoadError(t("chat_no_conversation"));
       return;
     }
 
@@ -220,14 +224,14 @@ export default function UserMessage() {
     try {
       const { conversation: conv, messages: history } = await getConversationChat(conversationId);
       setConversation(conv);
-      setMessages(buildMessageList(conv, history, userId));
+      setMessages(buildMessageList(conv, history, userId, t));
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 50);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load conversation");
+      setLoadError(error instanceof Error ? error.message : t("chat_load_error"));
     } finally {
       initialLoadDone.current = true;
     }
-  }, [conversationId, userId]);
+  }, [conversationId, userId, t]);
 
   useEffect(() => {
     initialLoadDone.current = false;
@@ -237,7 +241,7 @@ export default function UserMessage() {
     const boot = takeConversationBootstrap(conversationId);
     if (boot) {
       setConversation(boot.conversation);
-      setMessages(buildMessageList(boot.conversation, boot.messages, userId));
+      setMessages(buildMessageList(boot.conversation, boot.messages, userId, t));
       if (boot.messages.length > 0) {
         initialLoadDone.current = true;
       }
@@ -248,7 +252,7 @@ export default function UserMessage() {
     }
 
     void loadConversation();
-  }, [conversationId, loadConversation, userId]);
+  }, [conversationId, loadConversation, userId, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -273,7 +277,7 @@ export default function UserMessage() {
           setConversation((prev) => prev ?? result.conversation!);
           setMessages((prev) => {
             if (prev.length > 0) return prev;
-            return buildMessageList(result.conversation!, result.messages!, userId);
+            return buildMessageList(result.conversation!, result.messages!, userId, t);
           });
           initialLoadDone.current = true;
         }
@@ -283,7 +287,7 @@ export default function UserMessage() {
     return () => {
       cancelled = true;
     };
-  }, [isConnected, conversationId, userId]);
+  }, [isConnected, conversationId, userId, t]);
 
   const appendIncoming = useCallback(
     (payload: SocketChatMessagePayload) => {
@@ -416,7 +420,7 @@ export default function UserMessage() {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Photo library access is required to send images.");
+      Alert.alert(t("common_permission_needed"), t("chat_photo_permission"));
       return;
     }
 
@@ -434,13 +438,13 @@ export default function UserMessage() {
       await sendChatText(formatImageMessage(publicUrl));
     } catch (error) {
       Alert.alert(
-        "Could not send photo",
-        error instanceof Error ? error.message : "Try again with a different image.",
+        t("chat_photo_send_failed"),
+        error instanceof Error ? error.message : t("common_try_again"),
       );
     } finally {
       setSendingPhoto(false);
     }
-  }, [conversationId, sendingPhoto, sendChatText]);
+  }, [conversationId, sendingPhoto, sendChatText, t]);
 
   const handleInputChange = useCallback(
     (text: string) => {
@@ -487,7 +491,7 @@ export default function UserMessage() {
   const handleSubmitOffer = useCallback(async () => {
     const amount = parseOfferPriceInput(offerPriceText);
     if (!amount) {
-      setOfferError("Enter a valid price in XAF.");
+      setOfferError(t("chat_offer_invalid_amount"));
       return;
     }
 
@@ -500,7 +504,7 @@ export default function UserMessage() {
     } finally {
       setSendingOffer(false);
     }
-  }, [offerPriceText, sendChatText]);
+  }, [offerPriceText, sendChatText, t]);
 
   const getReadStatusIcon = (status?: ReadStatus) => {
     switch (status) {
@@ -537,7 +541,7 @@ export default function UserMessage() {
           <View style={[styles.offerBubble, message.isSent ? styles.offerBubbleSent : styles.offerBubbleReceived]}>
             <View style={styles.offerBubbleHeader}>
               <MaterialIcons name="local-offer" size={18} color="#FF2800" />
-              <Text style={styles.offerBubbleTitle}>Price offer</Text>
+              <Text style={styles.offerBubbleTitle}>{t("chat_price_offer_label")}</Text>
             </View>
             <Text style={styles.offerBubbleAmount}>{offerLabel}</Text>
             <View style={styles.bubbleFooter}>
@@ -611,7 +615,7 @@ export default function UserMessage() {
     );
   };
 
-  const peerName = conversation?.peer.displayName ?? "Chat";
+  const peerName = conversation?.peer.displayName ?? t("messages_title");
   const productPriceLabel =
     conversation?.productPrice != null && Number.isFinite(conversation.productPrice)
       ? formatPriceXaf(conversation.productPrice)
@@ -620,9 +624,9 @@ export default function UserMessage() {
   if ((loadError && !conversation) || !conversationId) {
     return (
       <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
-        <Text style={styles.errorText}>{loadError ?? "Conversation not found."}</Text>
+        <Text style={styles.errorText}>{loadError ?? t("chat_not_found")}</Text>
         <TouchableOpacity onPress={handleBackPress} style={styles.backLink}>
-          <Text style={styles.backLinkText}>Go back</Text>
+          <Text style={styles.backLinkText}>{t("chat_go_back")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -646,8 +650,8 @@ export default function UserMessage() {
                 {isConnected && roomJoined
                   ? ""
                   : connectionError
-                    ? "Chat offline"
-                    : "Connecting…"}
+                    ? t("chat_offline")
+                    : t("chat_connecting")}
               </Text>
             </View>
           </TouchableOpacity>
@@ -656,7 +660,7 @@ export default function UserMessage() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerAction}
           accessibilityRole="button"
-          accessibilityLabel="More options"
+          accessibilityLabel={t("common_more_options")}
           onPress={() => setMenuOpen(true)}
           >
             <Ionicons name="ellipsis-vertical" size={24} color="#000000" />
@@ -678,14 +682,14 @@ export default function UserMessage() {
           )}
           <View style={styles.productInfo}>
             <Text style={styles.productName} numberOfLines={1}>
-              {conversation?.productTitle ?? "Listing"}
+              {conversation?.productTitle ?? t("chat_listing")}
             </Text>
             {productPriceLabel ? (
               <Text style={styles.productPrice}>{productPriceLabel}</Text>
             ) : null}
           </View>
           <TouchableOpacity style={styles.productBuyButton}>
-            <Text style={styles.productBuyText}>Buy</Text>
+            <Text style={styles.productBuyText}>{t("common_buy")}</Text>
           </TouchableOpacity>
         </View>
         ) : null}
@@ -725,12 +729,12 @@ export default function UserMessage() {
             <TouchableOpacity style={styles.offerButton}
             onPress={handleMakeOffer}
             accessibilityRole="button"
-            accessibilityLabel="Make a price offer">
+            accessibilityLabel={t("chat_make_offer")}>
               <MaterialIcons name="local-offer" size={24} color="#FF2800" />
             </TouchableOpacity>
             <TextInput
               style={styles.messageInput}
-              placeholder="Type a message..."
+              placeholder={t("chat_type_message")}
               placeholderTextColor="#999999"
               value={inputText}
               onChangeText={handleInputChange}
@@ -743,7 +747,7 @@ export default function UserMessage() {
               onPress={() => void handlePickPhoto()}
               disabled={sendingPhoto}
               accessibilityRole="button"
-              accessibilityLabel="Send photo from library"
+              accessibilityLabel={t("a11y_send_photo_library")}
             >
               {sendingPhoto ? (
                 <ActivityIndicator size="small" color="#1a1a1a" />
@@ -771,10 +775,10 @@ export default function UserMessage() {
               onPress={(e) => e.stopPropagation()}
               style={[styles.menuCard, { top: insets.top + 58 }]}
             >
-              <Text style={styles.menuSectionLabel}>Actions</Text>
+              <Text style={styles.menuSectionLabel}>{t("common_actions")}</Text>
               <MenuActionRow
                 iconName="person-outline"
-                label="View profile"
+                label={t("chat_view_profile")}
                 onPress={() => {
                   setMenuOpen(false);
                   handleViewProfilePress();
@@ -782,7 +786,7 @@ export default function UserMessage() {
               />
               <MenuActionRow
                 iconName="flag-outline"
-                label="Report user"
+                label={t("chat_report_user")}
                 onPress={onReportPress}
                 destructive
               />
@@ -805,13 +809,13 @@ export default function UserMessage() {
               style={styles.offerModalKeyboard}
             >
               <Pressable style={styles.offerModalCard} onPress={(e) => e.stopPropagation()}>
-                <Text style={styles.offerModalTitle}>Make a price offer</Text>
+                <Text style={styles.offerModalTitle}>{t("chat_make_offer")}</Text>
                 <Text style={styles.offerModalSubtitle} numberOfLines={2}>
-                  {conversation?.productTitle ?? "This listing"}
+                  {conversation?.productTitle ?? t("chat_listing")}
                 </Text>
                 <TextInput
                   style={styles.offerModalInput}
-                  placeholder="Amount in XAF"
+                  placeholder={t("chat_offer_amount")}
                   placeholderTextColor="#9CA3AF"
                   keyboardType="numeric"
                   value={offerPriceText}
@@ -829,7 +833,7 @@ export default function UserMessage() {
                     onPress={handleCloseOfferModal}
                     disabled={sendingOffer}
                   >
-                    <Text style={styles.offerModalCancelText}>Cancel</Text>
+                    <Text style={styles.offerModalCancelText}>{t("common_cancel")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.offerModalSubmit, sendingOffer && styles.offerModalSubmitDisabled]}
@@ -837,7 +841,7 @@ export default function UserMessage() {
                     disabled={sendingOffer}
                   >
                     <Text style={styles.offerModalSubmitText}>
-                      {sendingOffer ? "Sending…" : "Send offer"}
+                      {sendingOffer ? t("chat_sending") : t("chat_send_offer")}
                     </Text>
                   </TouchableOpacity>
                 </View>

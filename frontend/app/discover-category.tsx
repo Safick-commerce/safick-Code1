@@ -13,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { DISCOVER_CATEGORIES, type DiscoverCategoryName } from "../constants/categories";
+import { useLanguage } from "../context/LanguageContext";
+import type { TranslationKey } from "../i18n/types";
 
 const RED = "#FF2800";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -20,18 +22,29 @@ const GAP = 1;
 const PAD = 10;
 const CARD_W = (SCREEN_WIDTH - PAD * 2 - GAP) / 2;
 
-const HUB_SEGMENTS = [
-  "Recommended",
-  "Buy it now",
-  "Popular",
-  "New",
-  "Trending",
-  "Sales",
-  "Best",
-  "Limited",
+const HUB_SEGMENT_IDS = [
+  "recommended",
+  "buy_now",
+  "popular",
+  "new",
+  "trending",
+  "sales",
+  "best",
+  "limited",
 ] as const;
 
-type HubSegment = (typeof HUB_SEGMENTS)[number];
+type HubSegmentId = (typeof HUB_SEGMENT_IDS)[number];
+
+const SEGMENT_LABEL_KEYS: Record<HubSegmentId, TranslationKey> = {
+  recommended: "discover_hub_segment_recommended",
+  buy_now: "discover_hub_segment_buy_now",
+  popular: "discover_hub_segment_popular",
+  new: "discover_hub_segment_new",
+  trending: "discover_hub_segment_trending",
+  sales: "discover_hub_segment_sales",
+  best: "discover_hub_segment_best",
+  limited: "discover_hub_segment_limited",
+};
 
 type HubItem = {
   id: string;
@@ -39,15 +52,12 @@ type HubItem = {
   price: string;
   seller: string;
   image: number;
-  segments: HubSegment[];
+  segments: HubSegmentId[];
 };
 
 /** Preview grid until category + listings API exists. */
-function buildHubItems(category: string): HubItem[] {
-  const c = category.trim() || "All";
-  return [
-    
-  ];
+function buildHubItems(_category: string): HubItem[] {
+  return [];
 }
 
 function normalizeParam(v: string | string[] | undefined): string {
@@ -61,16 +71,17 @@ function isKnownCategory(name: string): name is DiscoverCategoryName {
 }
 
 export default function DiscoverCategoryScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { category: categoryParam } = useLocalSearchParams<{ category?: string | string[] }>();
   const category = normalizeParam(categoryParam);
 
-  const [segment, setSegment] = useState<HubSegment>("Recommended");
+  const [segment, setSegment] = useState<HubSegmentId>("recommended");
 
   const items = useMemo(() => buildHubItems(category || "Shop"), [category]);
 
   const filtered = useMemo(() => {
-    if (segment === "Recommended") return items;
+    if (segment === "recommended") return items;
     return items.filter((it) => it.segments.includes(segment));
   }, [items, segment]);
 
@@ -79,7 +90,10 @@ export default function DiscoverCategoryScreen() {
     router.back();
   }, [router]);
 
-  const title = category && isKnownCategory(category) ? category : category || "Browse";
+  const title =
+    category && isKnownCategory(category)
+      ? category
+      : category || t("discover_hub_browse");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -102,7 +116,7 @@ export default function DiscoverCategoryScreen() {
           style={styles.segmentRow}
           keyboardShouldPersistTaps="handled"
         >
-          {HUB_SEGMENTS.map((s) => (
+          {HUB_SEGMENT_IDS.map((s) => (
             <Pressable
               key={s}
               onPress={() => setSegment(s)}
@@ -111,7 +125,7 @@ export default function DiscoverCategoryScreen() {
               accessibilityState={{ selected: segment === s }}
             >
               <Text style={[styles.segmentText, segment === s && styles.segmentTextOn]} numberOfLines={1}>
-                {s}
+                {s === "popular" ? t("discover_popular_now") : t(SEGMENT_LABEL_KEYS[s])}
               </Text>
             </Pressable>
           ))}
@@ -120,8 +134,12 @@ export default function DiscoverCategoryScreen() {
 
       {filtered.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>No items for &quot;{segment}&quot; in this preview.</Text>
-          <Text style={styles.emptySub}>Try Recommended or another filter.</Text>
+          <Text style={styles.emptyText}>{t("discover_hub_empty_title")}</Text>
+          <Text style={styles.emptySub}>
+            {segment === "recommended"
+              ? t("discover_hub_empty_body")
+              : t("home_try_another_category")}
+          </Text>
         </View>
       ) : (
         <ScrollView
