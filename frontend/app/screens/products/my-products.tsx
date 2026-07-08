@@ -1,3 +1,6 @@
+// My Products Screen - Display the products that the seller has listed for sale
+// This screen is accessible to sellers only
+
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
