@@ -226,6 +226,7 @@ export default function Index() {
         ref={scrollViewRef}
         horizontal
         pagingEnabled
+        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScroll}
         style={styles.scrollView}

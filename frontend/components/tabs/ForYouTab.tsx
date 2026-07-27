@@ -22,6 +22,7 @@ import {
   type ForYouFeedMode,
 } from "../../utils/forYouFeed";
 import { ApiError } from "../../lib/apiFetch";
+import { useFollowingIds } from "../../hooks/useFollowingIds";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const FEED_PAGE_SIZE = 10;
@@ -49,7 +50,7 @@ export default function ForYouTab({ isTabActive = true }: ForYouTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [firstVideoReady, setFirstVideoReady] = useState(false);
-  const [followingBySeller, setFollowingBySeller] = useState<Record<string, boolean>>({});
+  const { isFollowing, toggleFollow } = useFollowingIds();
 
   const viewedIds = useRef(new Set<string>());
   const loadMoreLock = useRef(false);
@@ -164,12 +165,12 @@ export default function ForYouTab({ isTabActive = true }: ForYouTabProps) {
     [router],
   );
 
-  const toggleFollow = useCallback((sellerId: string) => {
-    setFollowingBySeller((prev) => ({
-      ...prev,
-      [sellerId]: !prev[sellerId],
-    }));
-  }, []);
+  const toggleFollowForSeller = useCallback(
+    (sellerId: string) => {
+      void toggleFollow(sellerId);
+    },
+    [toggleFollow],
+  );
 
   const handleFirstVideoReady = useCallback(() => {
     setFirstVideoReady(true);
@@ -183,8 +184,8 @@ export default function ForYouTab({ isTabActive = true }: ForYouTabProps) {
           item={item}
           pageHeight={pageHeight}
           isActive={isActive}
-          isFollowing={Boolean(followingBySeller[item.seller.id])}
-          onToggleFollow={() => toggleFollow(item.seller.id)}
+          isFollowing={isFollowing(item.seller.id)}
+          onToggleFollow={() => toggleFollowForSeller(item.seller.id)}
           onBuyPress={() => handleBuyPress(item)}
           onSellerPress={() => handleSellerPress(item)}
           onBecameActive={() => trackView(item.id)}
@@ -195,13 +196,13 @@ export default function ForYouTab({ isTabActive = true }: ForYouTabProps) {
     [
       activeIndex,
       appActive,
-      followingBySeller,
       handleBuyPress,
       handleFirstVideoReady,
       handleSellerPress,
+      isFollowing,
       isTabActive,
       pageHeight,
-      toggleFollow,
+      toggleFollowForSeller,
       trackView,
     ],
   );

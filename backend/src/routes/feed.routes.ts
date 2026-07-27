@@ -2,6 +2,7 @@
 // Product feed routes — /api/products/*
 // =============================================================================
 //   GET  /api/products/feed/for-you              — optional auth, query: cursor?, limit?
+//   GET  /api/products/feed/discover             — optional auth, query: category?, cursor?, limit?
 //   GET  /api/products/seller/:sellerId/view-counts — public aggregate for profile grids
 //   POST /api/products/:id/view                  — optional auth, body: { clientId? }
 //
@@ -13,6 +14,7 @@ import { optionalAuth } from "../middleware/auth";
 import { validate, validateQuery } from "../middleware/validate";
 import * as feedController from "../controllers/feed.controller";
 import {
+  discoverFeedQuerySchema,
   forYouFeedQuerySchema,
   recordProductViewBodySchema,
 } from "../types/feed";
@@ -24,6 +26,13 @@ router.get(
   optionalAuth,
   validateQuery(forYouFeedQuerySchema),
   feedController.getForYouFeed,
+);
+
+router.get(
+  "/feed/discover",
+  optionalAuth,
+  validateQuery(discoverFeedQuerySchema),
+  feedController.getDiscoverFeed,
 );
 
 router.get(

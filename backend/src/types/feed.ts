@@ -43,6 +43,7 @@ export interface ForYouFeedItemResponse {
   price: string;
   category: string | null;
   videoUrl: string;
+  /** Video-derived cover when cached on server; client may extract a frame from videoUrl. */
   thumbnailUrl: string | null;
   seller: ForYouFeedSellerResponse;
   createdAt: string;
@@ -52,6 +53,28 @@ export interface ForYouFeedResponse {
   items: ForYouFeedItemResponse[];
   nextCursor: string | null;
   mode: ForYouFeedMode;
+}
+
+// -----------------------------------------------------------------------------
+// GET /api/products/feed/discover
+// -----------------------------------------------------------------------------
+
+export const discoverFeedQuerySchema = z.object({
+  cursor: z.string().trim().min(1).max(512).optional(),
+  limit: z.coerce.number().int().min(1).max(40).optional().default(24),
+  category: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .optional(),
+});
+
+export type DiscoverFeedQuery = z.infer<typeof discoverFeedQuerySchema>;
+
+export interface DiscoverFeedResponse {
+  items: ForYouFeedItemResponse[];
+  nextCursor: string | null;
 }
 
 // -----------------------------------------------------------------------------

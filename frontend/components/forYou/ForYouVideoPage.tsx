@@ -24,6 +24,7 @@ import { EvilIcons, Ionicons } from "@expo/vector-icons";
 import ProductCard from "../shared/ProductCard";
 import VideoSideIcons from "../shared/VideoSideIcons";
 import type { ForYouFeedItem } from "../../utils/forYouFeed";
+import { useVideoCoverUri } from "../../hooks/useVideoCoverUri";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 /** Stop endless spinner when storage URL is private (browser shows access denied). */
@@ -199,10 +200,12 @@ export default function ForYouVideoPage({
     });
   }, [playError, hasValidUri, isActive]);
 
-  const thumbnailUri = item.thumbnailUrl?.trim() || null;
+  const { coverUri: videoCoverUri } = useVideoCoverUri(videoUri, {
+    serverCoverUrl: item.thumbnailUrl,
+  });
   const showPoster = playError || !firstFrameReady;
   const showBufferSpinner =
-    buffering && !playError && !firstFrameReady && !thumbnailUri;
+    buffering && !playError && !firstFrameReady && !videoCoverUri;
 
   const locationLabel = item.seller.city?.trim() || "Cameroon";
   const isProfile = variant === "profile";
@@ -219,7 +222,7 @@ export default function ForYouVideoPage({
           shouldPlay={shouldPlay}
           isLooping
           isMuted={muted}
-          posterSource={thumbnailUri ? { uri: thumbnailUri } : undefined}
+          posterSource={videoCoverUri ? { uri: videoCoverUri } : undefined}
           progressUpdateIntervalMillis={500}
           onPlaybackStatusUpdate={onPlaybackStatusUpdate}
           onError={() => handleVideoError("playback failed")}
@@ -246,7 +249,7 @@ export default function ForYouVideoPage({
         </View>
       ) : null}
 
-      {showPoster && !thumbnailUri ? (
+      {showPoster && !videoCoverUri ? (
         <View style={[StyleSheet.absoluteFill, styles.posterPlaceholder]} />
       ) : null}
 

@@ -1,121 +1,67 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Image } from "react-native";
-import { useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+} from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
 
-import { DISCOVER_CATEGORIES, type DiscoverCategoryName } from "../../constants/categories";
+import { DISCOVER_CATEGORIES } from "../../constants/categories";
 import { DiscoverTabSkeleton } from "../shared/DiscoverTabSkeleton";
+import { VideoCoverImage } from "../shared/VideoCoverImage";
 import { useLanguage } from "../../context/LanguageContext";
+import { fetchDiscoverFeed } from "../../utils/discoverFeed";
+import type { ForYouFeedItem } from "../../utils/forYouFeed";
+import { ApiError } from "../../lib/apiFetch";
+import { getNetworkProfile } from "../../utils/networkProfile";
+import { prefetchDiscoverCovers } from "../../utils/videoCoverResolve";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Popular cards: use full width (one gap between two cards), responsive height
 const CONTENT_PADDING = 1;
 const CARD_GAP = 6;
 const CARD_WIDTH = (SCREEN_WIDTH - CONTENT_PADDING * 2 - CARD_GAP) / 2;
 const IMAGE_HEIGHT = Math.round(SCREEN_HEIGHT * 0.36);
+const DISCOVER_PAGE_SIZE = 24;
 
-type PopularProduct = {
-  id: number;
+type DiscoverCard = {
+  id: string;
+  sellerId: string;
   seller: string;
   name: string;
   price: string;
-  rating: number;
-  location: string;
-  image: number;
-  sellerAvatar: number;
-  category: DiscoverCategoryName;
+  videoUri: string;
+  serverCoverUri: string | null;
+  coverUri: string | null;
+  sellerAvatarUri: string | null;
 };
 
-const POPULAR_PRODUCTS: PopularProduct[] = [
-  {
-    id: 1,
-    seller: "Tracy",
-    name: "Elite Series Smartwatch - Silver Edition",
-    price: "25,000 XAF",
-    rating: 4.8,
-    location: "Douala",
-    image: require("../../assets/images/seller3.jpeg"),
-    sellerAvatar: require("../../assets/images/seller.png"),
-    category: "Electronics",
-  },
-  {
-    id: 2,
-    seller: "Emily Shop",
-    name: "SpeedRunner Pro X - Limited Red",
-    price: "42,500 XAF",
-    rating: 5.0,
-    location: "Douala",
-    image: require("../../assets/images/seller4.jpeg"),
-    sellerAvatar: require("../../assets/images/seller2.png"),
-    category: "Shoes",
-  },
-  {
-    id: 3,
-    seller: "Brenda Style",
-    name: "Acoustic Pro Bass Headphones",
-    price: "18,000 XAF",
-    rating: 4.9,
-    location: "Yaoundé",
-    image: require("../../assets/images/seller.png"),
-    sellerAvatar: require("../../assets/images/seller3.jpeg"),
-    category: "Electronics",
-  },
-  {
-    id: 4,
-    seller: "Luxury Hub",
-    name: "Glow Essence Skincare Ritual",
-    price: "12,500 XAF",
-    rating: 4.7,
-    location: "Buea",
-    image: require("../../assets/images/seller4.jpeg"),
-    sellerAvatar: require("../../assets/images/seller04.jpeg"),
-    category: "Beauty",
-  },
-  {
-    id: 5,
-    seller: "TechWorld",
-    name: "Stealth Walkers - All Black Edition",
-    price: "35,000 XAF",
-    rating: 4.8,
-    location: "Douala",
-    image: require("../../assets/images/seller2.png"),
-    sellerAvatar: require("../../assets/images/seller.png"),
-    category: "Shoes",
-  },
-  {
-    id: 6,
-    seller: "NatureCo",
-    name: "Master Shot Lens 50mm f/1.8",
-    price: "85,000 XAF",
-    rating: 5.0,
-    location: "Bamenda",
-    image: require("../../assets/images/seller2.png"),
-    sellerAvatar: require("../../assets/images/seller3.jpeg"),
-    category: "Gadgets",
-  },
-  {
-    id: 7,
-    seller: "FitGear",
-    name: "Wireless Charging Pad Pro",
-    price: "8,500 XAF",
-    rating: 4.5,
-    location: "Limbe",
-    image: require("../../assets/images/seller2.png"),
-    sellerAvatar: require("../../assets/images/seller2.png"),
-    category: "Accessories",
-  },
-  {
-    id: 8,
-    seller: "StyleVault",
-    name: "Premium Leather Crossbody Bag",
-    price: "22,000 XAF",
-    rating: 4.6,
-    location: "Douala",
-    image: require("../../assets/images/seller2.png"),
-    sellerAvatar: require("../../assets/images/seller04.jpeg"),
-    category: "Fashion",
-  },
-];
+function sellerDisplayName(item: ForYouFeedItem): string {
+  const s = item.seller;
+  return (
+    s.displayName?.trim() ||
+    (s.username ? `@${s.username}` : "Seller")
+  );
+}
+
+function mapFeedItemToCard(item: ForYouFeedItem, coverUri: string | null): DiscoverCard {
+  return {
+    id: item.id,
+    sellerId: item.seller.id,
+    seller: sellerDisplayName(item),
+    name: item.title,
+    price: item.price,
+    videoUri: item.videoUrl,
+    serverCoverUri: item.thumbnailUrl?.trim() || null,
+    coverUri,
+    sellerAvatarUri: item.seller.avatarUrl?.trim() || null,
+  };
+}
 
 export type DiscoverTabProps = {
   isLoading?: boolean;
@@ -123,22 +69,71 @@ export type DiscoverTabProps = {
 
 export default function DiscoverTab({ isLoading = false }: DiscoverTabProps) {
   const { t } = useLanguage();
+  const router = useRouter();
   const [activeDiscoverCategory, setActiveDiscoverCategory] = useState<string | null>(null);
+  const [cards, setCards] = useState<DiscoverCard[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
-  const filteredProducts = useMemo(() => {
-    if (!activeDiscoverCategory) return POPULAR_PRODUCTS;
-    return POPULAR_PRODUCTS.filter((p) => p.category === activeDiscoverCategory);
-  }, [activeDiscoverCategory]);
+  const loadDiscover = useCallback(async (category: string | null) => {
+    setFeedLoading(true);
+    setFeedError(null);
+    setCards([]);
+    try {
+      const network = await getNetworkProfile();
+      if (!network.isConnected) {
+        setFeedError("No internet connection. Check your network and try again.");
+        return;
+      }
+
+      const res = await fetchDiscoverFeed({
+        category,
+        limit: DISCOVER_PAGE_SIZE,
+        timeoutMs: network.apiTimeoutMs,
+      });
+
+      const coverById = await prefetchDiscoverCovers(res.items, {
+        concurrency: network.coverConcurrency,
+        deadlineMs: network.coverDeadlineMs,
+      });
+
+      setCards(
+        res.items.map((item) => mapFeedItemToCard(item, coverById.get(item.id) ?? null)),
+      );
+    } catch (e) {
+      setCards([]);
+      setFeedError(
+        e instanceof ApiError ? e.message : "Could not load discover clips. Try again.",
+      );
+    } finally {
+      setFeedLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+    void loadDiscover(activeDiscoverCategory);
+  }, [activeDiscoverCategory, isLoading, loadDiscover]);
 
   const popularRows = useMemo(() => {
-    const rows: PopularProduct[][] = [];
-    for (let i = 0; i < filteredProducts.length; i += 2) {
-      rows.push(filteredProducts.slice(i, i + 2));
+    const rows: DiscoverCard[][] = [];
+    for (let i = 0; i < cards.length; i += 2) {
+      rows.push(cards.slice(i, i + 2));
     }
     return rows;
-  }, [filteredProducts]);
+  }, [cards]);
 
-  if (isLoading) {
+  const openClip = useCallback(
+    (card: DiscoverCard) => {
+      router.push({
+        pathname: "/profile-clips",
+        params: { sellerId: card.sellerId, clipId: card.id },
+      });
+    },
+    [router],
+  );
+
+  if (isLoading || feedLoading) {
     return <DiscoverTabSkeleton />;
   }
 
@@ -148,13 +143,16 @@ export default function DiscoverTab({ isLoading = false }: DiscoverTabProps) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         scrollEventThrottle={16}
+        nestedScrollEnabled
       >
-        {/* Category circles — scrolls away naturally like Instagram stories */}
         <View style={styles.topContainer}>
           <ScrollView
             horizontal
+            nestedScrollEnabled
+            style={styles.categoryRailScroll}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.circleScrollContainer}
+            scrollEventThrottle={16}
           >
             <View style={styles.circleContainer}>
               <TouchableOpacity
@@ -192,19 +190,27 @@ export default function DiscoverTab({ isLoading = false }: DiscoverTabProps) {
           </ScrollView>
         </View>
 
-        {/* Popular Now header */}
-        
-          <View style={styles.titleRow}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.popularText}>{t("discover_popular_now")}</Text>
-              <Text style={styles.recommendedSubText}>
-                {activeDiscoverCategory ? `${activeDiscoverCategory} ` : t("discover_recommended")}
-              </Text>
-            </View>
+        <View style={styles.titleRow}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.popularText}>{t("discover_popular_now")}</Text>
+            <Text style={styles.recommendedSubText}>
+              {activeDiscoverCategory ? `${activeDiscoverCategory} ` : t("discover_recommended")}
+            </Text>
           </View>
+        </View>
 
-        {/* Product cards grid — 2 per row */}
-        {filteredProducts.length === 0 ? (
+        {feedError && cards.length === 0 ? (
+          <View style={styles.emptyCategoryWrap}>
+            <Text style={styles.emptyCategoryTitle}>{feedError}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => void loadDiscover(activeDiscoverCategory)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.retryButtonText}>{t("common_try_again")}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : cards.length === 0 ? (
           <View style={styles.emptyCategoryWrap}>
             <Text style={styles.emptyCategoryTitle}>
               {t("home_no_picks", { category: activeDiscoverCategory ?? "" })}
@@ -213,19 +219,37 @@ export default function DiscoverTab({ isLoading = false }: DiscoverTabProps) {
           </View>
         ) : (
           popularRows.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.downContainer}>
+            <View key={`row-${rowIndex}`} style={styles.downContainer}>
               <View style={styles.triangleScrollContainer}>
                 {row.map((card, index) => (
-                  <View key={card.id} style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}>
+                  <TouchableOpacity
+                    key={card.id}
+                    style={[styles.triangleContainer, index === 1 && styles.triangleContainerLast]}
+                    activeOpacity={0.88}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${card.name}, ${card.price}`}
+                    onPress={() => openClip(card)}
+                  >
                     <View style={styles.triangle}>
-                      <Image source={card.image} style={styles.triangleImage} resizeMode="cover" />
-                      <View style={styles.ratingBadge}>
-                        <Ionicons name="star" size={12} color="#ffa500" />
-                        <Text style={styles.ratingText}>{card.rating}</Text>
+                      <VideoCoverImage
+                        videoUrl={card.videoUri}
+                        serverCoverUrl={card.serverCoverUri}
+                        coverUri={card.coverUri}
+                        style={styles.triangleImage}
+                        contentFit="cover"
+                      />
+                      <View style={styles.clipBadge}>
+                        <Ionicons name="play" size={12} color="#FFFFFF" />
                       </View>
                       <View style={styles.sellerRow}>
                         <View style={styles.avatarContainer}>
-                          <Image source={card.sellerAvatar} style={styles.avatarImage} resizeMode="cover" />
+                          {card.sellerAvatarUri ? (
+                            <Image source={{ uri: card.sellerAvatarUri }} style={styles.avatarImage} resizeMode="cover" />
+                          ) : (
+                            <View style={[styles.avatarImage, styles.avatarPlaceholder]}>
+                              <Ionicons name="person" size={14} color="#6B7280" />
+                            </View>
+                          )}
                         </View>
                         <Text style={styles.sellerName} numberOfLines={1}>
                           {card.seller}
@@ -236,7 +260,7 @@ export default function DiscoverTab({ isLoading = false }: DiscoverTabProps) {
                       {card.name}
                     </Text>
                     <Text style={styles.productPrice}>{card.price}</Text>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
@@ -251,22 +275,15 @@ const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
     flex: 1,
-    alignItems: 'stretch',
-    backgroundColor: '#ffffff',
-  },
-  contentText: {
-    color: '#ff2800',
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: 'semibold',
-    fontFamily: 'Inter',
+    alignItems: "stretch",
+    backgroundColor: "#ffffff",
   },
   popularText: {
-    color: '#000000',
+    color: "#000000",
     marginTop: 8,
     fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Inter',
+    fontWeight: "bold",
+    fontFamily: "Inter",
   },
   scrollContent: {
     paddingHorizontal: CONTENT_PADDING,
@@ -274,15 +291,21 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 12,
     marginTop: 20,
     marginBottom: 4,
   },
   topContainer: {
+    width: "100%",
     marginBottom: 16,
+  },
+  /** Android: without an explicit width, nested horizontal ScrollViews expand to fit all chips and never scroll. */
+  categoryRailScroll: {
+    width: SCREEN_WIDTH - CONTENT_PADDING * 2,
+    flexGrow: 0,
   },
   circleScrollContainer: {
     paddingHorizontal: 5,
@@ -316,33 +339,33 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   triangleScrollContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
   },
   triangleContainer: {
     width: CARD_WIDTH,
     marginRight: CARD_GAP,
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
   },
   triangleContainerLast: {
     marginRight: 0,
   },
   sellerRow: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 8,
     right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
   },
   sellerName: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    fontWeight: "600",
+    color: "#FFFFFF",
+    fontFamily: "Inter",
+    textShadowColor: "rgba(0, 0, 0, 0.6)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
     maxWidth: CARD_WIDTH * 0.45,
@@ -351,75 +374,78 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: IMAGE_HEIGHT,
     borderRadius: 10,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#E5E7EB",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
   triangleImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
-  ratingBadge: {
-    position: 'absolute',
+  thumbPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1F2937",
+  },
+  clipBadge: {
+    position: "absolute",
     bottom: 8,
     left: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
     borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    gap: 3,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   avatarContainer: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    overflow: 'hidden',
-    backgroundColor: '#E5E7EB',
+    borderColor: "#FFFFFF",
+    overflow: "hidden",
+    backgroundColor: "#E5E7EB",
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
+  },
+  avatarPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#D1D5DB",
   },
   productName: {
     marginTop: 8,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
+    fontWeight: "600",
+    color: "#000000",
     paddingHorizontal: 2,
     maxWidth: CARD_WIDTH,
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
   },
   productPrice: {
     marginTop: 4,
     fontSize: 14,
-    fontWeight: '700',
-    color: '#FF2800',
+    fontWeight: "700",
+    color: "#FF2800",
     paddingHorizontal: 2,
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
   },
   titleContainer: {
-    flexDirection: 'column',
+    flexDirection: "column",
   },
   recommendedSubText: {
-    color: '#666666',
+    color: "#666666",
     marginTop: 4,
     fontSize: 14,
-    fontWeight: 'normal',
-    fontFamily: 'Inter',
+    fontWeight: "normal",
+    fontFamily: "Inter",
   },
   downContainer: {
-    width: '100%',
+    width: "100%",
     marginTop: 20,
   },
   circleText: {
@@ -434,6 +460,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 16,
+    alignItems: "center",
   },
   emptyCategoryTitle: {
     fontSize: 16,
@@ -448,5 +475,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 20,
   },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#111827",
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
+  },
 });
-

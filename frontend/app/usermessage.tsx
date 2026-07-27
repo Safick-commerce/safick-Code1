@@ -1,4 +1,20 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ScrollView, Modal, Pressable, KeyboardAvoidingView, Platform, Keyboard, Alert, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Modal,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  Alert,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
@@ -24,6 +40,11 @@ import { takeConversationBootstrap } from "../utils/conversationBootstrapCache";
 import { apiFetch } from "../lib/apiFetch";
 import { formatPriceXaf } from "../utils/searchApi";
 import { uploadChatImage } from "../utils/uploadChatImage";
+import {
+  CHAT_OFFER_PREFIX,
+  formatChatImageMessage,
+  parseChatMessageBody,
+} from "../utils/chatMessageFormat";
 import type { SocketChatMessagePayload, SocketTypingPayload } from "../types/socket";
 import { ProfileAvatar } from "../components/shared/ProfileAvatar";
 import { ReportUserModal } from "../components/shared/ReportUserModal";
@@ -32,6 +53,7 @@ import { useLanguage } from "../context/LanguageContext";
 import type { TranslationKey } from "../i18n/types";
 
 const ROUTES = { USER_TAB: "/userTab" } as const;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -56,23 +78,8 @@ function MenuActionRow({
     </TouchableOpacity>
   );
 }
-const OFFER_PREFIX = "Price offer: ";
-const IMAGE_PREFIX = "IMAGE:";
-
 function formatOfferMessage(amount: number): string {
-  return `${OFFER_PREFIX}${formatPriceXaf(amount)}`;
-}
-
-function isOfferMessage(text: string): boolean {
-  return text.startsWith(OFFER_PREFIX);
-}
-
-function isImageMessage(text: string): boolean {
-  return text.startsWith(IMAGE_PREFIX);
-}
-
-function formatImageMessage(imageUrl: string): string {
-  return `${IMAGE_PREFIX}${imageUrl}`;
+  return `${CHAT_OFFER_PREFIX}${formatPriceXaf(amount)}`;
 }
 
 function parseOfferPriceInput(raw: string): number | null {
@@ -87,23 +94,24 @@ function wireTextToMessage(
   text: string,
   base: Omit<Message, "type" | "text" | "dealAmount" | "imageUrl">,
 ): Message {
-  if (isImageMessage(text)) {
+  const parsed = parseChatMessageBody(text);
+  if (parsed.kind === "image") {
     return {
       ...base,
       type: "image",
       text: "",
-      imageUrl: text.slice(IMAGE_PREFIX.length),
+      imageUrl: parsed.imageUrl,
     };
   }
-  if (isOfferMessage(text)) {
+  if (parsed.kind === "offer") {
     return {
       ...base,
       type: "status_update",
-      text,
+      text: `${CHAT_OFFER_PREFIX}${parsed.label}`,
       dealAmount: undefined,
     };
   }
-  return { ...base, type: "text", text };
+  return { ...base, type: "text", text: parsed.text };
 }
 
 function formatMessageTime(isoOrDate?: string): string {
@@ -192,6 +200,7 @@ export default function UserMessage() {
   const [offerError, setOfferError] = useState<string | null>(null);
   const [sendingOffer, setSendingOffer] = useState(false);
   const [sendingPhoto, setSendingPhoto] = useState(false);
+  const [expandedImageUrl, setExpandedImageUrl] = useState<string | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const userId = user?.id;
@@ -435,7 +444,7 @@ export default function UserMessage() {
     setSendingPhoto(true);
     try {
       const publicUrl = await uploadChatImage(conversationId, picked.assets[0].uri);
-      await sendChatText(formatImageMessage(publicUrl));
+      await sendChatText(formatChatImageMessage(publicUrl));
     } catch (error) {
       Alert.alert(
         t("chat_photo_send_failed"),
@@ -528,8 +537,8 @@ export default function UserMessage() {
       );
     }
 
-    if (message.type === 'status_update' || isOfferMessage(message.text)) {
-      const offerLabel = message.text.slice(OFFER_PREFIX.length);
+    if (message.type === "status_update" || message.text.startsWith(CHAT_OFFER_PREFIX)) {
+      const offerLabel = message.text.slice(CHAT_OFFER_PREFIX.length);
       return (
         <View
           key={message.id}
@@ -570,7 +579,18 @@ export default function UserMessage() {
           ]}
         >
           <View style={[styles.imageBubble, message.isSent ? styles.imageBubbleSent : styles.imageBubbleReceived]}>
-            <Image source={{ uri: message.imageUrl }} style={styles.imageBubblePhoto} resizeMode="cover" />
+            <Pressable
+              onPress={() => setExpandedImageUrl(message.imageUrl!)}
+              accessibilityRole="button"
+              accessibilityLabel={t("a11y_view_chat_photo")}
+              accessibilityHint={t("chat_photo_view_hint")}
+            >
+              <Image
+                source={{ uri: message.imageUrl }}
+                style={styles.imageBubblePhoto}
+                contentFit="cover"
+              />
+            </Pressable>
             <View style={styles.bubbleFooter}>
               <Text
                 style={[
@@ -802,6 +822,39 @@ export default function UserMessage() {
           onSubmit={handleReportSubmit}
         />
 
+        <Modal
+          visible={expandedImageUrl != null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setExpandedImageUrl(null)}
+        >
+          <Pressable
+            style={styles.imageViewerBackdrop}
+            onPress={() => setExpandedImageUrl(null)}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y_close_photo_view")}
+          >
+            <TouchableOpacity
+              style={[styles.imageViewerClose, { top: insets.top + 8 }]}
+              onPress={() => setExpandedImageUrl(null)}
+              accessibilityRole="button"
+              accessibilityLabel={t("a11y_close_photo_view")}
+            >
+              <Ionicons name="close" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+            {expandedImageUrl ? (
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <Image
+                  source={{ uri: expandedImageUrl }}
+                  style={styles.imageViewerPhoto}
+                  contentFit="contain"
+                  accessibilityLabel={t("chat_photo_message")}
+                />
+              </Pressable>
+            ) : null}
+          </Pressable>
+        </Modal>
+
         <Modal visible={offerModalOpen} transparent animationType="fade" onRequestClose={handleCloseOfferModal}>
           <Pressable style={styles.offerModalBackdrop} onPress={handleCloseOfferModal}>
             <KeyboardAvoidingView
@@ -1030,6 +1083,23 @@ const styles = StyleSheet.create({
     height: 220,
     borderRadius: 14,
     backgroundColor: '#E5E7EB',
+  },
+  imageViewerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  imageViewerClose: {
+    position: "absolute",
+    right: 16,
+    zIndex: 2,
+    padding: 8,
+  },
+  imageViewerPhoto: {
+    width: SCREEN_WIDTH - 32,
+    height: SCREEN_HEIGHT * 0.75,
   },
   bubbleFooter: {
     flexDirection: 'row',

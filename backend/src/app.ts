@@ -32,6 +32,7 @@ import {
 import webhookRoutes from "./routes/webhook.routes";
 import adminRoutes from "./routes/admin.routes";
 import feedRoutes from "./routes/feed.routes";
+import followRoutes from "./routes/follow.routes";
 import liveRoutes from "./routes/live.routes";
 
 // Error handler (must be registered last)
@@ -101,6 +102,8 @@ app.get("/", (_req, res) => {
       auth: "/api/auth (POST register | login | refresh | logout | google)",
       users: "/api/users/me (GET/PUT + auth header) … see user.routes.ts",
       forYouFeed: "GET /api/products/feed/for-you?limit=10&cursor=… (optional Bearer)",
+      discoverFeed: "GET /api/products/feed/discover?category=Fashion&limit=24 (optional Bearer)",
+      follows: "GET/POST/DELETE /api/follows/… (Bearer for mutations + /me)",
       productView: "POST /api/products/:id/view (optional Bearer; guests send clientId)",
       socket: "Socket.IO on this host — auth: { token: supabase access_token }",
     },
@@ -131,6 +134,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/products", feedRoutes);
+app.use("/api/follows", followRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/checkout", checkoutRouter);

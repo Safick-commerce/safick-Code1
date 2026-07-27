@@ -22,6 +22,8 @@ export interface MessageItemData {
   };
   /** When true, conversation appears under the Reservation filter */
   isReservation?: boolean;
+  /** When true, last message is a chat photo — show icon in inbox preview */
+  lastMessageIsPhoto?: boolean;
 }
 
 interface MessageState {

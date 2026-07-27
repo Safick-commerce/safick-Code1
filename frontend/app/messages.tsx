@@ -15,6 +15,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { ComponentProps } from "react";
 import type { MessageItemData } from "../stores/messageStore";
 import { listConversations, type ConversationSummary } from "../utils/conversationApi";
+import { formatChatMessagePreview, parseChatMessageBody } from "../utils/chatMessageFormat";
 import { primeConversationBootstrap } from "../utils/conversationBootstrapCache";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
@@ -142,16 +143,23 @@ export default function MessageScreen() {
   }, []);
 
   const conversationRows = useMemo((): MessageItemData[] => {
-    return apiConversations.map((c) => ({
-      id: c.id,
-      isReservation: Boolean(currentUserId && c.sellerId === currentUserId),
-      seller: {
-        name: c.peer.displayName,
-        message: c.lastMessage?.body ?? t("messages_about_listing", { title: c.productTitle }),
-        avatarUrl: c.peer.avatarUrl,
-        status: "online" as const,
-      },
-    }));
+    return apiConversations.map((c) => {
+      const lastBody = c.lastMessage?.body;
+      const lastMessageIsPhoto = lastBody ? parseChatMessageBody(lastBody).kind === "image" : false;
+      return {
+        id: c.id,
+        isReservation: Boolean(currentUserId && c.sellerId === currentUserId),
+        lastMessageIsPhoto,
+        seller: {
+          name: c.peer.displayName,
+          message: lastBody
+            ? formatChatMessagePreview(lastBody, t("chat_photo_message"))
+            : t("messages_about_listing", { title: c.productTitle }),
+          avatarUrl: c.peer.avatarUrl,
+          status: "online" as const,
+        },
+      };
+    });
   }, [apiConversations, currentUserId, t]);
 
   const displayItems = conversationRows;
@@ -249,9 +257,14 @@ export default function MessageScreen() {
                 {item.seller.name}
               </Text>
             </View>
-            <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.seller.message}
-            </Text>
+            <View style={styles.lastMessageRow}>
+              {item.lastMessageIsPhoto ? (
+                <MaterialIcons name="photo-library" size={24} color="#000000" style={styles.lastMessageIcon} />
+              ) : null}
+              <Text style={styles.lastMessage} numberOfLines={1}>
+                {item.seller.message}
+              </Text>
+            </View>
           </View>
         </TouchableOpacity>
       );
@@ -533,7 +546,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9CA3AF",
   },
+  lastMessageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+  },
+  lastMessageIcon: {
+    marginRight: 4,
+  },
   lastMessage: {
+    flex: 1,
     fontSize: 14,
     color: "#6B7280",
     lineHeight: 20,

@@ -83,7 +83,7 @@ export function isConfigured(): boolean {
       env.MAVIANCE_S3P_API_PASSWORD,
   );
 }
-
+ // If Maviance S3P credentials are not configured the request will be rejected with a 503, which is a service unavailable error
 export function ensureConfigured(): void {
   if (!isConfigured()) {
     throw new AppError(
@@ -156,6 +156,9 @@ export function extractSignatureHeader(headers: Record<string, string | string[]
   return null;
 }
 
+// sha256 is a hash function that is used to verify the signature of the webhook
+// utf8 is a character encoding that is used to encode the raw body of the webhook
+// hex is a hexadecimal representation of the hash
 export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
   if (!env.MAVIANCE_S3P_WEBHOOK_SECRET || !signature) return false;
   const expected = crypto
@@ -184,6 +187,9 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
 // but the standard sandbox accepts Basic auth. We use Basic for the first wave
 // and add a hook for upgrading once the Maviance integrations team confirms
 // the exact signature scheme for our merchant.
+// HMAC is a hash function that is used to verify the signature of the webhook
+// base64 is a character encoding that is used to encode the raw body of the webhook
+// Buffer is a class that is used to create a buffer of data
 
 function basicAuthHeader(): string {
   const user = env.MAVIANCE_S3P_API_USER ?? "";

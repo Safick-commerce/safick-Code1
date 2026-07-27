@@ -12,6 +12,7 @@ Node.js **Express** API with **Prisma** and **PostgreSQL**. This service is the 
 | Supabase `profiles` table + `handle_new_user` trigger (`supabase/schema.sql`) | Done |
 | Socket.IO (auth + rooms + typing) | Done |
 | Conversations + messages REST + DB persist | Done — run `supabase/conversations.sql`, then `npx prisma db pull` or use schema in repo |
+| Follow / unfollow sellers (`/api/follows/*`) | Done — run `supabase/follows.sql`, then `npm run db:generate` |
 | Redis, S3, products API via Express, notifications | Not started / partial |
 
 ## Supabase schema bootstrap

@@ -13,15 +13,14 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
-    /* Path aliases — use @/ instead of relative paths like ../../../ */
-    "baseUrl": "./src",
+    /* Path aliases — full paths (baseUrl removed; deprecated in TS 6+) */
     "paths": {
-      "@config/*": ["config/*"],
-      "@middleware/*": ["middleware/*"],
-      "@routes/*": ["routes/*"],
-      "@controllers/*": ["controllers/*"],
-      "@services/*": ["services/*"],
-      "@types/*": ["types/*"]
+      "@config/*": ["./src/config/*"],
+      "@middleware/*": ["./src/middleware/*"],
+      "@routes/*": ["./src/routes/*"],
+      "@controllers/*": ["./src/controllers/*"],
+      "@services/*": ["./src/services/*"],
+      "@types/*": ["./src/types/*"]
     },
 
     /* Emit declaration files for type sharing */

@@ -3,6 +3,7 @@ import { fetchProfileById, type ProfileRow } from "./fetchProfile";
 import type { ForYouFeedItem } from "./forYouFeed";
 import { getSellerVideoProducts } from "./productApi";
 import { formatPriceXaf } from "./searchApi";
+import { resolveVideoCoverUrl } from "./videoCover";
 import type { StoreProduct } from "../types/storeProduct";
 
 function mapToFeedItem(product: StoreProduct, seller: ProfileRow): ForYouFeedItem | null {
@@ -16,7 +17,7 @@ function mapToFeedItem(product: StoreProduct, seller: ProfileRow): ForYouFeedIte
     price: formatPriceXaf(product.price),
     category: null,
     videoUrl,
-    thumbnailUrl: product.thumbnail_url?.trim() ?? null,
+    thumbnailUrl: resolveVideoCoverUrl(videoUrl, product.thumbnail_url),
     seller: {
       id: seller.id,
       username: seller.username,

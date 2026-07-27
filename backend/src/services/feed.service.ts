@@ -15,12 +15,15 @@ import { filterInterestCategoryLabels } from "../constants/interestCategories";
 import { AppError } from "../middleware/errorHandler";
 import type { Prisma } from "../generated/prisma";
 import type {
+  DiscoverFeedResponse,
   ForYouFeedItemResponse,
   ForYouFeedMode,
   ForYouFeedResponse,
   RecordProductViewResponse,
   SellerProductViewCountsResponse,
 } from "../types/feed";
+import { isDiscoverCategoryLabel } from "../constants/discoverCategories";
+import { resolveVideoCoverUrl } from "../utils/videoCover";
 
 /** Same product + viewer/client not counted twice within this window. */
 const VIEW_DEDUPE_MINUTES = 45;
@@ -42,6 +45,14 @@ type RandomCursor = {
 };
 
 type FeedCursor = PersonalizedCursor | RandomCursor;
+
+type DiscoverCursor = {
+  v: typeof CURSOR_VERSION;
+  mode: "discover";
+  category: string | null;
+  createdAt: string;
+  id: string;
+};
 
 type ProductWithSeller = Prisma.productsGetPayload<{
   include: { profiles: true };
@@ -77,6 +88,28 @@ export async function getForYouFeed(options: {
 
   const rCursor = parsedCursor?.mode === "random" ? parsedCursor : undefined;
   return buildRandomFeed(limit, rCursor);
+}
+
+/** Discover tab — newest ready video clips, optional category filter. */
+export async function getDiscoverFeed(options: {
+  limit: number;
+  cursor?: string;
+  category?: string;
+}): Promise<DiscoverFeedResponse> {
+  const category = options.category?.trim() || undefined;
+  if (category && !isDiscoverCategoryLabel(category)) {
+    throw new AppError("Invalid category", 400);
+  }
+
+  const parsedCursor = parseDiscoverCursor(options.cursor);
+  if (
+    parsedCursor &&
+    (parsedCursor.category ?? null) !== (category ?? null)
+  ) {
+    return buildDiscoverFeed(options.limit, category, undefined);
+  }
+
+  return buildDiscoverFeed(options.limit, category, parsedCursor);
 }
 
 export async function recordProductView(options: {
@@ -246,6 +279,42 @@ async function buildPersonalizedFeed(
   return { items, nextCursor, mode: "personalized" };
 }
 
+async function buildDiscoverFeed(
+  limit: number,
+  category: string | undefined,
+  cursor: DiscoverCursor | undefined,
+): Promise<DiscoverFeedResponse> {
+  const where: Prisma.productsWhereInput = {
+    ...baseFeedWhere(),
+    ...(category ? { category } : {}),
+    ...(cursor ? cursorWhere({ createdAt: cursor.createdAt, id: cursor.id }) : {}),
+  };
+
+  const rows = await prisma.products.findMany({
+    where,
+    orderBy: feedOrderBy(),
+    take: limit + 1,
+    include: feedProductInclude,
+  });
+
+  const { page, hasMore } = splitPage(rows, limit);
+  const items = page.map(mapProductToFeedItem);
+
+  let nextCursor: string | null = null;
+  if (hasMore && page.length > 0) {
+    const last = page[page.length - 1]!;
+    nextCursor = encodeDiscoverCursor({
+      v: CURSOR_VERSION,
+      mode: "discover",
+      category: category ?? null,
+      createdAt: toIsoCursorTime(last.created_at),
+      id: last.id,
+    });
+  }
+
+  return { items, nextCursor };
+}
+
 // =============================================================================
 // Random feed (seeded order for stable pagination)
 // =============================================================================
@@ -320,7 +389,7 @@ function feedOrderBy(): Prisma.productsOrderByWithRelationInput[] {
   return [{ created_at: "desc" }, { id: "desc" }];
 }
 
-function cursorWhere(cursor: PersonalizedCursor): Prisma.productsWhereInput {
+function cursorWhere(cursor: { createdAt: string; id: string }): Prisma.productsWhereInput {
   const createdAt = new Date(cursor.createdAt);
   if (Number.isNaN(createdAt.getTime())) {
     throw new AppError("Invalid feed cursor", 400);
@@ -360,7 +429,7 @@ function mapProductToFeedItem(row: ProductWithSeller): ForYouFeedItemResponse {
     price: formatFeedPrice(row.price),
     category: row.category,
     videoUrl: row.video_url.trim(),
-    thumbnailUrl: row.thumbnail_url?.trim() ?? null,
+    thumbnailUrl: resolveVideoCoverUrl(row.video_url, row.thumbnail_url),
     seller: {
       id: row.seller_id!,
       username: seller?.username ?? null,
@@ -434,4 +503,49 @@ function parseFeedCursor(raw?: string): FeedCursor | undefined {
   }
 
   throw new AppError("Invalid feed cursor", 400);
+}
+
+function encodeDiscoverCursor(cursor: DiscoverCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function parseDiscoverCursor(raw?: string): DiscoverCursor | undefined {
+  if (!raw?.trim()) {
+    return undefined;
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(Buffer.from(raw.trim(), "base64url").toString("utf8"));
+  } catch {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  if (!json || typeof json !== "object") {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  const o = json as Record<string, unknown>;
+  if (o.v !== CURSOR_VERSION || o.mode !== "discover") {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  const category =
+    o.category === null || o.category === undefined
+      ? null
+      : typeof o.category === "string"
+        ? o.category
+        : null;
+
+  if (typeof o.createdAt !== "string" || typeof o.id !== "string") {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  return {
+    v: CURSOR_VERSION,
+    mode: "discover",
+    category,
+    createdAt: o.createdAt,
+    id: o.id,
+  };
 }

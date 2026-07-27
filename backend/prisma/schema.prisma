@@ -577,6 +577,20 @@ model messages {
   @@schema("public")
 }
 
+/// Buyer → seller follow graph. Mobile app reads/writes via Express API.
+model follows {
+  follower_id String   @db.Uuid
+  followee_id String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  follower    profiles @relation("UserFollows", fields: [follower_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  followee    profiles @relation("UserFollowedBy", fields: [followee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([follower_id, followee_id])
+  @@index([followee_id], map: "follows_followee_idx")
+  @@index([follower_id], map: "follows_follower_idx")
+  @@schema("public")
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model profiles {
   id                      String          @id @db.Uuid
@@ -602,6 +616,8 @@ model profiles {
   checkouts_as_buyer      checkouts[]     @relation("checkout_buyer")
   conversations_as_buyer  conversations[] @relation("conversation_buyer")
   conversations_as_seller conversations[] @relation("conversation_seller")
+  follows_as_follower     follows[]       @relation("UserFollows")
+  follows_as_followee     follows[]       @relation("UserFollowedBy")
   live_events             live_events[]
   messages_sent           messages[]
   orders_as_seller        orders[]        @relation("order_seller")

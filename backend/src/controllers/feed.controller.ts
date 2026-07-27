@@ -2,6 +2,7 @@
 // For You feed controller
 // =============================================================================
 // GET  /api/products/feed/for-you                    — optional auth (personalized vs random)
+// GET  /api/products/feed/discover                   — optional auth, query: category?, cursor?, limit?
 // GET  /api/products/seller/:sellerId/view-counts    — public profile grid counts
 // POST /api/products/:id/view                         — optional auth (viewer_id or clientId)
 // =============================================================================
@@ -11,9 +12,11 @@ import * as feedService from "../services/feed.service";
 import { AppError } from "../middleware/errorHandler";
 import { parseUuid } from "../utils/uuid";
 import {
+  discoverFeedQuerySchema,
   forYouFeedQuerySchema,
   recordProductViewBodySchema,
 } from "../types/feed";
+import { isDiscoverCategoryLabel } from "../constants/discoverCategories";
 
 /**
  * GET /api/products/feed/for-you
@@ -33,6 +36,38 @@ export async function getForYouFeed(req: Request, res: Response, next: NextFunct
       viewerId: req.userId,
       limit: parsed.data.limit,
       cursor: parsed.data.cursor,
+    });
+
+    res.json(feed);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/products/feed/discover
+ *
+ * Query: category?, cursor?, limit?
+ * Auth: optional (reserved for future ranking; same rules as public catalog).
+ * Response: DiscoverFeedResponse
+ */
+export async function getDiscoverFeed(req: Request, res: Response, next: NextFunction) {
+  try {
+    const parsed = discoverFeedQuerySchema.safeParse(req.validatedQuery ?? req.query);
+    if (!parsed.success) {
+      throw new AppError(parsed.error.issues[0]?.message ?? "Invalid query", 400);
+    }
+
+    const category = parsed.data.category;
+    if (category && !isDiscoverCategoryLabel(category)) {
+      res.status(400).json({ error: "Invalid category" });
+      return;
+    }
+
+    const feed = await feedService.getDiscoverFeed({
+      limit: parsed.data.limit,
+      cursor: parsed.data.cursor,
+      category,
     });
 
     res.json(feed);

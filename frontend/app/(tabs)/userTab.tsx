@@ -19,6 +19,12 @@ import { useUserProfile } from "../../stores/userProfileStore";
 import { fetchProfileById, type ProfileRow } from "../../utils/fetchProfile";
 import { getSellerVideoProducts } from "../../utils/productApi";
 import { fetchSellerProductViewCounts } from "../../utils/forYouFeed";
+import {
+  checkFollowingSeller,
+  fetchFollowCounts,
+  followSeller,
+  unfollowSeller,
+} from "../../utils/followApi";
 import { ProfileVideoGrid } from "../../components/profile/ProfileVideoGrid";
 import type { StoreProduct } from "../../types/storeProduct";
 import { ReportUserModal } from "../../components/shared/ReportUserModal";
@@ -75,7 +81,7 @@ export default function UserTab() {
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string | string[] }>();
   const userIdFromRoute = normalizeRouteParam(userIdParam);
 
-  const { profile: authProfile, user } = useAuth();
+  const { profile: authProfile, user, isAuthenticated } = useAuth();
   const { profile: localProfile } = useUserProfile();
 
   const selfId = user?.id ?? authProfile?.id ?? null;
@@ -84,6 +90,9 @@ export default function UserTab() {
 
   const [activeTab, setActiveTab] = useState<ProfileTab>("Posts");
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
   const [otherProfile, setOtherProfile] = useState<ProfileRow | null>(null);
   const [otherLoading, setOtherLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -149,8 +158,77 @@ function MenuActionRow({
   }, [isViewingOther, activeTab]);
 
   useEffect(() => {
-    setIsFollowing(false);
-  }, [userIdFromRoute]);
+    if (!profileUserId) {
+      setFollowerCount(0);
+      setFollowingCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    void fetchFollowCounts(profileUserId)
+      .then((counts) => {
+        if (!cancelled) {
+          setFollowerCount(counts.followers);
+          setFollowingCount(counts.following);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFollowerCount(0);
+          setFollowingCount(0);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileUserId]);
+
+  useEffect(() => {
+    if (!isViewingOther || !userIdFromRoute || !isAuthenticated) {
+      setIsFollowing(false);
+      return;
+    }
+
+    let cancelled = false;
+    void checkFollowingSeller(userIdFromRoute)
+      .then((following) => {
+        if (!cancelled) setIsFollowing(following);
+      })
+      .catch(() => {
+        if (!cancelled) setIsFollowing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isViewingOther, userIdFromRoute, isAuthenticated]);
+
+  const handleToggleFollow = useCallback(async () => {
+    if (!userIdFromRoute || followBusy) return;
+    if (!isAuthenticated) {
+      router.push("/auth/signin");
+      return;
+    }
+
+    const nextFollowing = !isFollowing;
+    setFollowBusy(true);
+    setIsFollowing(nextFollowing);
+    setFollowerCount((prev) => Math.max(0, prev + (nextFollowing ? 1 : -1)));
+
+    try {
+      if (nextFollowing) {
+        await followSeller(userIdFromRoute);
+      } else {
+        await unfollowSeller(userIdFromRoute);
+      }
+    } catch {
+      setIsFollowing(!nextFollowing);
+      setFollowerCount((prev) => Math.max(0, prev + (nextFollowing ? -1 : 1)));
+    } finally {
+      setFollowBusy(false);
+    }
+  }, [followBusy, isAuthenticated, isFollowing, router, userIdFromRoute]);
 
   useEffect(() => {
     if (!profileUserId) {
@@ -352,12 +430,19 @@ function MenuActionRow({
             ) : (
               <TouchableOpacity
                 style={[styles.followButton, isFollowing && styles.followButtonActive]}
-                onPress={() => setIsFollowing((prev) => !prev)}
+                onPress={() => void handleToggleFollow()}
+                disabled={followBusy}
                 accessibilityRole="button"
                 accessibilityLabel={isFollowing ? "Unfollow seller" : "Follow seller"}
               >
-                <Ionicons name={isFollowing ? "checkmark" : "person-add"} size={16} color="#FFFFFF" />
-                <Text style={styles.followButtonText}>{isFollowing ? "Following" : "Follow"}</Text>
+                {followBusy ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name={isFollowing ? "checkmark" : "person-add"} size={16} color="#FFFFFF" />
+                    <Text style={styles.followButtonText}>{isFollowing ? "Following" : "Follow"}</Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -391,11 +476,11 @@ function MenuActionRow({
           <Text style={styles.statLabel}>{isViewingOther ? "Clips" : "Posts"}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
+          <Text style={styles.statNumber}>{followerCount}</Text>
           <Text style={styles.statLabel}>Followers</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>0</Text>
+          <Text style={styles.statNumber}>{followingCount}</Text>
           <Text style={styles.statLabel}>{isViewingOther ? "Sold" : "Following"}</Text>
         </View>
       </View>

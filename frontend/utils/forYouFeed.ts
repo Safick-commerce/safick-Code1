@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiBaseUrl } from "../lib/apiConfig";
+import { fetchWithTimeout, isFetchTimeoutError } from "../lib/fetchWithTimeout";
 import { ApiError } from "../lib/apiFetch";
 import { supabase } from "../lib/supabase";
 
@@ -68,8 +69,14 @@ async function optionalAuthFetch<T>(path: string, init: RequestInit = {}): Promi
   const baseUrl = getApiBaseUrl();
   let res: Response;
   try {
-    res = await fetch(`${baseUrl}${path}`, { ...init, headers });
-  } catch {
+    res = await fetchWithTimeout(`${baseUrl}${path}`, { ...init, headers });
+  } catch (e) {
+    if (isFetchTimeoutError(e)) {
+      throw new ApiError(
+        "Safick API timed out. Phone and PC must be on the same network, or update EXPO_PUBLIC_API_URL to your PC IP (ipconfig). Tunnel mode only loads the app — not the API.",
+        0,
+      );
+    }
     throw new ApiError(
       "Could not reach the Safick API. Check EXPO_PUBLIC_API_URL and that the backend is running.",
       0,

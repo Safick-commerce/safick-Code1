@@ -18,6 +18,7 @@ import ForYouVideoPage from "../components/forYou/ForYouVideoPage";
 import { useAuth } from "../context/AuthContext";
 import { fetchSellerProfileClips, indexOfClip } from "../utils/profileClips";
 import { recordProductView, type ForYouFeedItem } from "../utils/forYouFeed";
+import { useFollowingIds } from "../hooks/useFollowingIds";
 
 const ROUTES = {
   PRODUCT_DETAILS: "/productDetails",
@@ -54,7 +55,7 @@ export default function ProfileClipsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [followingBySeller, setFollowingBySeller] = useState<Record<string, boolean>>({});
+  const { isFollowing, toggleFollow } = useFollowingIds();
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
 
   const listRef = useRef<FlatList<ForYouFeedItem>>(null);
@@ -169,9 +170,12 @@ export default function ProfileClipsScreen() {
     [router],
   );
 
-  const toggleFollow = useCallback((id: string) => {
-    setFollowingBySeller((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
+  const toggleFollowForSeller = useCallback(
+    (id: string) => {
+      void toggleFollow(id);
+    },
+    [toggleFollow],
+  );
 
   const trackView = useCallback((productId: string) => {
     if (viewedIds.current.has(productId)) return;
@@ -189,8 +193,8 @@ export default function ProfileClipsScreen() {
         variant="profile"
         profileSellerTop={sellerRowTop}
         isActive={appActive && index === activeIndex}
-        isFollowing={Boolean(followingBySeller[item.seller.id])}
-        onToggleFollow={() => toggleFollow(item.seller.id)}
+        isFollowing={isFollowing(item.seller.id)}
+        onToggleFollow={() => toggleFollowForSeller(item.seller.id)}
         onBuyPress={() => handleBuyPress(item)}
         onSellerPress={() => handleSellerPress(item)}
         onBecameActive={() => trackView(item.id)}
@@ -199,11 +203,11 @@ export default function ProfileClipsScreen() {
     [
       activeIndex,
       appActive,
-      followingBySeller,
       handleBuyPress,
       handleSellerPress,
+      isFollowing,
       pageHeight,
-      toggleFollow,
+      toggleFollowForSeller,
       trackView,
       sellerRowTop,
     ],

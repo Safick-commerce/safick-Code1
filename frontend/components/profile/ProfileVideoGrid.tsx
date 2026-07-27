@@ -1,16 +1,18 @@
 /** Component to display a grid of video thumbnails for a seller's profile clips. */
 import { useMemo } from "react";
 import {
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
-import { Feather, Ionicons, SimpleLineIcons } from "@expo/vector-icons";
+import { Feather, SimpleLineIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+
+import { VideoCoverImage } from "../shared/VideoCoverImage";
 import type { StoreProduct } from "../../types/storeProduct";
+import { resolveVideoCoverUrl } from "../../utils/videoCover";
 
 const GRID_GAP = 2;
 const COLUMNS = 3;
@@ -18,18 +20,11 @@ const HORIZONTAL_PADDING = 2;
 
 type Props = {
   products: StoreProduct[];
-  sellerId: string;
+  /** Fallback when a row has no `seller_id` (own profile grid). */
+  sellerId?: string;
   emptyLabel: string;
   viewCounts?: Record<string, number>;
 };
-
-function thumbUri(product: StoreProduct): string | null {
-  const thumb = product.thumbnail_url?.trim();
-  if (thumb) return thumb;
-  const image = product.image_url?.trim();
-  if (image) return image;
-  return null;
-}
 
 function formatViewCount(n: number): string {
   if (n >= 1_000_000) {
@@ -64,7 +59,10 @@ export function ProfileVideoGrid({ products, sellerId, emptyLabel, viewCounts }:
   return (
     <View style={styles.grid}>
       {products.map((product) => {
-        const uri = thumbUri(product);
+        const videoUrl = product.video_url?.trim() ?? null;
+        const serverCoverUrl = videoUrl
+          ? resolveVideoCoverUrl(videoUrl, product.thumbnail_url)
+          : null;
         const views = viewCounts?.[product.id] ?? 0;
         return (
           <TouchableOpacity
@@ -74,20 +72,21 @@ export function ProfileVideoGrid({ products, sellerId, emptyLabel, viewCounts }:
             accessibilityRole="button"
             accessibilityLabel={`${product.title}, ${views} views`}
             onPress={() => {
-              if (!sellerId) return;
+              const resolvedSellerId = product.seller_id?.trim() || sellerId?.trim();
+              if (!resolvedSellerId) return;
               router.push({
                 pathname: "/profile-clips",
-                params: { sellerId, clipId: product.id },
+                params: { sellerId: resolvedSellerId, clipId: product.id },
               });
             }}
           >
-            {uri ? (
-              <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />
-            ) : (
-              <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                <Ionicons name="videocam-outline" size={28} color="#9CA3AF" />
-              </View>
-            )}
+            <VideoCoverImage
+              videoUrl={videoUrl}
+              serverCoverUrl={serverCoverUrl}
+              style={styles.thumb}
+              contentFit="cover"
+              placeholderIconSize={28}
+            />
             <View style={styles.productBadge}>
               <Feather name="shopping-bag" size={14} color="#FFFFFF" />
             </View>
@@ -120,11 +119,6 @@ const styles = StyleSheet.create({
   thumb: {
     width: "100%",
     height: "100%",
-  },
-  thumbPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#1F2937",
   },
   productBadge: {
     position: "absolute",

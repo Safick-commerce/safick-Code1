@@ -5,6 +5,10 @@ import {
   isInterestCategoryLabel,
 } from "../src/constants/interestCategories";
 import {
+  isDiscoverCategoryLabel,
+} from "../src/constants/discoverCategories";
+import {
+  discoverFeedQuerySchema,
   forYouFeedQuerySchema,
   recordProductViewBodySchema,
 } from "../src/types/feed";
@@ -27,6 +31,29 @@ describe("forYouFeedQuerySchema", () => {
   it("accepts optional cursor", () => {
     const parsed = forYouFeedQuerySchema.parse({ cursor: "abc123" });
     assert.equal(parsed.cursor, "abc123");
+  });
+});
+
+describe("discoverFeedQuerySchema", () => {
+  it("defaults limit to 24", () => {
+    const parsed = discoverFeedQuerySchema.parse({});
+    assert.equal(parsed.limit, 24);
+  });
+
+  it("accepts optional category", () => {
+    const parsed = discoverFeedQuerySchema.parse({ category: "Fashion" });
+    assert.equal(parsed.category, "Fashion");
+  });
+
+  it("rejects limit above 40", () => {
+    assert.throws(() => discoverFeedQuerySchema.parse({ limit: 41 }));
+  });
+});
+
+describe("discover category helpers", () => {
+  it("recognizes discover rail labels", () => {
+    assert.equal(isDiscoverCategoryLabel("Shoes"), true);
+    assert.equal(isDiscoverCategoryLabel("Food"), false);
   });
 });
 

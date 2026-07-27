@@ -66,7 +66,7 @@ comment on column public.products.category is
 comment on column public.products.video_url is
   'CDN or storage URL for product video (For You feed).';
 comment on column public.products.thumbnail_url is
-  'Poster image while video buffers.';
+  'Auto-generated poster from video (e.g. clip_cover.jpg); not a separate listing photo.';
 comment on column public.products.media_status is
   'uploading | ready | failed — only ready + video_url appear in For You feed.';
 

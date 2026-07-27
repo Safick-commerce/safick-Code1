@@ -21,7 +21,7 @@ import { supabase } from "../../lib/supabase";
 import { isAuthEmailRateLimited } from "../../utils/authResetEmail";
 
 const RED = "#FF2800";
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
 const CODE_BOX_SIZE = 30;
 
 type Step = "code" | "password";

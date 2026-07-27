@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 // Prisma ORM 7+ — CLI reads the database URL from here (not from schema.prisma).
 // Supabase: use DIRECT_URL for migrate/introspection (direct Postgres); keep DATABASE_URL
 // as the pooled string for runtime (database.ts → PrismaPg). See prisma.io Supabase guide.
