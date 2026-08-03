@@ -12,7 +12,7 @@
 - For You feed API
 
 ## Still to do
-- Wire seller clips to DiscoverTab by category
+- 
 - Follow / like / share tables
 - Go live UI polish (products, comments, stop-live notice)
 - Full LiveKit regression testing
