@@ -34,11 +34,16 @@ import adminRoutes from "./routes/admin.routes";
 import feedRoutes from "./routes/feed.routes";
 import followRoutes from "./routes/follow.routes";
 import liveRoutes from "./routes/live.routes";
+import followRoutes from "./routes/follow.routes";
+import notificationRoutes from "./routes/notification.routes";
 
 // Error handler (must be registered last)
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
+
+// Trust reverse proxy (Railway, Render, nginx) for accurate rate-limit IP keys.
+app.set("trust proxy", 1);
 
 // =============================================================================
 // Security Middleware
@@ -142,6 +147,8 @@ app.use("/api/orders", ordersRouter);
 app.use("/api/seller/orders", sellerOrdersRouter);
 app.use("/api/admin", adminRoutes);
 app.use("/api/live", liveRoutes);
+app.use("/api/follow", followRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // =============================================================================
 // 404 Handler — for routes that don't match anything above

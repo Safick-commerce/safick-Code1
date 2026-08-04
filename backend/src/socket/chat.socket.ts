@@ -12,6 +12,8 @@ import {
   listConversationMessages,
 } from "../services/message.service";
 import { prisma } from "../config/database";
+import { assertViewerMayJoinLive } from "../services/live.service";
+import { getLiveLikeCount, incrementLiveLikeCount } from "../services/liveLikes.store";
 import { parseUuid } from "../utils/uuid";
 import { conversationRoom, liveRoom } from "../utils/socketRooms";
 import type { SocketChatMessagePayload, SocketTypingPayload } from "../types/socketEvents";
@@ -36,6 +38,15 @@ const liveMessageSchema = z.object({
   liveId: uuidSchema,
   text: z.string().trim().min(1).max(4000),
   clientId: z.string().max(64).optional(),
+});
+
+const liveLikeSchema = z.object({
+  liveId: uuidSchema,
+});
+
+const liveStreamStateSchema = z.object({
+  liveId: uuidSchema,
+  paused: z.boolean(),
 });
 
 const typingSchema = z.object({
@@ -157,8 +168,16 @@ export function registerChatHandlers(socket: Socket): void {
       ack?.({ ok: false, error: "live_not_active" });
       return;
     }
+    if (userId !== event.seller_id) {
+      try {
+        await assertViewerMayJoinLive(event, userId);
+      } catch {
+        ack?.({ ok: false, error: "followers_only" });
+        return;
+      }
+    }
     await socket.join(liveRoom(liveId));
-    ack?.({ ok: true, liveId });
+    ack?.({ ok: true, liveId, likeCount: getLiveLikeCount(liveId) });
   });
 
   socket.on("leave_live", async (raw) => {
@@ -186,6 +205,58 @@ export function registerChatHandlers(socket: Socket): void {
     const payload = buildMessage("live", liveId, userId, text, clientId);
     socket.to(room).emit("live_message", payload);
     ack?.({ ok: true, message: payload });
+  });
+
+  socket.on("live_like", async (raw, ack) => {
+    const parsed = liveLikeSchema.safeParse(raw);
+    if (!parsed.success) {
+      emitValidationError(socket, parsed.error.issues[0]?.message ?? "Invalid payload");
+      ack?.({ ok: false, error: "validation_error" });
+      return;
+    }
+
+    const { liveId } = parsed.data;
+    const room = liveRoom(liveId);
+    if (!socket.rooms.has(room)) {
+      ack?.({ ok: false, error: "not_joined" });
+      return;
+    }
+
+    const event = await prisma.live_events.findFirst({
+      where: { id: liveId, status: "live" },
+      select: { seller_id: true },
+    });
+    if (!event) {
+      ack?.({ ok: false, error: "live_not_active" });
+      return;
+    }
+    if (userId === event.seller_id) {
+      ack?.({ ok: false, error: "seller_cannot_like" });
+      return;
+    }
+
+    const likeCount = incrementLiveLikeCount(liveId);
+    const payload = { liveId, likeCount, userId };
+    socket.to(room).emit("live_like_count", payload);
+    socket.emit("live_like_count", payload);
+    ack?.({ ok: true, likeCount });
+  });
+
+  socket.on("live_stream_state", async (raw) => {
+    const parsed = liveStreamStateSchema.safeParse(raw);
+    if (!parsed.success) return;
+
+    const { liveId, paused } = parsed.data;
+    const event = await prisma.live_events.findFirst({
+      where: { id: liveId, status: "live" },
+      select: { seller_id: true },
+    });
+    if (!event || event.seller_id !== userId) return;
+
+    const room = liveRoom(liveId);
+    if (!socket.rooms.has(room)) return;
+
+    socket.to(room).emit("live_stream_state", { liveId, paused });
   });
 
   socket.on("typing", async (raw) => {

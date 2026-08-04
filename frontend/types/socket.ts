@@ -19,3 +19,14 @@ export interface SocketErrorPayload {
   code: string;
   message: string;
 }
+
+export interface SocketLiveLikeCountPayload {
+  liveId: string;
+  likeCount: number;
+  userId: string;
+}
+
+export interface SocketLiveStreamStatePayload {
+  liveId: string;
+  paused: boolean;
+}

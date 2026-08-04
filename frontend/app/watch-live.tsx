@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
+  AppState,
+  type AppStateStatus,
   Easing,
   Image,
   ImageSourcePropType,
@@ -16,13 +19,29 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { LiveKitRoom, VideoTrack, useTracks } from "@livekit/react-native";
+import {
+  LiveKitRoom,
+  VideoTrack,
+  useTracks,
+} from "@livekit/react-native";
 import { Track } from "livekit-client";
+import { LiveConnectionBanner } from "../components/live/LiveConnectionBanner";
 import type { LivePost } from "../types";
 import { fetchLiveFeed } from "../utils/liveFeed";
 import { getLiveViewerToken } from "../lib/liveApi";
-import { joinLive, leaveLive } from "../lib/socket";
+import { formatLiveDurationAgo } from "../lib/liveDuration";
+import { useElapsedLiveTimer } from "../hooks/useElapsedLiveTimer";
+import { useLiveConnection } from "../hooks/useLiveConnection";
+import {
+  joinLive,
+  leaveLive,
+  sendLiveLike,
+  sendLiveMessage,
+  subscribeToLiveLikeCount,
+  subscribeToLiveStreamState,
+} from "../lib/socket";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
+import { FollowButton } from "../components/shared/FollowButton";
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../stores/userProfileStore";
 import { useLanguage } from "../context/LanguageContext";
@@ -82,20 +101,78 @@ function LivePulseDot({ small }: { small?: boolean }) {
   );
 }
 
-function RemoteLiveVideo() {
+function RemoteLiveVideo({ refreshKey, paused }: { refreshKey: number; paused: boolean }) {
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   const remoteTrack = tracks.find((track) => !track.participant.isLocal);
 
-  if (!remoteTrack) return null;
+  if (!remoteTrack || paused) return null;
 
   return (
-    <View style={StyleSheet.absoluteFillObject}>
-      <VideoTrack
-        trackRef={remoteTrack}
-        style={{ flex: 1 }}
-        objectFit="cover"
-      />
+    <View style={StyleSheet.absoluteFillObject} key={`remote-video-${refreshKey}`}>
+      <VideoTrack trackRef={remoteTrack} style={{ flex: 1 }} objectFit="cover" />
     </View>
+  );
+}
+
+function ViewerLiveMedia({
+  liveId,
+  url,
+  token,
+  streamPaused,
+  onStreamPausedChange,
+}: {
+  liveId: string;
+  url: string;
+  token: string;
+  streamPaused: boolean;
+  onStreamPausedChange: (paused: boolean) => void;
+}) {
+  const { t } = useLanguage();
+  const [videoRefreshKey, setVideoRefreshKey] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const { uiState, retryConnection } = useLiveConnection({ serverUrl: url, token });
+
+  useEffect(() => {
+    const unsub = subscribeToLiveStreamState((payload) => {
+      if (payload.liveId === liveId) {
+        onStreamPausedChange(payload.paused);
+      }
+    });
+    return unsub;
+  }, [liveId, onStreamPausedChange]);
+
+  useEffect(() => {
+    const handleAppState = (next: AppStateStatus) => {
+      if (next === "active") {
+        setVideoRefreshKey((k) => k + 1);
+      }
+    };
+    const sub = AppState.addEventListener("change", handleAppState);
+    return () => sub.remove();
+  }, []);
+
+  const handleRetry = useCallback(async () => {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      await retryConnection();
+      setVideoRefreshKey((k) => k + 1);
+    } finally {
+      setRetrying(false);
+    }
+  }, [retryConnection, retrying]);
+
+  return (
+    <>
+      <RemoteLiveVideo refreshKey={videoRefreshKey} paused={streamPaused} />
+      {streamPaused ? (
+        <View style={styles.streamPausedOverlay} pointerEvents="none">
+          <Ionicons name="pause-circle-outline" size={48} color="#FFFFFF" />
+          <Text style={styles.streamPausedText}>{t("live_stream_paused")}</Text>
+        </View>
+      ) : null}
+      <LiveConnectionBanner state={uiState} onRetry={() => void handleRetry()} retrying={retrying} />
+    </>
   );
 }
 
@@ -111,8 +188,20 @@ export default function WatchLiveScreen() {
 
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState<LivePost | null>(null);
-  const [lkSession, setLkSession] = useState<{ url: string; token: string } | null>(null);
+  const [lkSession, setLkSession] = useState<{
+    url: string;
+    token: string;
+    startedAt?: string;
+  } | null>(null);
   const [connectingStream, setConnectingStream] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
+  const [streamPaused, setStreamPaused] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [liking, setLiking] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const [sendingChat, setSendingChat] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const leavingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,21 +231,39 @@ export default function WatchLiveScreen() {
     if (!id || !post?.isLive) {
       setLkSession(null);
       setConnectingStream(false);
+      setStreamError(null);
       return;
     }
 
     let cancelled = false;
     setConnectingStream(true);
+    setStreamError(null);
 
     (async () => {
       try {
-        await joinLive(id);
+        const joined = await joinLive(id);
+        if (!joined.ok && joined.error === "followers_only") {
+          throw new Error(t("watch_live_followers_only"));
+        }
+        if (!joined.ok && joined.error !== "ack_timeout") {
+          throw new Error(t("watch_live_stream_error"));
+        }
+        if (typeof joined.likeCount === "number") {
+          setLikeCount(joined.likeCount);
+        }
         const creds = await getLiveViewerToken(id);
         if (!cancelled) {
-          setLkSession({ url: creds.url, token: creds.token });
+          setLkSession({
+            url: creds.url,
+            token: creds.token,
+            startedAt: creds.event?.started_at ?? post?.startedAt,
+          });
         }
-      } catch {
-        if (!cancelled) setLkSession(null);
+      } catch (error) {
+        if (!cancelled) {
+          setLkSession(null);
+          setStreamError(error instanceof Error ? error.message : t("watch_live_stream_error"));
+        }
       } finally {
         if (!cancelled) setConnectingStream(false);
       }
@@ -168,14 +275,93 @@ export default function WatchLiveScreen() {
       setLkSession(null);
       setConnectingStream(false);
     };
-  }, [id, post?.isLive]);
+  }, [id, post?.isLive, post?.startedAt, t]);
+
+  useEffect(() => {
+    if (!id) return;
+    const unsub = subscribeToLiveLikeCount((payload) => {
+      if (payload.liveId === id) {
+        setLikeCount(payload.likeCount);
+      }
+    });
+    return unsub;
+  }, [id]);
+
+  const isLive = post?.isLive === true;
+  const streamStartedAt = lkSession?.startedAt ?? post?.startedAt ?? null;
+  const elapsedLabel = useElapsedLiveTimer(streamStartedAt);
+  const agoLabel = useMemo(() => {
+    if (!streamStartedAt) return null;
+    const startMs = Date.parse(streamStartedAt);
+    if (!Number.isFinite(startMs)) return null;
+    const sec = Math.floor((Date.now() - startMs) / 1000);
+    return formatLiveDurationAgo(sec);
+  }, [streamStartedAt, elapsedLabel]);
+
+  const handleLike = useCallback(async () => {
+    if (!id || liking || !isLive || !lkSession) return;
+    setLiking(true);
+    try {
+      const result = await sendLiveLike(id);
+      if (!result.ok) {
+        Alert.alert(t("watch_live_like_failed"), result.error ?? t("common_try_again"));
+        return;
+      }
+      if (typeof result.likeCount === "number") {
+        setLikeCount(result.likeCount);
+      }
+    } finally {
+      setLiking(false);
+    }
+  }, [id, isLive, liking, lkSession, t]);
+
+  const performLeave = useCallback(() => {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    setLeaving(true);
+    if (id) leaveLive(id);
+    setLkSession(null);
+    router.back();
+  }, [id, router]);
 
   const leave = useCallback(() => {
-    router.back();
-  }, [router]);
+    if (leavingRef.current || leaving) return;
+    if (isLive && lkSession) {
+      Alert.alert(t("watch_live_leave_title"), t("watch_live_leave_confirm"), [
+        { text: t("common_cancel"), style: "cancel" },
+        {
+          text: t("watch_live_leave_action"),
+          style: "destructive",
+          onPress: performLeave,
+        },
+      ]);
+      return;
+    }
+    performLeave();
+  }, [isLive, leaving, lkSession, performLeave, t]);
+
+  const handleSendChat = useCallback(async () => {
+    const trimmed = chatText.trim();
+    if (!trimmed || !id || sendingChat || !isLive || !lkSession) return;
+    setSendingChat(true);
+    try {
+      const result = await sendLiveMessage(id, trimmed);
+      if (!result.ok) {
+        Alert.alert(t("watch_live_chat_failed"), result.error ?? t("common_try_again"));
+        return;
+      }
+      setChatText("");
+    } catch (error) {
+      Alert.alert(
+        t("watch_live_chat_failed"),
+        error instanceof Error ? error.message : t("common_try_again"),
+      );
+    } finally {
+      setSendingChat(false);
+    }
+  }, [chatText, id, isLive, lkSession, sendingChat, t]);
 
   const sources = useMemo(() => (post ? resolveSources(post) : null), [post]);
-  const isLive = post?.isLive === true;
   const viewers = formatViewers(post?.viewerCount ?? 0);
   if (!isReady || !profileLoaded) {
     return (
@@ -213,8 +399,22 @@ export default function WatchLiveScreen() {
                 audio={false}
                 video={false}
               >
-                <RemoteLiveVideo />
+                <ViewerLiveMedia
+                  liveId={id!}
+                  url={lkSession.url}
+                  token={lkSession.token}
+                  streamPaused={streamPaused}
+                  onStreamPausedChange={setStreamPaused}
+                />
               </LiveKitRoom>
+            </View>
+          ) : isLive && streamError ? (
+            <View style={[styles.mediaFill, styles.streamConnecting]}>
+              <Ionicons name="alert-circle-outline" size={40} color="#FCA5A5" />
+              <Text style={styles.streamErrorText}>{streamError}</Text>
+              <TouchableOpacity style={styles.primaryBtn} onPress={leave} activeOpacity={0.88}>
+                <Text style={styles.primaryBtnText}>{t("watch_live_go_back")}</Text>
+              </TouchableOpacity>
             </View>
           ) : isLive && connectingStream ? (
             <View style={[styles.mediaFill, styles.streamConnecting]}>
@@ -239,6 +439,7 @@ export default function WatchLiveScreen() {
               <Pressable
                 onPress={leave}
                 style={styles.iconChip}
+                disabled={leaving}
                 accessibilityRole="button"
                 accessibilityLabel={t("a11y_leave_live")}
                 hitSlop={12}
@@ -257,6 +458,11 @@ export default function WatchLiveScreen() {
                       <View style={styles.liveMiniWrap}>
                         <LivePulseDot small />
                         <Text style={styles.liveMiniText}>{t("common_live")}</Text>
+                        {streamStartedAt ? (
+                          <Text style={styles.liveDurationText}>
+                            {t("watch_live_started_ago", { duration: agoLabel ?? elapsedLabel })}
+                          </Text>
+                        ) : null}
                       </View>
                     ) : (
                       <View style={styles.replayMiniWrap}>
@@ -280,14 +486,13 @@ export default function WatchLiveScreen() {
                   <Ionicons name="eye-outline" size={15} color="#E2E8F0" />
                   <Text style={styles.viewerChipText}>{viewers}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.followBtnHeader}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Follow ${post.sellerName}`}
-                >
-                  <Text style={styles.followBtnHeaderText}>{t("common_follow")}</Text>
-                </TouchableOpacity>
+                {post.sellerId ? (
+                  <FollowButton sellerId={post.sellerId} variant="glass" />
+                ) : (
+                  <View style={styles.followBtnHeader}>
+                    <Text style={styles.followBtnHeaderText}>{t("common_follow")}</Text>
+                  </View>
+                )}
               </View>
             </View>
           ) : (
@@ -295,6 +500,7 @@ export default function WatchLiveScreen() {
               <Pressable
                 onPress={leave}
                 style={styles.iconChip}
+                disabled={leaving}
                 accessibilityRole="button"
                 accessibilityLabel={t("a11y_leave_live")}
                 hitSlop={12}
@@ -326,6 +532,28 @@ export default function WatchLiveScreen() {
             <View style={styles.flexSpacer} pointerEvents="none" />
             <SafeAreaView edges={["bottom"]} style={styles.bottomSafe}>
               <View style={styles.bottomPanel}>
+                <View style={styles.likeRow}>
+                  <TouchableOpacity
+                    style={[styles.likeBtn, (liking || !lkSession) && styles.likeBtnDisabled]}
+                    onPress={() => void handleLike()}
+                    disabled={liking || !lkSession}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("watch_live_like")}
+                  >
+                    {liking ? (
+                      <ActivityIndicator size="small" color="#F87171" />
+                    ) : (
+                      <Ionicons name="heart" size={22} color="#F87171" />
+                    )}
+                    <Text style={styles.likeCountText}>{likeCount}</Text>
+                  </TouchableOpacity>
+                  {isLive && streamStartedAt ? (
+                    <Text style={styles.liveDurationSub}>
+                      {elapsedLabel}
+                    </Text>
+                  ) : null}
+                </View>
+
                 <Text style={styles.streamCaption} numberOfLines={2}>
                   {post.description}
                 </Text>
@@ -335,13 +563,30 @@ export default function WatchLiveScreen() {
                     style={styles.composerInput}
                     placeholder={t("watch_live_chat_placeholder")}
                     placeholderTextColor="rgba(255,255,255,0.42)"
-                    editable={false}
+                    value={chatText}
+                    onChangeText={setChatText}
+                    editable={isLive && Boolean(lkSession) && !sendingChat}
+                    onSubmitEditing={() => void handleSendChat()}
+                    returnKeyType="send"
                   />
-                  <TouchableOpacity style={styles.sendBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t("a11y_send_message")}>
-                    <Ionicons name="send" size={18} color="rgba(248,250,252,0.85)" />
+                  <TouchableOpacity
+                    style={[styles.sendBtn, (!chatText.trim() || sendingChat || !lkSession) && styles.sendBtnDisabled]}
+                    activeOpacity={0.7}
+                    disabled={!chatText.trim() || sendingChat || !lkSession}
+                    onPress={() => void handleSendChat()}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y_send_message")}
+                  >
+                    {sendingChat ? (
+                      <ActivityIndicator size="small" color="#F8FAFC" />
+                    ) : (
+                      <Ionicons name="send" size={18} color="rgba(248,250,252,0.85)" />
+                    )}
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.composerHint}>{t("watch_live_chat_hint")}</Text>
+                <Text style={styles.composerHint}>
+                  {isLive && lkSession ? t("watch_live_chat_active_hint") : t("watch_live_chat_hint")}
+                </Text>
               </View>
             </SafeAreaView>
           </>
@@ -361,7 +606,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 24,
+    gap: 12,
   },
+  streamErrorText: {
+    color: "#FCA5A5",
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  streamPausedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    zIndex: 8,
+  },
+  streamPausedText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   mediaDim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.06)",
@@ -457,6 +720,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   liveMiniText: { fontSize: 10, fontWeight: "800", color: "#FFFFFF", letterSpacing: 0.65 },
+  liveDurationText: { fontSize: 10, fontWeight: "600", color: "#FECACA", marginLeft: 4 },
   replayMiniWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -541,6 +805,31 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     borderTopWidth: 0,
   },
+  likeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  likeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: GLASS_FILL,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: GLASS_BORDER,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 40,
+  },
+  likeBtnDisabled: { opacity: 0.5 },
+  likeCountText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
+  liveDurationSub: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+    fontWeight: "600",
+  },
   streamCaption: {
     fontSize: 15,
     fontWeight: "600",
@@ -570,7 +859,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     paddingVertical: 10,
   },
-  sendBtn: { padding: 8 },
+  sendBtn: { padding: 8, minWidth: 36, alignItems: "center", justifyContent: "center" },
+  sendBtnDisabled: { opacity: 0.45 },
   composerHint: {
     fontSize: 12,
     color: "rgba(255,255,255,0.58)",

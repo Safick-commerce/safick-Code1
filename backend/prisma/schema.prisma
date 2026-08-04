@@ -529,10 +529,11 @@ model live_events {
   status            live_event_status @default(scheduled)
   livekit_room_name String            @unique
   playback_url      String?
-  viewer_count      Int               @default(0)
-  started_at        DateTime?         @db.Timestamptz(6)
-  ended_at          DateTime?         @db.Timestamptz(6)
-  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  viewer_count             Int               @default(0)
+  started_at               DateTime?         @db.Timestamptz(6)
+  ended_at                 DateTime?         @db.Timestamptz(6)
+  seller_last_heartbeat_at DateTime?         @db.Timestamptz(6)
+  created_at               DateTime          @default(now()) @db.Timestamptz(6)
   products          products?         @relation(fields: [product_id], references: [id], onUpdate: NoAction)
   profiles          profiles          @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -608,6 +609,7 @@ model profiles {
   created_at              DateTime        @default(now()) @db.Timestamptz(6)
   bio                     String?
   phone                   String?
+  last_seen_at            DateTime?       @db.Timestamptz(6)
   cover_image_url         String?
   payout_momo_number      String?
   payout_momo_operator    String?
@@ -624,8 +626,39 @@ model profiles {
   payouts_received        payouts[]       @relation("payout_seller")
   product_views           product_views[]
   products                products[]
+  follows_as_follower     follows[]       @relation("follow_follower")
+  follows_as_followee     follows[]       @relation("follow_followee")
+  notifications           notifications[]
   users                   users           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+/// Buyer follows a seller (profiles.id = auth user id).
+model follows {
+  follower_id String   @db.Uuid
+  followee_id String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  follower    profiles @relation("follow_follower", fields: [follower_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  followee    profiles @relation("follow_followee", fields: [followee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([follower_id, followee_id])
+  @@schema("public")
+}
+
+model notifications {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String            @db.Uuid
+  type       notification_type
+  title      String
+  body       String?
+  data       Json?
+  is_read    Boolean           @default(false)
+  created_at DateTime          @default(now()) @db.Timestamptz(6)
+  user       profiles          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, created_at(sort: Desc)], map: "notifications_user_created_idx")
+  @@index([user_id, is_read], map: "notifications_user_read_idx")
   @@schema("public")
 }
 
@@ -772,6 +805,12 @@ enum live_event_status {
   scheduled
   live
   ended
+
+  @@schema("public")
+}
+
+enum notification_type {
+  SELLER_LIVE
 
   @@schema("public")
 }

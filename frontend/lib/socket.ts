@@ -1,6 +1,11 @@
 import { io, type Socket } from "socket.io-client";
 import { getApiBaseUrl } from "./apiConfig";
-import type { SocketChatMessagePayload, SocketTypingPayload } from "../types/socket";
+import type {
+  SocketChatMessagePayload,
+  SocketLiveLikeCountPayload,
+  SocketLiveStreamStatePayload,
+  SocketTypingPayload,
+} from "../types/socket";
 
 import type { ChatMessage, ConversationSummary } from "../utils/conversationApi";
 
@@ -19,6 +24,8 @@ let currentToken: string | null = null;
 const joinedConversationIds = new Set<string>();
 const messageListeners = new Set<(payload: SocketChatMessagePayload) => void>();
 const typingListeners = new Set<(payload: SocketTypingPayload) => void>();
+const liveLikeListeners = new Set<(payload: SocketLiveLikeCountPayload) => void>();
+const liveStreamStateListeners = new Set<(payload: SocketLiveStreamStatePayload) => void>();
 
 function dispatchMessage(payload: SocketChatMessagePayload): void {
   messageListeners.forEach((fn) => fn(payload));
@@ -28,11 +35,25 @@ function dispatchTyping(payload: SocketTypingPayload): void {
   typingListeners.forEach((fn) => fn(payload));
 }
 
+function dispatchLiveLike(payload: SocketLiveLikeCountPayload): void {
+  liveLikeListeners.forEach((fn) => fn(payload));
+}
+
+function dispatchLiveStreamState(payload: SocketLiveStreamStatePayload): void {
+  liveStreamStateListeners.forEach((fn) => fn(payload));
+}
+
 function attachCoreListeners(s: Socket): void {
   s.off("message");
   s.off("typing");
+  s.off("live_like_count");
+  s.off("live_stream_state");
   s.on("message", (payload: SocketChatMessagePayload) => dispatchMessage(payload));
   s.on("typing", (payload: SocketTypingPayload) => dispatchTyping(payload));
+  s.on("live_like_count", (payload: SocketLiveLikeCountPayload) => dispatchLiveLike(payload));
+  s.on("live_stream_state", (payload: SocketLiveStreamStatePayload) =>
+    dispatchLiveStreamState(payload),
+  );
 }
 
 export function subscribeToMessages(
@@ -50,6 +71,24 @@ export function subscribeToTyping(
   typingListeners.add(listener);
   return () => {
     typingListeners.delete(listener);
+  };
+}
+
+export function subscribeToLiveLikeCount(
+  listener: (payload: SocketLiveLikeCountPayload) => void,
+): () => void {
+  liveLikeListeners.add(listener);
+  return () => {
+    liveLikeListeners.delete(listener);
+  };
+}
+
+export function subscribeToLiveStreamState(
+  listener: (payload: SocketLiveStreamStatePayload) => void,
+): () => void {
+  liveStreamStateListeners.add(listener);
+  return () => {
+    liveStreamStateListeners.delete(listener);
   };
 }
 
@@ -219,15 +258,21 @@ export function emitTyping(
   socket.volatile.emit("typing", { roomType, roomId, isTyping });
 }
 
-export function joinLive(liveId: string): Promise<{ ok: boolean; error?: string }> {
+export function joinLive(
+  liveId: string,
+): Promise<{ ok: boolean; error?: string; likeCount?: number }> {
   return new Promise((resolve) => {
     if (!socket?.connected) {
       resolve({ ok: false, error: "not_connected" });
       return;
     }
-    socket.emit("join_live", { liveId }, (res: { ok?: boolean; error?: string }) => {
-      resolve({ ok: res?.ok === true, error: res?.error });
-    });
+    socket.emit(
+      "join_live",
+      { liveId },
+      (res: { ok?: boolean; error?: string; likeCount?: number }) => {
+        resolve({ ok: res?.ok === true, error: res?.error, likeCount: res?.likeCount });
+      },
+    );
   });
 }
 
@@ -257,4 +302,58 @@ export function sendLiveMessage(
       },
     );
   });
+}
+
+export function sendLiveLike(
+  liveId: string,
+): Promise<{ ok: boolean; likeCount?: number; error?: string }> {
+  return new Promise((resolve) => {
+    if (!socket?.connected) {
+      resolve({ ok: false, error: "not_connected" });
+      return;
+    }
+    socket.emit(
+      "live_like",
+      { liveId },
+      (res: { ok?: boolean; likeCount?: number; error?: string }) => {
+        resolve({
+          ok: res?.ok === true,
+          likeCount: res?.likeCount,
+          error: res?.error,
+        });
+      },
+    );
+  });
+}
+
+export function emitLiveStreamState(liveId: string, paused: boolean): void {
+  if (!socket?.connected) return;
+  socket.emit("live_stream_state", { liveId, paused });
+}
+
+export function sendLiveLike(
+  liveId: string,
+): Promise<{ ok: boolean; likeCount?: number; error?: string }> {
+  return new Promise((resolve) => {
+    if (!socket?.connected) {
+      resolve({ ok: false, error: "not_connected" });
+      return;
+    }
+    socket.emit(
+      "live_like",
+      { liveId },
+      (res: { ok?: boolean; likeCount?: number; error?: string }) => {
+        resolve({
+          ok: res?.ok === true,
+          likeCount: res?.likeCount,
+          error: res?.error,
+        });
+      },
+    );
+  });
+}
+
+export function emitLiveStreamState(liveId: string, paused: boolean): void {
+  if (!socket?.connected) return;
+  socket.emit("live_stream_state", { liveId, paused });
 }

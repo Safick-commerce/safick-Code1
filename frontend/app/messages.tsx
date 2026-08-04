@@ -14,6 +14,8 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { ComponentProps } from "react";
 import type { MessageItemData } from "../stores/messageStore";
+
+type InboxConversationRow = MessageItemData & { peerId: string };
 import { listConversations, type ConversationSummary } from "../utils/conversationApi";
 import { formatChatMessagePreview, parseChatMessageBody } from "../utils/chatMessageFormat";
 import { primeConversationBootstrap } from "../utils/conversationBootstrapCache";
@@ -22,6 +24,12 @@ import { useSocket } from "../context/SocketContext";
 import { syncConversationRooms, subscribeToMessages } from "../lib/socket";
 import { ProfileAvatar } from "../components/shared/ProfileAvatar";
 import { useLanguage } from "../context/LanguageContext";
+import {
+  fetchLastSeenForUsers,
+  formatLastSeen,
+  isUserActive,
+  usePresenceState,
+} from "../lib/presence";
 
 const STATUS_COLORS: Record<string, string> = {
   online: "#22C55E",
@@ -56,6 +64,7 @@ export default function MessageScreen() {
   const { t } = useLanguage();
   const { isAuthenticated, isReady, user, profile } = useAuth();
   const { isConnected } = useSocket();
+  const { onlineUserIds, lastSeenByUserId } = usePresenceState();
   const [apiConversations, setApiConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -118,6 +127,13 @@ export default function MessageScreen() {
   }, [isConnected, apiConversations]);
 
   useEffect(() => {
+    const peerIds = apiConversations.map((c) => c.peer.id);
+    if (peerIds.length > 0) {
+      void fetchLastSeenForUsers(peerIds);
+    }
+  }, [apiConversations]);
+
+  useEffect(() => {
     return subscribeToMessages((payload) => {
       if (payload.roomType !== "conversation") return;
       setApiConversations((prev) => {
@@ -142,12 +158,15 @@ export default function MessageScreen() {
     });
   }, []);
 
-  const conversationRows = useMemo((): MessageItemData[] => {
+  const conversationRows = useMemo((): InboxConversationRow[] => {
     return apiConversations.map((c) => {
+      const peerId = c.peer.id;
+      const active = isUserActive(peerId);
       const lastBody = c.lastMessage?.body;
       const lastMessageIsPhoto = lastBody ? parseChatMessageBody(lastBody).kind === "image" : false;
       return {
         id: c.id,
+        peerId,
         isReservation: Boolean(currentUserId && c.sellerId === currentUserId),
         lastMessageIsPhoto,
         seller: {
@@ -156,11 +175,11 @@ export default function MessageScreen() {
             ? formatChatMessagePreview(lastBody, t("chat_photo_message"))
             : t("messages_about_listing", { title: c.productTitle }),
           avatarUrl: c.peer.avatarUrl,
-          status: "online" as const,
+          status: active ? ("online" as const) : ("offline" as const),
         },
       };
     });
-  }, [apiConversations, currentUserId, t]);
+  }, [apiConversations, currentUserId, onlineUserIds, lastSeenByUserId, t]);
 
   const displayItems = conversationRows;
 
@@ -202,7 +221,7 @@ export default function MessageScreen() {
   }, []);
 
   const handleConversationPress = useCallback(
-    (conversation: MessageItemData) => {
+    (conversation: InboxConversationRow) => {
       if (selectionMode) {
         toggleRowSelected(conversation.id);
         return;
@@ -220,8 +239,9 @@ export default function MessageScreen() {
   );
 
   const renderConversation = useCallback(
-    ({ item }: { item: MessageItemData }) => {
+    ({ item }: { item: InboxConversationRow }) => {
       const isSelected = selectedIds.has(item.id);
+      const lastSeenLabel = item.peerId ? formatLastSeen(item.peerId, t) : null;
       return (
         <TouchableOpacity
           style={styles.conversationItem}
@@ -257,6 +277,11 @@ export default function MessageScreen() {
                 {item.seller.name}
               </Text>
             </View>
+            {lastSeenLabel ? (
+              <Text style={styles.lastSeenText} numberOfLines={1}>
+                {lastSeenLabel}
+              </Text>
+            ) : null}
             <View style={styles.lastMessageRow}>
               {item.lastMessageIsPhoto ? (
                 <MaterialIcons name="photo-library" size={24} color="#000000" style={styles.lastMessageIcon} />
@@ -269,7 +294,7 @@ export default function MessageScreen() {
         </TouchableOpacity>
       );
     },
-    [handleConversationPress, selectionMode, selectedIds]
+    [handleConversationPress, selectionMode, selectedIds, t],
   );
 
   const separatorMarginLeft = selectionMode ? 120 : 84;
@@ -541,6 +566,11 @@ const styles = StyleSheet.create({
     color: "#000000",
     flex: 1,
     marginRight: 8,
+  },
+  lastSeenText: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    lineHeight: 16,
   },
   timestamp: {
     fontSize: 13,

@@ -11,16 +11,15 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
-import { LiveKitRoom, VideoTrack, useTracks } from "@livekit/react-native";
-import { Track } from "livekit-client";
 import { GuestSignInPlaceholder } from "../components/auth/GuestSignInPlaceholder";
+import { LivePublisherRoom } from "../components/live/LivePublisherRoom";
 import { useAuth } from "../context/AuthContext";
 import { useUserProfile } from "../stores/userProfileStore";
 import { useLanguage } from "../context/LanguageContext";
-import { startLiveSession, endLiveSession } from "../lib/liveApi";
+import { startLiveSession } from "../lib/liveApi";
 import type { TranslationKey } from "../i18n/types";
 
 type Audience = "public" | "followers";
@@ -42,19 +41,6 @@ const LIVE_CATEGORY_LABEL_KEYS: Record<LiveCategory, TranslationKey> = {
   Home: "cat_home",
   Lifestyle: "cat_lifestyle",
 };
-
-function PublisherVideo() {
-  const tracks = useTracks([Track.Source.Camera]);
-  const videoTrack = tracks.find((track) => track.source === Track.Source.Camera);
-
-  if (!videoTrack) return null;
-
-  return (
-    <View style={StyleSheet.absoluteFillObject}>
-      <VideoTrack trackRef={videoTrack} style={{ flex: 1 }} objectFit="cover" />
-    </View>
-  );
-}
 
 export default function GoLiveScreen() {
   const { t } = useLanguage();
@@ -85,8 +71,11 @@ export default function GoLiveScreen() {
     url: string;
     token: string;
     liveId: string;
+    startedAt: string;
   } | null>(null);
   const [starting, setStarting] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const startingRef = useRef(false);
 
   const cameraReady = Boolean(cameraPermission?.granted);
   const micReady = Boolean(micPermission?.granted);
@@ -129,47 +118,48 @@ export default function GoLiveScreen() {
     return true;
   };
 
-  const handleEndLive = useCallback(async () => {
-    if (liveSession?.liveId) {
-      try {
-        await endLiveSession(liveSession.liveId);
-      } catch {
-        // Session may already be ended if the user disconnected abruptly.
-      }
-    }
+  const handleLiveEnded = useCallback(() => {
     setLiveSession(null);
     setOutcome("idle");
-  }, [liveSession?.liveId]);
+  }, []);
+
+  const showComingSoon = useCallback(
+    (feature: string) => {
+      Alert.alert(feature, t("golive_feature_coming_soon"));
+    },
+    [t],
+  );
 
   const handleGoLive = useCallback(async () => {
-    setShowValidation(true);
-    const ok = await ensurePermissions();
-    if (!ok || !canStartLive) return;
-
+    if (startingRef.current || starting) return;
+    startingRef.current = true;
     setStarting(true);
+    setShowValidation(true);
     try {
+      const ok = await ensurePermissions();
+      if (!ok || !canStartLive) return;
+
       const res = await startLiveSession({
         title: title.trim(),
         category: category || undefined,
         audience,
         productId: resolvedProductId,
       });
-      setLiveSession({ url: res.url, token: res.token, liveId: res.liveId });
+      setLiveSession({
+        url: res.url,
+        token: res.token,
+        liveId: res.liveId,
+        startedAt: res.event?.started_at ?? new Date().toISOString(),
+      });
       setOutcome("started");
     } catch (error) {
       const message = error instanceof Error ? error.message : t("common_try_again");
       Alert.alert(t("golive_go_live"), message || t("common_try_again"));
     } finally {
+      startingRef.current = false;
       setStarting(false);
     }
-  }, [
-    audience,
-    canStartLive,
-    category,
-    resolvedProductId,
-    t,
-    title,
-  ]);
+  }, [audience, canStartLive, category, resolvedProductId, starting, t, title]);
 
   if (!isReady || !isLoaded) {
     return (
@@ -197,22 +187,22 @@ export default function GoLiveScreen() {
   return (
     <View style={styles.screen}>
       {liveSession ? (
-        <View style={StyleSheet.absoluteFillObject}>
-          <LiveKitRoom
-            serverUrl={liveSession.url}
-            token={liveSession.token}
-            connect
-            audio
-            video
-            onDisconnected={() => {
-              void handleEndLive();
-            }}
-          >
-            <PublisherVideo />
-          </LiveKitRoom>
-        </View>
+        <LivePublisherRoom
+          url={liveSession.url}
+          token={liveSession.token}
+          liveId={liveSession.liveId}
+          startedAt={liveSession.startedAt}
+          onEnded={handleLiveEnded}
+          onRequestClose={() => router.back()}
+        />
       ) : cameraReady ? (
-        <CameraView style={StyleSheet.absoluteFill} facing={cameraFacing} mode="video" mute={micMuted} />
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing={cameraFacing}
+          mode="video"
+          mute={micMuted}
+          enableTorch={torchOn && cameraFacing === "back"}
+        />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.permissionPanel]}>
           <Text style={styles.permissionText}>{t("common_camera_mic_required")}</Text>
@@ -223,16 +213,14 @@ export default function GoLiveScreen() {
       )}
 
       <SafeAreaView style={styles.overlay} edges={["top", "left", "right"]} pointerEvents="box-none">
+        {!liveSession ? (
+          <>
         <View style={styles.topBar}>
           <TouchableOpacity
-            onPress={() => {
-              if (liveSession) {
-                void handleEndLive().then(() => router.back());
-              } else {
-                router.back();
-              }
-            }}
+            onPress={() => router.back()}
             style={styles.closeBtn}
+            disabled={starting}
+            hitSlop={8}
           >
             <Ionicons name="close" size={26} color="#FFFFFF" />
           </TouchableOpacity>
@@ -244,24 +232,53 @@ export default function GoLiveScreen() {
         </View>
 
         <View style={styles.sideControls}>
-          <TouchableOpacity style={styles.sideBtn} onPress={() => setCameraFacing((p) => (p === "back" ? "front" : "back"))}>
+          <TouchableOpacity
+            style={styles.sideBtn}
+            onPress={() => setCameraFacing((p) => {
+              const next = p === "back" ? "front" : "back";
+              if (next === "front") setTorchOn(false);
+              return next;
+            })}
+            hitSlop={6}
+          >
             <Ionicons name="camera-reverse-outline" size={22} color="#FFFFFF" />
             <Text style={styles.sideBtnLabel}>{t("golive_flip")}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sideBtn} onPress={() => setMicMuted((v) => !v)}>
+          <TouchableOpacity
+            style={styles.sideBtn}
+            onPress={() => setMicMuted((v) => !v)}
+            hitSlop={6}
+          >
             <Ionicons name={micMuted ? "mic-off-outline" : "mic-outline"} size={22} color={micMuted ? "#FF2800" : "#FFFFFF"} />
             <Text style={styles.sideBtnLabel}>{micMuted ? t("golive_unmute") : t("golive_mute")}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sideBtn}>
-            <Ionicons name="flash-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.sideBtnLabel}>{t("golive_flash")}</Text>
+          <TouchableOpacity
+            style={[styles.sideBtn, cameraFacing === "front" && styles.sideBtnDisabled]}
+            onPress={() => {
+              if (cameraFacing !== "back") return;
+              setTorchOn((v) => !v);
+            }}
+            disabled={cameraFacing === "front"}
+            hitSlop={6}
+          >
+            <Ionicons
+              name={torchOn ? "flash" : "flash-outline"}
+              size={22}
+              color={cameraFacing === "back" ? (torchOn ? "#FBBF24" : "#FFFFFF") : "rgba(255,255,255,0.35)"}
+            />
+            <Text style={[styles.sideBtnLabel, cameraFacing === "front" && styles.sideBtnLabelMuted]}>
+              {t("golive_flash")}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sideBtn}>
-            <Ionicons name="timer-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.sideBtnLabel}>{t("golive_timer")}</Text>
+          <TouchableOpacity style={styles.sideBtn} onPress={() => showComingSoon(t("golive_timer"))} hitSlop={6}>
+            <Ionicons name="timer-outline" size={22} color="rgba(255,255,255,0.55)" />
+            <Text style={[styles.sideBtnLabel, styles.sideBtnLabelMuted]}>{t("golive_timer")}</Text>
           </TouchableOpacity>
         </View>
+          </>
+        ) : null}
 
+        {!liveSession ? (
         <View style={[styles.sheet, isSheetExpanded && styles.sheetExpanded]}>
           <TouchableOpacity
             style={styles.handleWrap}
@@ -436,6 +453,7 @@ export default function GoLiveScreen() {
             </ScrollView>
           ) : null}
         </View>
+        ) : null}
       </SafeAreaView>
     </View>
   );
@@ -459,8 +477,10 @@ const styles = StyleSheet.create({
   liveBadgeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
 
   sideControls: { position: "absolute", right: 12, top: "28%", gap: 22, alignItems: "center" },
-  sideBtn: { alignItems: "center", gap: 4 },
+  sideBtn: { alignItems: "center", gap: 4, minWidth: 48, minHeight: 48, justifyContent: "center" },
+  sideBtnDisabled: { opacity: 0.55 },
   sideBtnLabel: { color: "#FFFFFF", fontSize: 10, fontWeight: "600" },
+  sideBtnLabelMuted: { color: "rgba(255,255,255,0.55)" },
 
   sheet: { backgroundColor: "#000000", borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingBottom: 38, minHeight: 120, maxHeight: 90 },
   sheetExpanded: { maxHeight: "65%" },

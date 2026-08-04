@@ -24,6 +24,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -40,6 +41,26 @@ const USERNAME_MAX = 30;
 const BIO_MAX = 750;
 const USERNAME_REGEX = /^[a-z0-9][a-z0-9._]{1,28}[a-z0-9]$/;
 const CAMEROON_PHONE_REGEX = /^\+237[6-9]\d{8}$/;
+const PROFILE_AVATAR_MAX_DIM = 1000;
+
+async function resizeProfileAvatar(uri: string): Promise<string> {
+  const { width, height } = await new Promise<{ width: number; height: number }>(
+    (resolve, reject) => {
+      Image.getSize(uri, (w, h) => resolve({ width: w, height: h }), reject);
+    },
+  );
+
+  const resizeAction =
+    width > PROFILE_AVATAR_MAX_DIM || height > PROFILE_AVATAR_MAX_DIM
+      ? [{ resize: width >= height ? { width: PROFILE_AVATAR_MAX_DIM } : { height: PROFILE_AVATAR_MAX_DIM } }]
+      : [];
+
+  const result = await ImageManipulator.manipulateAsync(uri, resizeAction, {
+    compress: 0.85,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+  return result.uri;
+}
 
 const ROUTES = {
   USER_TAB: "/userTab",
@@ -255,7 +276,7 @@ export default function EditProfileScreen() {
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
+      allowsEditing: false,
       aspect: [1, 1],
       quality: 0.85,
     });
@@ -263,7 +284,8 @@ export default function EditProfileScreen() {
 
     setIsUploadingAvatar(true);
     try {
-      await uploadProfileAvatar(picked.assets[0].uri);
+      const avatarUri = await resizeProfileAvatar(picked.assets[0].uri);
+      await uploadProfileAvatar(avatarUri);
       await refetchProfile();
     } catch (e) {
       const msg = e instanceof Error ? e.message : t("edit_profile_upload_photo_error");
@@ -285,7 +307,7 @@ export default function EditProfileScreen() {
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
+      allowsEditing: false,
       aspect: [16, 9],
       quality: 0.85,
     });

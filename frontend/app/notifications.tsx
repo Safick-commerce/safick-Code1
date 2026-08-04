@@ -6,36 +6,35 @@ import {
   ScrollView,
   Modal,
   Pressable,
-  Switch,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
+import { useNotifications } from "../stores/notificationStore";
+import type { NotificationRecord } from "../utils/notificationApi";
 
 const RED = "#FF2800";
 
-type AlertTone = "live" | "soon" | "replay";
+function formatNotificationTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  try {
+    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
 
-type UnboxAlert = {
-  id: string;
-  title: string;
-  subtitle: string;
-  time: string;
-  /** Opens watch-live when set (matches `MOCK_LIVE_POSTS.id`). */
-  liveId?: string;
-  tone: AlertTone;
-};
-
-/**
- * Live alerts feed. Empty until the real notifications/follow API is wired.
- * Shape kept here so the UI can render once data starts flowing.
- */
-const UNBOX_ALERTS: UnboxAlert[] = [];
-
-type AlertFilters = { live: boolean; soon: boolean; replay: boolean };
-const DEFAULT_FILTERS: AlertFilters = { live: true, soon: true, replay: true };
+function liveEventIdFromNotification(row: NotificationRecord): string | undefined {
+  const data = row.data;
+  if (!data || typeof data !== "object") return undefined;
+  const id = (data as { liveEventId?: unknown }).liveEventId;
+  return typeof id === "string" && id.trim() ? id : undefined;
+}
 
 function normalizeFromParam(raw: string | string[] | undefined): boolean {
   if (raw == null) return false;
@@ -50,22 +49,42 @@ export default function NotificationsScreen() {
   const { from } = useLocalSearchParams<{ from?: string | string[] }>();
   const fromUnbox = useMemo(() => normalizeFromParam(from), [from]);
  
+  const {
+    notifications,
+    loading,
+    refreshing,
+    error,
+    fetchNotifications,
+    markRead,
+    markAllRead,
+  } = useNotifications();
+
   const [activeFilter, setActiveFilter] = useState("All");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [filters, setFilters] = useState<AlertFilters>(DEFAULT_FILTERS);
-  const [readAll, setReadAll] = useState(false);
   const [bannerText, setBannerText] = useState<string | null>(null);
-  const [bannerUndo, setBannerUndo] = useState<(() => void) | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const screenTitle = fromUnbox ? t("notifications_live_alerts") : t("notifications_activity");
-  const hasActiveFilters = !filters.live || !filters.soon || !filters.replay;
 
-  const visibleAlerts = useMemo(
-    () => UNBOX_ALERTS.filter((row) => filters[row.tone]),
-    [filters]
+  const liveAlerts = useMemo(
+    () => notifications.filter((n) => n.type === "SELLER_LIVE"),
+    [notifications],
   );
-  const hasAnyAlerts = UNBOX_ALERTS.length > 0;
+
+  const visibleNotifications = useMemo(() => {
+    if (fromUnbox) return liveAlerts;
+    if (activeFilter === "Sellers") {
+      return notifications.filter((n) => n.type === "SELLER_LIVE");
+    }
+    return notifications;
+  }, [activeFilter, fromUnbox, liveAlerts, notifications]);
+
+  const hasNotifications = visibleNotifications.length > 0;
+  const allRead = notifications.length > 0 && notifications.every((n) => n.isRead);
+
+  useEffect(() => {
+    void fetchNotifications({ refresh: true });
+  }, [fetchNotifications]);
 
   useEffect(() => {
     return () => {
@@ -73,44 +92,41 @@ export default function NotificationsScreen() {
     };
   }, []);
 
-  const showBanner = useCallback((text: string, undo?: () => void) => {
+  const showBanner = useCallback((text: string) => {
     if (bannerTimer.current) clearTimeout(bannerTimer.current);
     setBannerText(text);
-    setBannerUndo(undo ? () => undo : null);
     bannerTimer.current = setTimeout(() => {
       setBannerText(null);
-      setBannerUndo(null);
     }, 4500);
   }, []);
 
   const dismissBanner = useCallback(() => {
     if (bannerTimer.current) clearTimeout(bannerTimer.current);
     setBannerText(null);
-    setBannerUndo(null);
   }, []);
 
-  const onAlertPress = (row: UnboxAlert) => {
-    if (!row.liveId) return;
+  const onNotificationPress = async (row: NotificationRecord) => {
+    const liveId = row.type === "SELLER_LIVE" ? liveEventIdFromNotification(row) : undefined;
+    if (!row.isRead) {
+      await markRead(row.id);
+    }
+    if (!liveId) return;
     try {
-      router.push({ pathname: "/watch-live", params: { liveId: row.liveId } });
+      router.push({ pathname: "/watch-live", params: { liveId } });
     } catch (e) {
       console.error("[notifications] watch-live", e);
     }
   };
 
-  const toggleFilter = (key: keyof AlertFilters) => {
-    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const resetFilters = () => {
-    setFilters(DEFAULT_FILTERS);
-  };
+  const onRefresh = useCallback(() => {
+    void fetchNotifications({ refresh: true });
+  }, [fetchNotifications]);
 
   const onMarkAllAsRead = () => {
     setMenuOpen(false);
-    if (readAll) return;
-    setReadAll(true);
-    showBanner(t("notifications_marked_read"), () => setReadAll(false));
+    if (allRead) return;
+    void markAllRead();
+    showBanner(t("notifications_marked_read"));
   };
 
   const onMuteForHour = () => {
@@ -141,7 +157,6 @@ export default function NotificationsScreen() {
           onPress={() => setMenuOpen(true)}
         >
           <Ionicons name="options-outline" size={28} color="#000000" />
-          {hasActiveFilters ? <View style={styles.menuDot} /> : null}
         </TouchableOpacity>
       </View>
 
@@ -149,19 +164,6 @@ export default function NotificationsScreen() {
         <View style={styles.banner}>
           <Text style={styles.bannerText}>{bannerText}</Text>
           <View style={styles.bannerActions}>
-            {bannerUndo ? (
-              <TouchableOpacity
-                onPress={() => {
-                  bannerUndo();
-                  dismissBanner();
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t("common_undo")}
-                hitSlop={8}
-              >
-                <Text style={styles.bannerUndoText}>{t("notifications_undo")}</Text>
-              </TouchableOpacity>
-            ) : null}
             <TouchableOpacity onPress={dismissBanner} accessibilityRole="button" accessibilityLabel={t("common_dismiss")} hitSlop={8}>
               <Ionicons name="close" size={18} color="#FFFFFF" />
             </TouchableOpacity>
@@ -170,91 +172,90 @@ export default function NotificationsScreen() {
       ) : null}
 
       {!fromUnbox ? (
-        <>
-          <View style={styles.filtersContainer}>
-            <TouchableOpacity
-              style={[styles.filterButton, activeFilter === "All" && styles.filterButtonActive]}
-              onPress={() => setActiveFilter("All")}
-            >
-              <Text style={[styles.filterText, activeFilter === "All" && styles.filterTextActive]}>{t("common_all")}</Text>
-            </TouchableOpacity>
+        <View style={styles.filtersContainer}>
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilter === "All" && styles.filterButtonActive]}
+            onPress={() => setActiveFilter("All")}
+          >
+            <Text style={[styles.filterText, activeFilter === "All" && styles.filterTextActive]}>{t("common_all")}</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.filterButton, activeFilter === "Sellers" && styles.filterButtonActive]}
-              onPress={() => setActiveFilter("Sellers")}
-            >
-              <Text style={[styles.filterText, activeFilter === "Sellers" && styles.filterTextActive]}>{t("notifications_sellers")}</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilter === "Sellers" && styles.filterButtonActive]}
+            onPress={() => setActiveFilter("Sellers")}
+          >
+            <Text style={[styles.filterText, activeFilter === "Sellers" && styles.filterTextActive]}>{t("notifications_sellers")}</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.filterButton, activeFilter === "Important" && styles.filterButtonActive]}
-              onPress={() => setActiveFilter("Important")}
-            >
-              <Text style={[styles.filterText, activeFilter === "Important" && styles.filterTextActive]}>{t("notifications_important")}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.content}>
-            <Text style={styles.placeholderText}>
-              {readAll ? t("notifications_caught_up") : t("notifications_all_here")}
-            </Text>
-          </View>
-        </>
-      ) : !hasAnyAlerts ? (
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyTitle}>{t("notifications_no_live")}</Text>
-          <Text style={styles.emptySub}>{t("notifications_no_live_body")}</Text>
-        </View>
-      ) : visibleAlerts.length === 0 ? (
-        <View style={styles.emptyWrap}>
-          <Ionicons name="filter-outline" size={36} color="#94A3B8" />
-          <Text style={styles.emptyTitle}>{t("notifications_no_match")}</Text>
-          <TouchableOpacity style={styles.resetBtn} onPress={resetFilters} accessibilityRole="button">
-            <Text style={styles.resetBtnText}>{t("notifications_reset_filters")}</Text>
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilter === "Important" && styles.filterButtonActive]}
+            onPress={() => setActiveFilter("Important")}
+          >
+            <Text style={[styles.filterText, activeFilter === "Important" && styles.filterTextActive]}>{t("notifications_important")}</Text>
           </TouchableOpacity>
         </View>
+      ) : null}
+
+      {loading && !refreshing && notifications.length === 0 ? (
+        <View style={styles.content}>
+          <ActivityIndicator size="large" color={RED} />
+        </View>
+      ) : error && notifications.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyTitle}>{t("notifications_load_error")}</Text>
+          <TouchableOpacity style={styles.resetBtn} onPress={onRefresh} accessibilityRole="button">
+            <Text style={styles.resetBtnText}>{t("common_try_again")}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !hasNotifications ? (
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyTitle}>{fromUnbox ? t("notifications_no_live") : t("notifications_empty_title")}</Text>
+          <Text style={styles.emptySub}>{fromUnbox ? t("notifications_no_live_body") : t("notifications_empty_body")}</Text>
+        </View>
       ) : (
-        <ScrollView style={styles.listScroll} contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled">
-          {visibleAlerts.map((row) => (
-            <TouchableOpacity
-              key={row.id}
-              style={[styles.alertRow, (readAll || !row.liveId) && styles.alertRowMuted]}
-              onPress={() => onAlertPress(row)}
-              activeOpacity={row.liveId ? 0.75 : 1}
-              disabled={!row.liveId}
-              accessibilityRole="button"
-              accessibilityLabel={`${row.title}. ${row.subtitle}. ${row.time}.`}
-              accessibilityHint={row.liveId ? t("a11y_opens_live_viewer") : undefined}
-            >
-              <View style={styles.alertRowLeft}>
-                <View
-                  style={[
-                    styles.toneDot,
-                    row.tone === "live" && styles.toneDotLive,
-                    row.tone === "soon" && styles.toneDotSoon,
-                    row.tone === "replay" && styles.toneDotReplay,
-                  ]}
-                />
-                <View style={styles.alertTextWrap}>
-                  <View style={styles.alertTitleRow}>
-                    <Text style={styles.alertTitle} numberOfLines={1}>
-                      {row.title}
+        <ScrollView
+          style={styles.listScroll}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={RED} />}
+        >
+          {visibleNotifications.map((row) => {
+            const liveId = row.type === "SELLER_LIVE" ? liveEventIdFromNotification(row) : undefined;
+            const subtitle = row.body?.trim() || row.title;
+            const time = formatNotificationTime(row.createdAt);
+            return (
+              <TouchableOpacity
+                key={row.id}
+                style={[styles.alertRow, row.isRead && styles.alertRowMuted]}
+                onPress={() => void onNotificationPress(row)}
+                activeOpacity={liveId ? 0.75 : 1}
+                accessibilityRole="button"
+                accessibilityLabel={`${row.title}. ${subtitle}. ${time}.`}
+                accessibilityHint={liveId ? t("a11y_opens_live_viewer") : undefined}
+              >
+                <View style={styles.alertRowLeft}>
+                  <View style={[styles.toneDot, row.type === "SELLER_LIVE" && styles.toneDotLive, !row.isRead && styles.toneDotUnread]} />
+                  <View style={styles.alertTextWrap}>
+                    <View style={styles.alertTitleRow}>
+                      <Text style={[styles.alertTitle, !row.isRead && styles.alertTitleUnread]} numberOfLines={1}>
+                        {row.title}
+                      </Text>
+                      {row.type === "SELLER_LIVE" ? (
+                        <View style={styles.livePill}>
+                          <Text style={styles.livePillText}>{t("common_live")}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.alertSubtitle} numberOfLines={2}>
+                      {subtitle}
                     </Text>
-                    {row.tone === "live" ? (
-                      <View style={styles.livePill}>
-                        <Text style={styles.livePillText}>{t("common_live")}</Text>
-                      </View>
-                    ) : null}
+                    <Text style={styles.alertTime}>{time}</Text>
                   </View>
-                  <Text style={styles.alertSubtitle} numberOfLines={2}>
-                    {row.subtitle}
-                  </Text>
-                  <Text style={styles.alertTime}>{row.time}</Text>
                 </View>
-              </View>
-              {row.liveId ? <Ionicons name="chevron-forward" size={20} color="#94A3B8" /> : null}
-            </TouchableOpacity>
-          ))}
+                {liveId ? <Ionicons name="chevron-forward" size={20} color="#94A3B8" /> : null}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       )}
      {/* Menu dropdown*/}
@@ -272,45 +273,12 @@ export default function NotificationsScreen() {
               { top: insets.top + 52 },
             ]}
           >
-            {fromUnbox ? (
-              <>
-                <Text style={styles.menuSectionLabel}>{t("notifications_filter")}</Text>
-                <MenuToggleRow
-                  iconName="radio-outline"
-                  iconColor={RED}
-                  label={t("notifications_live_now")}
-                  value={filters.live}
-                  onToggle={() => toggleFilter("live")}
-                />
-                <MenuToggleRow
-                  iconName="time-outline"
-                  iconColor="#828282"
-                  label={t("notifications_scheduled")}
-                  value={filters.soon}
-                  onToggle={() => toggleFilter("soon")}
-                />
-                <MenuToggleRow
-                  iconName="play-circle-outline"
-                  iconColor="#828282"
-                  label={t("notifications_replays")}
-                  value={filters.replay}
-                  onToggle={() => toggleFilter("replay")}
-                />
-                {hasActiveFilters ? (
-                  <TouchableOpacity onPress={resetFilters} style={styles.menuLinkRow} accessibilityRole="button">
-                    <Text style={styles.menuLinkText}>{t("notifications_reset_filters")}</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <View style={styles.menuDivider} />
-              </>
-            ) : null}
-
             <Text style={styles.menuSectionLabel}>{t("common_actions")}</Text>
             <MenuActionRow
               iconName="checkmark-done-outline"
               label={t("notifications_mark_all")}
               onPress={onMarkAllAsRead}
-              disabled={readAll}
+              disabled={allRead}
             />
             <MenuActionRow
               iconName="notifications-off-outline"
@@ -330,36 +298,6 @@ export default function NotificationsScreen() {
 }
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
-
-function MenuToggleRow({
-  iconName,
-  iconColor,
-  label,
-  value,
-  onToggle,
-}: {
-  iconName: IoniconName;
-  iconColor: string;
-  label: string;
-  value: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <View style={styles.menuRow}>
-      <View style={styles.menuRowLeft}>
-        <Ionicons name={iconName} size={18} color={iconColor} />
-        <Text style={styles.menuRowLabel}>{label}</Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: "#E5E7EB", true: "#FECACA" }}
-        thumbColor={value ? RED : "#F8FAFC"}
-        ios_backgroundColor="#E5E7EB"
-      />
-    </View>
-  );
-}
 
 function MenuActionRow({
   iconName,
@@ -567,6 +505,9 @@ const styles = StyleSheet.create({
   toneDotLive: {
     backgroundColor: RED,
   },
+  toneDotUnread: {
+    backgroundColor: RED,
+  },
   toneDotSoon: {
     backgroundColor: "#F59E0B",
   },
@@ -588,6 +529,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111827",
     flexShrink: 1,
+  },
+  alertTitleUnread: {
+    color: "#000000",
   },
   livePill: {
     backgroundColor: RED,

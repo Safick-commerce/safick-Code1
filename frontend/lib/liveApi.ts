@@ -7,6 +7,7 @@ type LiveFeedRow = {
   category: string | null;
   status: "scheduled" | "live" | "ended";
   viewer_count: number;
+  started_at: string | null;
   profiles: {
     id: string;
     display_name: string | null;
@@ -39,6 +40,7 @@ function mapFeedRow(row: LiveFeedRow): LivePost {
     isLive: row.status === "live",
     viewerCount: row.viewer_count,
     category: row.category ?? undefined,
+    startedAt: row.started_at ?? undefined,
   };
 }
 
@@ -58,6 +60,7 @@ export async function startLiveSession(body: {
     roomName: string;
     token: string;
     url: string;
+    event?: { started_at?: string | null };
   }>("/api/live/start", {
     method: "POST",
     body: JSON.stringify(body),
@@ -65,7 +68,16 @@ export async function startLiveSession(body: {
 }
 
 export async function getLiveViewerToken(liveId: string) {
-  return apiFetch<{ token: string; url: string }>(`/api/live/${liveId}/token`, {
+  return apiFetch<{ token: string; url: string; event?: { started_at?: string | null } }>(
+    `/api/live/${liveId}/token`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export async function sendLiveHeartbeat(liveId: string) {
+  return apiFetch<{ ok: boolean }>(`/api/live/${liveId}/heartbeat`, {
     method: "POST",
   });
 }

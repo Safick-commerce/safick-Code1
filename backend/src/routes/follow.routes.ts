@@ -12,6 +12,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { validateQuery } from "../middleware/validate";
 import { followListQuerySchema } from "../types/follow";
+import { followRateLimiter } from "../middleware/routeRateLimiters";
 import * as followController from "../controllers/follow.controller";
 
 const router = Router();
@@ -22,7 +23,7 @@ router.use(requireAuth);
 
 router.get("/me", validateQuery(followListQuerySchema), followController.listFollowing);
 router.get("/check/:sellerId", followController.checkFollowing);
-router.post("/:sellerId", followController.follow);
-router.delete("/:sellerId", followController.unfollow);
+router.post("/:sellerId", followRateLimiter, followController.follow);
+router.delete("/:sellerId", followRateLimiter, followController.unfollow);
 
 export default router;

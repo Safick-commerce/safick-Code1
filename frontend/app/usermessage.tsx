@@ -51,6 +51,12 @@ import { ReportUserModal } from "../components/shared/ReportUserModal";
 import { CHAT_REPORT_REASONS } from "../constants/reportReasons";
 import { useLanguage } from "../context/LanguageContext";
 import type { TranslationKey } from "../i18n/types";
+import {
+  fetchLastSeenForUsers,
+  formatLastSeen,
+  isUserActive,
+  usePresenceState,
+} from "../lib/presence";
 
 const ROUTES = { USER_TAB: "/userTab" } as const;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -176,6 +182,7 @@ export default function UserMessage() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isConnected, connectionError } = useSocket();
+  const { onlineUserIds, lastSeenByUserId } = usePresenceState();
   const params = useLocalSearchParams<{
     conversationId?: string | string[];
     origin?: string | string[];
@@ -241,6 +248,13 @@ export default function UserMessage() {
       initialLoadDone.current = true;
     }
   }, [conversationId, userId, t]);
+
+  useEffect(() => {
+    const peerId = conversation?.peer.id;
+    if (peerId) {
+      void fetchLastSeenForUsers([peerId]);
+    }
+  }, [conversation?.peer.id]);
 
   useEffect(() => {
     initialLoadDone.current = false;
@@ -435,7 +449,7 @@ export default function UserMessage() {
 
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.85,
     });
 
@@ -636,6 +650,16 @@ export default function UserMessage() {
   };
 
   const peerName = conversation?.peer.displayName ?? t("messages_title");
+  const peerId = conversation?.peer.id ?? "";
+  const peerActive = peerId ? isUserActive(peerId) : false;
+  const presenceLabel = peerId ? formatLastSeen(peerId, t) : null;
+  const connectionLabel =
+    isConnected && roomJoined
+      ? null
+      : connectionError
+        ? t("chat_offline")
+        : t("chat_connecting");
+  const headerSubtext = connectionLabel ?? presenceLabel ?? "";
   const productPriceLabel =
     conversation?.productPrice != null && Number.isFinite(conversation.productPrice)
       ? formatPriceXaf(conversation.productPrice)
@@ -662,17 +686,16 @@ export default function UserMessage() {
           <TouchableOpacity style={styles.headerProfile} onPress={handleViewProfilePress}>
             <View style={styles.headerAvatarContainer}>
               <ProfileAvatar uri={conversation?.peer.avatarUrl} size={40} style={styles.headerAvatar} />
-              <View style={styles.headerStatusDot} />
+              <View
+                style={[
+                  styles.headerStatusDot,
+                  !peerActive ? styles.headerStatusDotOffline : null,
+                ]}
+              />
             </View>
             <View style={styles.headerInfo}>
               <Text style={styles.headerName}>{peerName}</Text>
-              <Text style={styles.headerStatus}>
-                {isConnected && roomJoined
-                  ? ""
-                  : connectionError
-                    ? t("chat_offline")
-                    : t("chat_connecting")}
-              </Text>
+              <Text style={styles.headerStatus}>{headerSubtext}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerAction}>
@@ -953,6 +976,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
     borderWidth: 2,
     borderColor: '#ffffff',
+  },
+  headerStatusDotOffline: {
+    backgroundColor: '#9CA3AF',
   },
   headerInfo: {
     gap: 2,

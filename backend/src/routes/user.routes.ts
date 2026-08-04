@@ -14,9 +14,30 @@
 
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
+import { profileImageUpload } from "../middleware/upload";
+import { AppError } from "../middleware/errorHandler";
 import * as userController from "../controllers/user.controller";
 
 const router = Router();
+
+function handleProfileUpload(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction,
+) {
+  profileImageUpload(req, res, (err: unknown) => {
+    if (!err) {
+      next();
+      return;
+    }
+    if (err instanceof AppError) {
+      next(err);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Upload failed";
+    next(new AppError(message, 400));
+  });
+}
 
 // Username check MUST be registered before /:id or Express treats "check-username" as an id.
 router.get("/check-username/:username", userController.checkUsername);
@@ -24,6 +45,8 @@ router.get("/check-username/:username", userController.checkUsername);
 // Current user's profile (requires login)
 router.get("/me", requireAuth, userController.getMe);
 router.put("/me", requireAuth, userController.updateMe);
+router.post("/me/avatar", requireAuth, handleProfileUpload, userController.uploadAvatar);
+router.post("/me/cover", requireAuth, handleProfileUpload, userController.uploadCover);
 
 // Onboarding completion — sets username, gender, city, interests in one call
 router.put("/me/onboarding", requireAuth, userController.completeOnboarding);

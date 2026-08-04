@@ -18,6 +18,8 @@ import { AuthProvider, useAuth } from "../context/AuthContext";
 import { SocketProvider } from "../context/SocketContext";
 import { LanguageProvider } from "../context/LanguageContext";
 import { useAuthGuard } from "../hooks/useAuthGuard";
+import { usePresence } from "../lib/presence";
+import { NotificationsBootstrap } from "../stores/notificationStoreEffects";
 import Splashscreen from "./screens/Intro/splashscreen";
 
 registerGlobals();
@@ -26,6 +28,13 @@ ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AuthGate() {
   useAuthGuard();
+  return null;
+}
+
+/** Single global Supabase Realtime Presence subscription for the signed-in user. */
+function PresenceBootstrap() {
+  const { user, isAuthenticated, isReady } = useAuth();
+  usePresence(isReady && isAuthenticated ? user?.id : null);
   return null;
 }
 
@@ -55,6 +64,8 @@ function AppTree() {
       <AuthProvider>
         <SocketProvider>
           <BootstrapGate>
+            <PresenceBootstrap />
+            <NotificationsBootstrap />
             <KeyboardProvider>
               <AuthGate />
               <StatusBar style="dark" />

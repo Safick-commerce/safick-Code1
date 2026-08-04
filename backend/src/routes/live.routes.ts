@@ -1,12 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth";
+import { validate } from "../middleware/validate";
+import { liveStartRateLimiter } from "../middleware/routeRateLimiters";
 import { parseUuid } from "../utils/uuid";
 import {
   startLiveSession,
   getViewerToken,
   endLiveSession,
   listLiveFeed,
+  recordLiveHeartbeat,
 } from "../services/live.service";
 
 const router = Router();
@@ -27,9 +30,9 @@ router.get("/feed", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.post("/start", requireAuth, async (req, res, next) => {
+router.post("/start", requireAuth, liveStartRateLimiter, validate(startSchema), async (req, res, next) => {
   try {
-    const body = startSchema.parse(req.body);
+    const body = req.body as z.infer<typeof startSchema>;
     const result = await startLiveSession({
       sellerId: req.userId!,
       title: body.title,
@@ -76,6 +79,20 @@ router.post("/:liveId/end", requireAuth, async (req, res, next) => {
       return;
     }
     await endLiveSession(liveId, req.userId!);
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/:liveId/heartbeat", requireAuth, async (req, res, next) => {
+  try {
+    const liveId = parseUuid(String(req.params.liveId));
+    if (!liveId) {
+      res.status(400).json({ error: "Invalid live id" });
+      return;
+    }
+    await recordLiveHeartbeat(liveId, req.userId!);
     res.json({ ok: true });
   } catch (error) {
     next(error);

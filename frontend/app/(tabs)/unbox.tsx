@@ -15,6 +15,7 @@ import { UnboxLiveGridSkeleton } from "../../components/shared/UnboxLiveGridSkel
 import { useAuth } from "../../context/AuthContext";
 import { useUserProfile } from "../../stores/userProfileStore";
 import { useLanguage } from "../../context/LanguageContext";
+import { NotificationBellButton } from "../../components/shared/NotificationBellButton";
 
 // Route constants for security
 const ROUTES = {
@@ -145,16 +146,7 @@ export default function LiveScreen() {
             <Ionicons name="search" size={26} color="#000000" />
             <Text style={styles.searchPlaceholder}>{t("unbox_search_placeholder")}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerBellButton}
-            onPress={openLiveAlerts}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={t("a11y_live_alerts")}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-          >
-            <Ionicons name="notifications-outline" size={30} color="#000000" />
-          </TouchableOpacity>
+          <NotificationBellButton onPress={openLiveAlerts} style={styles.headerBellButton} />
         </View>
       </View>
 

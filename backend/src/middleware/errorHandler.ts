@@ -18,6 +18,7 @@
 //   throw new AppError("Email already taken", 409);
 // =============================================================================
 
+import { ZodError } from "zod";
 import { Request, Response, NextFunction } from "express";
 
 /**
@@ -52,8 +53,13 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   // Default to 500 Internal Server Error for unexpected errors
-  const statusCode = err instanceof AppError ? err.statusCode : 500;
-  const message = err instanceof AppError ? err.message : "Internal server error";
+  let statusCode = err instanceof AppError ? err.statusCode : 500;
+  let message = err instanceof AppError ? err.message : "Internal server error";
+
+  if (err instanceof ZodError) {
+    statusCode = 400;
+    message = err.issues[0]?.message ?? "Validation failed";
+  }
 
   // Log the full error in development, just the message in production
   if (process.env.NODE_ENV === "development") {

@@ -12,6 +12,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import * as userService from "../services/user.service";
+import * as profileMediaService from "../services/profileMedia.service";
 import { parseUuid } from "../utils/uuid";
 import { sellerPayoutSchema } from "../types";
 import { AppError } from "../middleware/errorHandler";
@@ -158,6 +159,56 @@ export async function checkUsername(req: Request, res: Response, next: NextFunct
     const username = String(req.params.username);
     const result = await userService.checkUsernameAvailability(username);
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+function readUploadedFile(req: Request, res: Response): Buffer | null {
+  if (!req.file?.buffer?.length) {
+    res.status(400).json({ error: "Missing image file (field name: file)" });
+    return null;
+  }
+  return req.file.buffer;
+}
+
+/**
+ * POST /api/users/me/avatar
+ * Multipart upload — validated server-side by magic bytes + size cap.
+ */
+export async function uploadAvatar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const buffer = readUploadedFile(req, res);
+    if (!buffer) return;
+
+    const publicUrl = await profileMediaService.uploadProfileAvatar(userId, buffer);
+    res.status(201).json({ avatarUrl: publicUrl });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/users/me/cover
+ * Multipart upload — validated server-side by magic bytes + size cap.
+ */
+export async function uploadCover(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const buffer = readUploadedFile(req, res);
+    if (!buffer) return;
+
+    const publicUrl = await profileMediaService.uploadProfileCover(userId, buffer);
+    res.status(201).json({ coverImageUrl: publicUrl });
   } catch (error) {
     next(error);
   }

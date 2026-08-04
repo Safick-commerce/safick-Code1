@@ -244,7 +244,7 @@ export default function CreateNewScreen() {
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["videos"],
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.9,
     });
     if (!picked.canceled && picked.assets[0]?.uri) {

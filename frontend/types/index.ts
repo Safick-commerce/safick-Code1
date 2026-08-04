@@ -76,6 +76,7 @@ export interface LivePost {
   isLive?: boolean;
   viewerCount?: number;
   category?: string;
+  startedAt?: string;
 }
 
 export type CategoryFilter = "New" | "Sale" | "Trending" | "Best" | "Limited";

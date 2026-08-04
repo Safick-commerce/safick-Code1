@@ -78,6 +78,18 @@ export async function checkFollowingSeller(sellerId: string): Promise<boolean> {
   return Boolean(data.following);
 }
 
+/** Alias used by FollowButton — same as checkFollowingSeller. */
+export async function fetchFollowStatus(sellerId: string): Promise<{ following: boolean }> {
+  const following = await checkFollowingSeller(sellerId);
+  return { following };
+}
+
+/** Follower count only (compat helper for profile screens). */
+export async function fetchFollowersCount(sellerId: string): Promise<{ count: number }> {
+  const counts = await fetchFollowCounts(sellerId);
+  return { count: counts.followers };
+}
+
 export async function followSeller(sellerId: string): Promise<void> {
   await apiFetch<{ following: boolean }>(`/api/follows/${encodeURIComponent(sellerId)}`, {
     method: "POST",

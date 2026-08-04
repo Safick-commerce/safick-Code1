@@ -1,42 +1,48 @@
 -- Live selling sessions (LiveKit). Run in Supabase SQL Editor after products + profiles exist.
 
-do $$ begin
-  create type public.live_event_status as enum ('scheduled', 'live', 'ended');
-exception
-  when duplicate_object then null;
-end $$;
+DO $$ BEGIN
+  CREATE TYPE public.live_event_status AS ENUM ('scheduled', 'live', 'ended');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
-create table if not exists public.live_events (
-  id                uuid primary key default gen_random_uuid(),
-  seller_id         uuid not null references public.profiles(id) on delete cascade,
-  product_id        uuid references public.products(id) on delete set null,
-  title             text not null,
-  category          text,
-  audience          text not null default 'public',
-  status            public.live_event_status not null default 'scheduled',
-  livekit_room_name text not null unique,
-  playback_url      text,
-  viewer_count      integer not null default 0,
-  started_at        timestamptz,
-  ended_at          timestamptz,
-  created_at        timestamptz not null default now()
+CREATE TABLE IF NOT EXISTS public.live_events (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  seller_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  product_id        UUID REFERENCES public.products(id) ON DELETE SET NULL,
+  title             TEXT NOT NULL,
+  category          TEXT,
+  audience          TEXT NOT NULL DEFAULT 'public',
+  status            public.live_event_status NOT NULL DEFAULT 'scheduled',
+  livekit_room_name TEXT NOT NULL UNIQUE,
+  playback_url      TEXT,
+  viewer_count      INTEGER NOT NULL DEFAULT 0,
+  started_at        TIMESTAMPTZ,
+  ended_at          TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create index if not exists live_events_status_started_idx
-  on public.live_events (status, started_at desc);
+CREATE INDEX IF NOT EXISTS live_events_status_started_idx
+  ON public.live_events (status, started_at DESC);
 
-alter table public.live_events enable row level security;
+ALTER TABLE public.live_events ENABLE ROW LEVEL SECURITY;
 
-drop policy if exists "live_events_select_public" on public.live_events;
-create policy "live_events_select_public"
-  on public.live_events for select using (true);
+DROP POLICY IF EXISTS "live_events_select_public" ON public.live_events;
+CREATE POLICY "live_events_select_public"
+  ON public.live_events FOR SELECT USING (true);
 
-drop policy if exists "live_events_insert_own" on public.live_events;
-create policy "live_events_insert_own"
-  on public.live_events for insert to authenticated
-  with check (seller_id = auth.uid());
+DROP POLICY IF EXISTS "live_events_insert_own" ON public.live_events;
+CREATE POLICY "live_events_insert_own"
+  ON public.live_events FOR INSERT TO authenticated
+  WITH CHECK (seller_id = auth.uid());
 
-drop policy if exists "live_events_update_own" on public.live_events;
-create policy "live_events_update_own"
-  on public.live_events for update to authenticated
-  using (seller_id = auth.uid());
+DROP POLICY IF EXISTS "live_events_update_own" ON public.live_events;
+CREATE POLICY "live_events_update_own"
+  ON public.live_events FOR UPDATE TO authenticated
+  USING (seller_id = auth.uid())
+  WITH CHECK (seller_id = auth.uid());
+
+DROP POLICY IF EXISTS "live_events_delete_own" ON public.live_events;
+CREATE POLICY "live_events_delete_own"
+  ON public.live_events FOR DELETE TO authenticated
+  USING (seller_id = auth.uid());

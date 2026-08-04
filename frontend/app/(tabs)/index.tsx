@@ -12,6 +12,7 @@ import { useUserProfile } from "../../stores/userProfileStore";
 import { useIsFocused } from "@react-navigation/native";
 import { useLanguage } from "../../context/LanguageContext";
 import type { TranslationKey } from "../../i18n/types";
+import { NotificationBellButton } from "../../components/shared/NotificationBellButton";
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_KEYS = ["home_tab_discover", "home_tab_for_you", "home_tab_following"] as const satisfies readonly TranslationKey[];
 type TabKey = (typeof TAB_KEYS)[number];
@@ -48,14 +49,6 @@ export default function Index() {
   const handleMessagePress = useCallback(() => {
     try {
       router.push(ROUTES.MESSAGES);
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  }, [router]);
-
-  const handleNotificationPress = useCallback(() => {
-    try {
-      router.push(ROUTES.NOTIFICATIONS);
     } catch (error) {
       console.error("Navigation error:", error);
     }
@@ -182,15 +175,7 @@ export default function Index() {
             </TouchableOpacity>
 
             {/* Notification Icon with Badge */}
-            <TouchableOpacity 
-              style={styles.notificationContainer}
-              onPress={handleNotificationPress}
-              accessibilityLabel={t("a11y_notifications")}
-              accessibilityRole="button"
-            >
-              <Ionicons name="notifications-outline" size={30} color="#000000" />
-              <View style={styles.badge} accessibilityLabel={t("a11y_unread_notifications")} />
-            </TouchableOpacity>
+            <NotificationBellButton style={styles.notificationContainer} />
           </View>
         </View>
       </View>
@@ -306,17 +291,8 @@ const styles = StyleSheet.create({
     marginLeft: 'auto', // Pushes icons to the right
   },
   notificationContainer: {
-    position: 'relative',
+    position: "relative",
     marginRight: 18,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 8,
-    height: 8,
-    backgroundColor: '#EF4444',
-    borderRadius: 4,
   },
   cartContainer: {
     position: 'relative',
