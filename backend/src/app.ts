@@ -107,6 +107,7 @@ app.get("/", (_req, res) => {
       auth: "/api/auth (POST register | login | refresh | logout | google)",
       users: "/api/users/me (GET/PUT + auth header) … see user.routes.ts",
       forYouFeed: "GET /api/products/feed/for-you?limit=10&cursor=… (optional Bearer)",
+      followingFeed: "GET /api/products/feed/following?limit=10&cursor=… (optional Bearer)",
       discoverFeed: "GET /api/products/feed/discover?category=Fashion&limit=24 (optional Bearer)",
       follows: "GET/POST/DELETE /api/follows/… (Bearer for mutations + /me)",
       productView: "POST /api/products/:id/view (optional Bearer; guests send clientId)",

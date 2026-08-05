@@ -35,9 +35,12 @@ function classifySignInError(message: string): "rate_limit" | "invalid_credentia
 export default function SignInScreen() {
   const { t } = useLanguage();
   const router = useRouter();
-  const { redirectTo, id: redirectProductId } = useLocalSearchParams<{
+  const { redirectTo, id: redirectProductId, sellerId: redirectSellerId, clipId: redirectClipId } =
+    useLocalSearchParams<{
     redirectTo?: string;
     id?: string;
+    sellerId?: string;
+    clipId?: string;
   }>();
   const { signIn, signInWithOAuth } = useAuth();
   const { isLoaded: profileLoaded, updateProfile } = useUserProfile();
@@ -53,11 +56,22 @@ export default function SignInScreen() {
         router.replace({ pathname: "/productDetails", params: { id: redirectProductId } });
         return true;
       }
+      if (
+        redirectTo === "/profile-clips" &&
+        typeof redirectSellerId === "string" &&
+        typeof redirectClipId === "string"
+      ) {
+        router.replace({
+          pathname: "/profile-clips",
+          params: { sellerId: redirectSellerId, clipId: redirectClipId },
+        });
+        return true;
+      }
       router.replace(redirectTo as Href);
       return true;
     }
     return false;
-  }, [redirectTo, redirectProductId, router]);
+  }, [redirectTo, redirectProductId, redirectSellerId, redirectClipId, router]);
 
   const navigateAfterLogin = useCallback(async () => {
     // Returning users sign in — send them to the app, not onboarding.

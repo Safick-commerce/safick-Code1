@@ -10,13 +10,14 @@
 // =============================================================================
 
 import { Router } from "express";
-import { optionalAuth } from "../middleware/auth";
+import { optionalAuth, requireAuth } from "../middleware/auth";
 import { validate, validateQuery } from "../middleware/validate";
 import * as feedController from "../controllers/feed.controller";
 import {
   discoverFeedQuerySchema,
   forYouFeedQuerySchema,
   recordProductViewBodySchema,
+  followingFeedQuerySchema,
 } from "../types/feed";
 
 const router = Router();
@@ -26,6 +27,13 @@ router.get(
   optionalAuth,
   validateQuery(forYouFeedQuerySchema),
   feedController.getForYouFeed,
+);
+
+router.get(
+  "/feed/following",
+  requireAuth,
+  validateQuery(followingFeedQuerySchema),
+  feedController.getFollowingFeed,
 );
 
 router.get(

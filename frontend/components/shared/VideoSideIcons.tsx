@@ -1,12 +1,17 @@
 import { View, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons, FontAwesome, Fontisto, FontAwesome6 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome, Fontisto } from "@expo/vector-icons";
 
 interface VideoSideIconsProps {
   containerStyle?: object;
   showProfileIcon?: boolean;
+  onSharePress?: () => void;
 }
 
-export default function VideoSideIcons({ containerStyle, showProfileIcon = false }: VideoSideIconsProps) {
+export default function VideoSideIcons({
+  containerStyle,
+  showProfileIcon = false,
+  onSharePress,
+}: VideoSideIconsProps) {
   return (
     <View style={[styles.container, containerStyle]}>
       {showProfileIcon && (
@@ -22,7 +27,13 @@ export default function VideoSideIcons({ containerStyle, showProfileIcon = false
       <TouchableOpacity style={styles.iconButton}>
         <Ionicons name="bookmark-outline" size={28} color="#FFFFFF" />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.iconButton}>
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={onSharePress}
+        disabled={!onSharePress}
+        accessibilityRole="button"
+        accessibilityLabel="Share clip"
+      >
         <Fontisto name="share-a" size={28} color="#FFFFFF" />
       </TouchableOpacity>
     </View>

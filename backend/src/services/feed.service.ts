@@ -16,6 +16,7 @@ import { AppError } from "../middleware/errorHandler";
 import type { Prisma } from "../generated/prisma";
 import type {
   DiscoverFeedResponse,
+  FollowingFeedResponse,
   ForYouFeedItemResponse,
   ForYouFeedMode,
   ForYouFeedResponse,
@@ -50,6 +51,13 @@ type DiscoverCursor = {
   v: typeof CURSOR_VERSION;
   mode: "discover";
   category: string | null;
+  createdAt: string;
+  id: string;
+};
+
+type FollowingCursor = {
+  v: typeof CURSOR_VERSION;
+  mode: "following";
   createdAt: string;
   id: string;
 };
@@ -110,6 +118,16 @@ export async function getDiscoverFeed(options: {
   }
 
   return buildDiscoverFeed(options.limit, category, parsedCursor);
+}
+
+/** Following tab — newest ready clips from sellers the viewer follows (auth required). */
+export async function getFollowingFeed(options: {
+  viewerId: string;
+  limit: number;
+  cursor?: string;
+}): Promise<FollowingFeedResponse> {
+  const parsedCursor = parseFollowingCursor(options.cursor);
+  return buildFollowingFeed(options.viewerId, options.limit, parsedCursor);
 }
 
 export async function recordProductView(options: {
@@ -307,6 +325,51 @@ async function buildDiscoverFeed(
       v: CURSOR_VERSION,
       mode: "discover",
       category: category ?? null,
+      createdAt: toIsoCursorTime(last.created_at),
+      id: last.id,
+    });
+  }
+
+  return { items, nextCursor };
+}
+
+async function buildFollowingFeed(
+  viewerId: string,
+  limit: number,
+  cursor: FollowingCursor | undefined,
+): Promise<FollowingFeedResponse> {
+  const followRows = await prisma.follows.findMany({
+    where: { follower_id: viewerId },
+    select: { followee_id: true },
+  });
+
+  const sellerIds = followRows.map((row) => row.followee_id);
+  if (sellerIds.length === 0) {
+    return { items: [], nextCursor: null };
+  }
+
+  const where: Prisma.productsWhereInput = {
+    ...baseFeedWhere(),
+    seller_id: { in: sellerIds },
+    ...(cursor ? cursorWhere({ createdAt: cursor.createdAt, id: cursor.id }) : {}),
+  };
+
+  const rows = await prisma.products.findMany({
+    where,
+    orderBy: feedOrderBy(),
+    take: limit + 1,
+    include: feedProductInclude,
+  });
+
+  const { page, hasMore } = splitPage(rows, limit);
+  const items = page.map(mapProductToFeedItem);
+
+  let nextCursor: string | null = null;
+  if (hasMore && page.length > 0) {
+    const last = page[page.length - 1]!;
+    nextCursor = encodeFollowingCursor({
+      v: CURSOR_VERSION,
+      mode: "following",
       createdAt: toIsoCursorTime(last.created_at),
       id: last.id,
     });
@@ -545,6 +608,43 @@ function parseDiscoverCursor(raw?: string): DiscoverCursor | undefined {
     v: CURSOR_VERSION,
     mode: "discover",
     category,
+    createdAt: o.createdAt,
+    id: o.id,
+  };
+}
+
+function encodeFollowingCursor(cursor: FollowingCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function parseFollowingCursor(raw?: string): FollowingCursor | undefined {
+  if (!raw?.trim()) {
+    return undefined;
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(Buffer.from(raw.trim(), "base64url").toString("utf8"));
+  } catch {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  if (!json || typeof json !== "object") {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  const o = json as Record<string, unknown>;
+  if (o.v !== CURSOR_VERSION || o.mode !== "following") {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  if (typeof o.createdAt !== "string" || typeof o.id !== "string") {
+    throw new AppError("Invalid feed cursor", 400);
+  }
+
+  return {
+    v: CURSOR_VERSION,
+    mode: "following",
     createdAt: o.createdAt,
     id: o.id,
   };

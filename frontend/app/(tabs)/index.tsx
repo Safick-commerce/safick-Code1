@@ -227,7 +227,10 @@ export default function Index() {
         <ForYouTab isTabActive={activeTab === "home_tab_for_you" && isHomeFocused} />
 
         {/* Following Tab */}
-        <FollowingTab onDiscoverPress={handleDiscoverSellersPress} />
+        <FollowingTab
+          isTabActive={activeTab === "home_tab_following" && isHomeFocused}
+          onDiscoverPress={handleDiscoverSellersPress}
+        />
       </ScrollView>
     </SafeAreaView>
   );

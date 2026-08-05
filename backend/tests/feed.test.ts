@@ -9,6 +9,7 @@ import {
 } from "../src/constants/discoverCategories";
 import {
   discoverFeedQuerySchema,
+  followingFeedQuerySchema,
   forYouFeedQuerySchema,
   recordProductViewBodySchema,
 } from "../src/types/feed";
@@ -31,6 +32,17 @@ describe("forYouFeedQuerySchema", () => {
   it("accepts optional cursor", () => {
     const parsed = forYouFeedQuerySchema.parse({ cursor: "abc123" });
     assert.equal(parsed.cursor, "abc123");
+  });
+});
+
+describe("followingFeedQuerySchema", () => {
+  it("defaults limit to 10", () => {
+    const parsed = followingFeedQuerySchema.parse({});
+    assert.equal(parsed.limit, 10);
+  });
+
+  it("rejects limit above 20", () => {
+    assert.throws(() => followingFeedQuerySchema.parse({ limit: 21 }));
   });
 });
 

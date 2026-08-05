@@ -25,6 +25,9 @@ import ProductCard from "../shared/ProductCard";
 import VideoSideIcons from "../shared/VideoSideIcons";
 import type { ForYouFeedItem } from "../../utils/forYouFeed";
 import { useVideoCoverUri } from "../../hooks/useVideoCoverUri";
+import { shareProductClip } from "../../utils/shareClip";
+import { clipShareMessageParams } from "../../utils/shareLinks";
+import { useLanguage } from "../../context/LanguageContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 /** Stop endless spinner when storage URL is private (browser shows access denied). */
@@ -93,6 +96,14 @@ export default function ForYouVideoPage({
   const [playError, setPlayError] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
+
+  const handleSharePress = useCallback(() => {
+    void shareProductClip({
+      message: t("clip_share_message", clipShareMessageParams(item.title, item.seller.id, item.id)),
+      shareFailedMessage: t("share_sheet_failed"),
+    });
+  }, [item.id, item.seller.id, item.title, t]);
 
   const videoUri = item.videoUrl?.trim() ?? "";
   const hasValidUri =
@@ -345,6 +356,7 @@ export default function ForYouVideoPage({
       </View>
 
       <VideoSideIcons
+        onSharePress={handleSharePress}
         containerStyle={
           isProfile
             ? {

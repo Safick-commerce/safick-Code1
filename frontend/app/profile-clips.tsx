@@ -19,6 +19,8 @@ import { useAuth } from "../context/AuthContext";
 import { fetchSellerProfileClips, indexOfClip } from "../utils/profileClips";
 import { recordProductView, type ForYouFeedItem } from "../utils/forYouFeed";
 import { useFollowingIds } from "../hooks/useFollowingIds";
+import { validateProfileClipsDeepLink } from "../utils/shareDeepLink";
+import { useLanguage } from "../context/LanguageContext";
 
 const ROUTES = {
   PRODUCT_DETAILS: "/productDetails",
@@ -47,6 +49,7 @@ export default function ProfileClipsScreen() {
   const clipId = normalizeParam(params.clipId);
 
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const sellerRowTop = insets.top + HEADER_ROW_HEIGHT + 8;
 
@@ -70,18 +73,21 @@ export default function ProfileClipsScreen() {
   }, []);
 
   useEffect(() => {
-    if (!sellerId) {
-      setError("Missing seller.");
+    const linkCheck = validateProfileClipsDeepLink(sellerId, clipId);
+    if (!linkCheck.ok || !sellerId) {
+      setError(t("share_link_invalid"));
       setLoading(false);
       return;
     }
+
+    const resolvedSellerId = sellerId;
 
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const clips = await fetchSellerProfileClips(sellerId);
+        const clips = await fetchSellerProfileClips(resolvedSellerId);
         if (cancelled) return;
         const startIndex = indexOfClip(clips, clipId);
         initialIndexRef.current = startIndex;
@@ -103,7 +109,7 @@ export default function ProfileClipsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [sellerId, clipId]);
+  }, [sellerId, clipId, t]);
 
   useEffect(() => {
     if (loading || pageHeight <= 0 || items.length === 0) return;

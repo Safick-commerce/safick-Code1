@@ -15,6 +15,7 @@ import {
   discoverFeedQuerySchema,
   forYouFeedQuerySchema,
   recordProductViewBodySchema,
+  followingFeedQuerySchema,
 } from "../types/feed";
 import { isDiscoverCategoryLabel } from "../constants/discoverCategories";
 
@@ -33,6 +34,37 @@ export async function getForYouFeed(req: Request, res: Response, next: NextFunct
     }
 
     const feed = await feedService.getForYouFeed({
+      viewerId: req.userId,
+      limit: parsed.data.limit,
+      cursor: parsed.data.cursor,
+    });
+
+    res.json(feed);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/products/feed/following
+ *
+ * Query: cursor?, limit?
+ * Auth: required — only the signed-in user's followed sellers.
+ * Response: FollowingFeedResponse
+ */
+export async function getFollowingFeed(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const parsed = followingFeedQuerySchema.safeParse(req.validatedQuery ?? req.query);
+    if (!parsed.success){
+      throw new AppError(parsed.error.issues[0]?.message ?? "Invalid query", 400);
+    }
+
+    const feed = await feedService.getFollowingFeed({
       viewerId: req.userId,
       limit: parsed.data.limit,
       cursor: parsed.data.cursor,

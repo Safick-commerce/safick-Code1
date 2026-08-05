@@ -22,6 +22,9 @@
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/safick-prlogo.png"
       },
+      "queries": {
+        "package": ["com.whatsapp", "com.whatsapp.w4b"]
+      },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

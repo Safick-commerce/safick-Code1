@@ -9,7 +9,6 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
-  Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useRouter, useLocalSearchParams } from "expo-router";
@@ -21,8 +20,10 @@ import { startConversationChat } from "../utils/startConversationChat";
 import { getProductById, getRelatedProducts, type ProductDetail } from "../utils/productApi";
 import { formatPriceXaf } from "../utils/searchApi";
 import type { StoreProduct } from "../types/storeProduct";
-import { ProductDetailsSkeleton } from "../components/shared/ProductDetailsSkeleton";
+import { shareProductClip } from "../utils/shareClip";
+import { clipShareMessageParams } from "../utils/shareLinks";
 import { useLanguage } from "../context/LanguageContext";
+import { ProductDetailsSkeleton } from "../components/shared/ProductDetailsSkeleton";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PLACEHOLDER_IMAGE = require("../assets/images/clothes.jpg");
@@ -166,9 +167,13 @@ export default function ProductDetails() {
   );
 
   const handleShareProduct = useCallback(() => {
-    if (!product) return;
-    Share.share({
-      message: t("product_share_message", { title: product.title }),
+    if (!product?.seller_id) return;
+    void shareProductClip({
+      message: t(
+        "clip_share_message",
+        clipShareMessageParams(product.title, product.seller_id, product.id),
+      ),
+      shareFailedMessage: t("share_sheet_failed"),
     });
   }, [product, t]);
 

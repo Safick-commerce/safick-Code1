@@ -56,6 +56,23 @@ export interface ForYouFeedResponse {
 }
 
 // -----------------------------------------------------------------------------
+// GET /api/products/feed/following
+// -----------------------------------------------------------------------------
+
+export const followingFeedQuerySchema = z.object({
+
+  cursor: z.string().trim().min(1).max(512).optional(),
+  limit: z.coerce.number().int().min(1).max(20).optional().default(10),
+});
+
+export type FollowingFeedQuery = z.infer<typeof followingFeedQuerySchema>;
+
+export interface FollowingFeedResponse {
+  items: ForYouFeedItemResponse[];
+  nextCursor: string | null;
+}
+
+// -----------------------------------------------------------------------------
 // GET /api/products/feed/discover
 // -----------------------------------------------------------------------------
 
