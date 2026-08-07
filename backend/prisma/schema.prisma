@@ -520,24 +520,25 @@ model products {
 }
 
 model live_events {
-  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  seller_id         String            @db.Uuid
-  product_id        String?           @db.Uuid
-  title             String
-  category          String?
-  audience          String            @default("public")
-  status            live_event_status @default(scheduled)
-  livekit_room_name String            @unique
-  playback_url      String?
+  id                       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seller_id                String            @db.Uuid
+  product_id               String?           @db.Uuid
+  title                    String
+  category                 String?
+  audience                 String            @default("public")
+  status                   live_event_status @default(scheduled)
+  livekit_room_name        String            @unique
+  playback_url             String?
   viewer_count             Int               @default(0)
   started_at               DateTime?         @db.Timestamptz(6)
   ended_at                 DateTime?         @db.Timestamptz(6)
-  seller_last_heartbeat_at DateTime?         @db.Timestamptz(6)
   created_at               DateTime          @default(now()) @db.Timestamptz(6)
-  products          products?         @relation(fields: [product_id], references: [id], onUpdate: NoAction)
-  profiles          profiles          @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  seller_last_heartbeat_at DateTime?         @db.Timestamptz(6)
+  products                 products?         @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  profiles                 profiles          @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([status, started_at(sort: Desc)], map: "live_events_status_started_idx")
+  @@index([status, seller_last_heartbeat_at], map: "live_events_live_heartbeat_idx", where: raw("(status = 'live'::live_event_status)"))
   @@schema("public")
 }
 
@@ -583,8 +584,8 @@ model follows {
   follower_id String   @db.Uuid
   followee_id String   @db.Uuid
   created_at  DateTime @default(now()) @db.Timestamptz(6)
-  follower    profiles @relation("UserFollows", fields: [follower_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   followee    profiles @relation("UserFollowedBy", fields: [followee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  follower    profiles @relation("UserFollows", fields: [follower_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([follower_id, followee_id])
   @@index([followee_id], map: "follows_followee_idx")
@@ -594,55 +595,43 @@ model follows {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model profiles {
-  id                      String          @id @db.Uuid
-  full_name               String?
-  username                String?         @unique
-  avatar_url              String?
-  updated_at              DateTime?       @default(now()) @db.Timestamptz(6)
-  email                   String?
-  display_name            String?
-  gender                  String?
-  city                    String?
-  interests               String[]        @default([])
-  role                    String          @default("buyer")
-  onboarding_completed    Boolean         @default(false)
-  created_at              DateTime        @default(now()) @db.Timestamptz(6)
-  bio                     String?
-  phone                   String?
-  last_seen_at            DateTime?       @db.Timestamptz(6)
-  cover_image_url         String?
-  payout_momo_number      String?
-  payout_momo_operator    String?
-  payout_bank_account     Json?
-  addresses               addresses[]
-  checkouts_as_buyer      checkouts[]     @relation("checkout_buyer")
-  conversations_as_buyer  conversations[] @relation("conversation_buyer")
-  conversations_as_seller conversations[] @relation("conversation_seller")
-  follows_as_follower     follows[]       @relation("UserFollows")
-  follows_as_followee     follows[]       @relation("UserFollowedBy")
-  live_events             live_events[]
-  messages_sent           messages[]
-  orders_as_seller        orders[]        @relation("order_seller")
-  payouts_received        payouts[]       @relation("payout_seller")
-  product_views           product_views[]
-  products                products[]
-  follows_as_follower     follows[]       @relation("follow_follower")
-  follows_as_followee     follows[]       @relation("follow_followee")
-  notifications           notifications[]
-  users                   users           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                                               String          @id @db.Uuid
+  full_name                                        String?
+  username                                         String?         @unique
+  avatar_url                                       String?
+  updated_at                                       DateTime?       @default(now()) @db.Timestamptz(6)
+  email                                            String?
+  display_name                                     String?
+  gender                                           String?
+  city                                             String?
+  interests                                        String[]        @default([])
+  role                                             String          @default("buyer")
+  onboarding_completed                             Boolean         @default(false)
+  created_at                                       DateTime        @default(now()) @db.Timestamptz(6)
+  bio                                              String?
+  phone                                            String?
+  cover_image_url                                  String?
+  payout_momo_number                               String?
+  payout_momo_operator                             String?
+  payout_bank_account                              Json?
+  last_seen_at                                     DateTime?       @db.Timestamptz(6)
+  addresses                                        addresses[]
+  checkouts_as_buyer                               checkouts[]     @relation("checkout_buyer")
+  conversations_as_buyer                           conversations[] @relation("conversation_buyer")
+  conversations_as_seller                          conversations[] @relation("conversation_seller")
+  follows_as_followee                              follows[]       @relation("UserFollowedBy")
+  follows_as_follower                              follows[]       @relation("UserFollows")
+  live_events                                      live_events[]
+  messages_sent                                    messages[]
+  notifications                                    notifications[]
+  orders_as_seller                                 orders[]        @relation("order_seller")
+  payouts_received                                 payouts[]       @relation("payout_seller")
+  product_likes_product_likes_product_idToprofiles product_likes[] @relation("product_likes_product_idToprofiles")
+  product_likes_product_likes_user_idToprofiles    product_likes[] @relation("product_likes_user_idToprofiles")
+  product_views                                    product_views[]
+  products                                         products[]
+  users                                            users           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@schema("public")
-}
-
-/// Buyer follows a seller (profiles.id = auth user id).
-model follows {
-  follower_id String   @db.Uuid
-  followee_id String   @db.Uuid
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-  follower    profiles @relation("follow_follower", fields: [follower_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  followee    profiles @relation("follow_followee", fields: [followee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@id([follower_id, followee_id])
   @@schema("public")
 }
 
@@ -798,6 +787,34 @@ model product_views {
   @@index([client_id, product_id, created_at(sort: Desc)], map: "product_views_client_product_created_at_idx", where: raw("(client_id IS NOT NULL)"))
   @@index([product_id, created_at(sort: Desc)])
   @@index([viewer_id, product_id, created_at(sort: Desc)], map: "product_views_viewer_product_created_at_idx", where: raw("(viewer_id IS NOT NULL)"))
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model password_reset_otps {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String
+  hashed_code String
+  expires_at  DateTime @db.Timestamptz(6)
+  verified    Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([email, created_at(sort: Desc)], map: "password_reset_otps_email_created_idx")
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model product_likes {
+  user_id                                     String   @db.Uuid
+  product_id                                  String   @db.Uuid
+  created_at                                  DateTime @default(now()) @db.Timestamptz(6)
+  profiles_product_likes_product_idToprofiles profiles @relation("product_likes_product_idToprofiles", fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles_product_likes_user_idToprofiles    profiles @relation("product_likes_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, product_id])
+  @@index([product_id], map: "product_like_product_idx")
+  @@index([user_id, created_at(sort: Desc)], map: "product_likes_user_created_idx")
   @@schema("public")
 }
 
