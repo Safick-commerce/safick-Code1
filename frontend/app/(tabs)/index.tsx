@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import DiscoverTab from "../../components/tabs/DiscoverTab";
 import ForYouTab from "../../components/tabs/ForYouTab";
 import FollowingTab from "../../components/tabs/FollowingTab";
+import { useIsFocused } from "@react-navigation/native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TABS = ["Discover", "For you", "Following"] as const;
@@ -22,7 +23,7 @@ export default function Index() {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const isHomeFocused = useIsFocused();
   // Navigation handlers with error handling
   const handleSavedPress = useCallback(() => {
     try {
@@ -211,7 +212,9 @@ export default function Index() {
         snapToAlignment="center"
       >
         {/* Discover Tab */}
-        <DiscoverTab />
+        <DiscoverTab
+          isTabActive={activeTab === "Discover" && isHomeFocused}
+        />
 
         {/* For you Tab */}
         <ForYouTab />
