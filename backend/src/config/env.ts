@@ -28,7 +28,10 @@ const envSchema = z.object({
   // Redis
   REDIS_URL: z.string().url("REDIS_URL must be a valid Redis connection string"),
 
-  // JWT
+  // Supabase access-token verification (HS256 JWT secret from the project)
+  SUPABASE_JWT_SECRET: z.string().min(1, "SUPABASE_JWT_SECRET is required to verify Supabase access tokens"),
+
+  // JWT (Express-issued tokens; not used by requireAuth)
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
   JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
   JWT_ACCESS_EXPIRY: z.string().default("15m"),

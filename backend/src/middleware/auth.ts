@@ -1,22 +1,21 @@
 // =============================================================================
-// JWT Authentication Middleware
+// Supabase JWT Authentication Middleware
 // =============================================================================
 // Protects routes that require a logged-in user.
 //
-// How it works:
-//   1. Client sends request with header: Authorization: Bearer <accessToken>
-//   2. This middleware extracts the token, verifies it with the JWT secret
-//   3. If valid, attaches the user's ID to req.userId so controllers can use it
-//   4. If invalid/missing, responds with 401 Unauthorized
+// The Expo app authenticates with Supabase and sends the access token as:
+//   Authorization: Bearer <supabase_access_token>
 //
-// Usage on routes:
-//   import { requireAuth } from "@middleware/auth";
-//   router.get("/users/me", requireAuth, userController.getMe);
+// This middleware verifies that JWT locally (HS256 + SUPABASE_JWT_SECRET).
+// It does not call the Supabase API and does not use Prisma User/Session.
 //
-// TODO: Implement in the next step (auth endpoints)
+// On success, req.userId is the Supabase user id (`sub` claim).
+// On missing/invalid/expired token, responds 401 { error: "Unauthorized" }.
 // =============================================================================
 
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { env } from "../config/env";
 
 // Extend Express Request to include userId after authentication
 declare global {
@@ -27,18 +26,57 @@ declare global {
   }
 }
 
+function unauthorized(res: Response): void {
+  res.status(401).json({ error: "Unauthorized" });
+}
+
+function extractBearerToken(header: string | undefined): string | null {
+  if (!header) return null;
+  const [scheme, ...rest] = header.split(" ");
+  if (scheme !== "Bearer" || rest.length === 0) return null;
+  const token = rest.join(" ").trim();
+  return token.length > 0 ? token : null;
+}
+
 /**
- * Middleware that verifies the JWT access token from the Authorization header.
+ * Verifies a Supabase access token locally.
+ * Returns the `sub` (Supabase user UUID) or null if verification fails.
+ */
+function userIdFromSupabaseToken(token: string): string | null {
+  try {
+    const decoded = jwt.verify(token, env.SUPABASE_JWT_SECRET, {
+      algorithms: ["HS256"],
+    });
+
+    if (typeof decoded === "string") return null;
+    if (typeof decoded.sub !== "string" || decoded.sub.length === 0) return null;
+
+    return decoded.sub;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Middleware that verifies the Supabase JWT from the Authorization header.
  * If valid, sets req.userId and calls next().
  * If invalid or missing, responds with 401.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  // TODO: Implement JWT verification logic
-  // 1. Extract token from Authorization header
-  // 2. Verify token with jwt.verify(token, env.JWT_ACCESS_SECRET)
-  // 3. Set req.userId = decoded.userId
-  // 4. Call next() on success, or res.status(401) on failure
-  res.status(501).json({ error: "Auth middleware not implemented yet" });
+  const token = extractBearerToken(req.headers.authorization);
+  if (!token) {
+    unauthorized(res);
+    return;
+  }
+
+  const userId = userIdFromSupabaseToken(token);
+  if (!userId) {
+    unauthorized(res);
+    return;
+  }
+
+  req.userId = userId;
+  next();
 }
 
 /**
@@ -48,6 +86,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
  * (e.g., showing "liked" state on products).
  */
 export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
-  // TODO: Implement — same as requireAuth but calls next() instead of 401
+  const token = extractBearerToken(req.headers.authorization);
+  if (token) {
+    const userId = userIdFromSupabaseToken(token);
+    if (userId) {
+      req.userId = userId;
+    }
+  }
   next();
 }
