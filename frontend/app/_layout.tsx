@@ -13,6 +13,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { MessageProvider } from "../context/MessageContext";
 import { UserProfileProvider } from "../context/UserProfileContext";
 import { AuthProvider } from "../context/AuthContext";
+import { LanguageProvider } from "../context/LanguageContext";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 
 SplashScreen.preventAutoHideAsync();
@@ -39,33 +40,34 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <UserProfileProvider>
-          <MessageProvider>
-            <KeyboardProvider>
-              <WishlistProvider>
-                <AuthGate />
-                <StatusBar style="dark" />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: {
-                      backgroundColor: "#ffffff",
-                    },
-                  }}
-                >
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="auth" />
-                  <Stack.Screen name="cart" />
-                  <Stack.Screen name="messages" />
-                  <Stack.Screen name="notifications" />
-                  <Stack.Screen name="wishlist" />
-                </Stack>
-              </WishlistProvider>
-            </KeyboardProvider>
-          </MessageProvider>
-        </UserProfileProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <UserProfileProvider>
+            <MessageProvider>
+              <KeyboardProvider>
+                <WishlistProvider>
+                  <AuthGate />
+                  <StatusBar style="dark" />
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: {
+                        backgroundColor: "#ffffff",
+                      },
+                    }}
+                  >
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="auth" />
+                    <Stack.Screen name="messages" />
+                    <Stack.Screen name="notifications" />
+                    <Stack.Screen name="wishlist" />
+                  </Stack>
+                </WishlistProvider>
+              </KeyboardProvider>
+            </MessageProvider>
+          </UserProfileProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

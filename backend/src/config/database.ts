@@ -10,7 +10,16 @@
 //   const user = await prisma.user.findUnique({ where: { id } });
 // =============================================================================
 
+import dotenv from "dotenv";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+
+dotenv.config();
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set. Add it to backend/.env.");
+}
 
 // In development, store the client on the global object so it survives hot reloads.
 // In production, just create a new client — the server only starts once.
@@ -18,9 +27,12 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+const adapter = new PrismaPg({ connectionString });
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    adapter,
     // Log queries in development for debugging
     log:
       process.env.NODE_ENV === "development"
